@@ -673,7 +673,9 @@ button:active,.btn:active,.ci-card:active,.fase-opt:active,.ana-opt:active,.ana-
   outline:none;transition:all .2s;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
 }
-.fi textarea{min-height:110px;line-height:1.7;resize:vertical}
+/* v3.3.3: centraliza conteúdo de inputs e selects (mobile-first). Textarea fica natural. */
+.fi input,.fi select{text-align:center;text-align-last:center}
+.fi textarea{min-height:110px;line-height:1.7;resize:vertical;text-align:left}
 .fi input:focus,.fi select:focus,.fi textarea:focus{
   border-color:rgba(26,158,79,.58);background:#fff;
   box-shadow:var(--ring),0 6px 14px rgba(26,158,79,.06);
@@ -5655,7 +5657,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.3.2';
+var SANOVA_VERSION = '3.3.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
