@@ -2071,18 +2071,41 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 }
 .rel-pilar-v2-insight strong{color:rgba(187,247,208,.85);font-weight:600}
 
-/* v3.1.76 — Badge de seleção de data (registro retroativo) */
+/* v3.1.76 — Badge de seleção de data (registro retroativo)
+   v3.4.4: maior, mais legível, com variante pra fundo claro (tela de refeição) */
 .data-reg-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:99px;
+  border:1.5px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.06);
+  color:rgba(255,255,255,.92);
+  font-family:var(--ss);font-size:14px;font-weight:700;
+  cursor:pointer;line-height:1;
   transition:all .15s;
 }
 .data-reg-badge:hover{
-  background:rgba(255,255,255,.08) !important;
-  border-color:rgba(255,255,255,.25) !important;
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.35);
 }
 .data-reg-badge.retroativo{
-  background:rgba(252,211,77,.12) !important;
-  border-color:rgba(252,211,77,.35) !important;
+  background:rgba(252,211,77,.18) !important;
+  border-color:#fcd34d !important;
   color:#fcd34d !important;
+}
+/* v3.4.4: refeição vive em fundo cream/bege — precisa de cor escura pra contraste */
+#sec-prato .data-reg-badge{
+  border-color:rgba(21,128,61,.45);
+  background:rgba(74,222,128,.10);
+  color:#15803d;
+}
+#sec-prato .data-reg-badge:hover{
+  background:rgba(74,222,128,.18);
+  border-color:rgba(21,128,61,.65);
+}
+#sec-prato .data-reg-badge.retroativo{
+  background:rgba(217,119,6,.12) !important;
+  border-color:#d97706 !important;
+  color:#b45309 !important;
 }
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -3987,7 +4010,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
             <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px">⚖️ Registrar peso</div>
             <!-- v3.1.76: badge de data — clique muda pra dia retroativo (até 14d) -->
-            <button id="dataReg-peso" onclick="_abrirSeletorData('peso')" class="data-reg-badge" aria-label="Mudar data do registro" style="padding:5px 11px;border-radius:99px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11px;font-weight:600;cursor:pointer;line-height:1">📅 Hoje ▼</button>
+            <button id="dataReg-peso" onclick="_abrirSeletorData('peso')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <input type="number" id="pesoRapidoInput" placeholder="ex: 82.5" step="0.1" min="30" max="400"
@@ -4140,7 +4163,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <!-- v3.1.76: Badge de data — permite check-in retroativo (até 14 dias).
        Bruno cravou: "nem todo mundo consegue registrar no dia. Importante em todo app". -->
   <div style="margin-bottom:14px;text-align:center">
-    <button id="dataReg-checkin" onclick="_abrirSeletorData('checkin')" class="data-reg-badge" aria-label="Mudar data do registro" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer;line-height:1">📅 Hoje ▼</button>
+    <button id="dataReg-checkin" onclick="_abrirSeletorData('checkin')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
   </div>
 
   <!-- v3.1.5: Card de aplicação contextual (aparece quando faz sentido) -->
@@ -4783,8 +4806,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 
     <!-- v3.4.3: badge de data retroativa — restaura registro de dose em outro dia -->
     <div id="calcDataRegWrap" style="display:none;margin:6px 0 14px;text-align:center">
-      <button id="dataReg-dose" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação"
-        style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer;line-height:1">📅 Hoje ▼</button>
+      <button id="dataReg-dose" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação">📅 Hoje ▼</button>
     </div>
     <div style="margin-bottom:14px;padding:8px 12px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:10px;font-size:11px;color:rgba(253,230,138,.7);line-height:1.5">
       ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
@@ -4948,7 +4970,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 
   <!-- v3.1.76: Badge de data — permite registrar refeição retroativa (até 14 dias). -->
   <div style="margin:8px 0 14px;text-align:center">
-    <button id="dataReg-refeicao" onclick="_abrirSeletorData('refeicao')" class="data-reg-badge" aria-label="Mudar data do registro" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer;line-height:1">📅 Hoje ▼</button>
+    <button id="dataReg-refeicao" onclick="_abrirSeletorData('refeicao')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
   </div>
 
   <div class="card">
@@ -5644,7 +5666,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.4.3';
+var SANOVA_VERSION = '3.4.4';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11570,14 +11592,10 @@ function _abrirSeletorData(tela){
 }
 
 // Componente HTML pra inserir nas telas: <div data-reg-tela="peso">...</div>
+// v3.4.4: styles inline removidos — classe .data-reg-badge controla tudo
 function _htmlBadgeData(tela){
   return '<button id="dataReg-'+tela+'" onclick="_abrirSeletorData(\''+tela+'\')" '+
-    'class="data-reg-badge" '+
-    'aria-label="Mudar data do registro" '+
-    'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;'+
-    'border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);'+
-    'color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11.5px;font-weight:600;'+
-    'cursor:pointer;line-height:1">📅 Hoje ▼</button>';
+    'class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>';
 }
 
 function salvarPesoRapido(){
@@ -18181,15 +18199,15 @@ function go(id){
     // v3.1.76: renderiza badge de data pra refeição retroativa
     if(typeof _renderBadgeData === 'function') _renderBadgeData('refeicao');
 
-    // v3.2.1: scroll que compensa o header fixo (antes 'center' ficava encoberto)
+    // v3.4.4: scroll mira o INÍCIO de sec-prato (inclui título + subtítulo + badge),
+    // não mais o card interno — o título antes ficava acima do viewport.
     setTimeout(function(){
-      var cardAlvo = document.getElementById('pratoEstadoInicial');
-      var wrap = document.getElementById('mainWrap');
-      if(cardAlvo){
+      var secAlvo = document.getElementById('sec-prato');
+      if(secAlvo){
         var hdr = document.getElementById('mainHdr');
         var hdrH = hdr ? hdr.offsetHeight : 0;
-        var rect = cardAlvo.getBoundingClientRect();
-        var alvoY = window.pageYOffset + rect.top - hdrH - 16;
+        var rect = secAlvo.getBoundingClientRect();
+        var alvoY = window.pageYOffset + rect.top - hdrH - 12;
         window.scrollTo({ top: Math.max(0, alvoY), behavior: 'smooth' });
       }
     }, 220);
