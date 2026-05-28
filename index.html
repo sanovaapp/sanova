@@ -5634,7 +5634,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.4.1';
+var SANOVA_VERSION = '3.4.2';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -14484,30 +14484,25 @@ function filtrarFAQ(q){
   wrap.appendChild(list);
 }
 
-/* ══ MANUAL ══ */
+/* ══ MANUAL ══
+   v3.4.2: passos enxugados — foco em segurança clínica (temperatura, higiene,
+   rodízio, técnica, descarte). Baseado na bula brasileira do Mounjaro
+   (ANVISA 1.1260.0202). Texto verboso aposentado: paciente precisa de tutorial,
+   não enciclopédia. */
 var PASSOS_CANETA=[
-  {n:1,ic:'🧊',t:'Retire da geladeira',d:'Retire a caneta da geladeira 30 minutos antes. Aplicar fria aumenta o desconforto.'},
-  {n:2,ic:'🔍',t:'Verifique a validade',d:'Confira a data de validade e o aspecto do líquido. Deve ser transparente e incolor. Não use se turvo ou com partículas.'},
-  {n:3,ic:'🧴',t:'Higienize as mãos',d:'Lave as mãos com água e sabão por pelo menos 20 segundos antes de manusear a caneta.'},
-  {n:4,ic:'🩹',t:'Escolha o local',d:'Abdômen (preferencial), coxa ou parte superior do braço. Limpe com álcool 70% e aguarde secar completamente.'},
-  {n:5,ic:'🔩',t:'Encaixe a agulha',d:'Retire a tampa externa da caneta. Encaixe uma agulha nova girando no sentido horário até firmar. Retire as tampas da agulha.'},
-  {n:6,ic:'💉',t:'Prime (purga de ar)',d:'Aponte a caneta para cima. Pressione o botão até aparecer uma gota de líquido. Isso remove o ar e confirma que a caneta está funcionando.'},
-  {n:7,ic:'🫴',t:'Faça a prega (se necessário)',d:'Em pessoas mais magras, faça uma prega na pele com os dedos. Em abdômen com gordura suficiente, não é necessário.'},
-  {n:8,ic:'▶️',t:'Aplique',d:'Insira a agulha em ângulo de 90°. Pressione e segure o botão até o contador chegar a 0. Mantenha pressionado por 10 segundos após.'},
-  {n:9,ic:'🗑️',t:'Descarte com segurança',d:'Recoloque a tampa externa da agulha sem reencapar com a mão. Remova a agulha e descarte em recipiente rígido (pode de plástico grosso). Nunca no lixo comum.'}
+  {n:1,ic:'🧊',t:'Prepare',d:'Tire a caneta da geladeira 30 minutos antes. Aplicar gelada dói mais. O líquido deve estar transparente — se turvo ou com partículas, não use.'},
+  {n:2,ic:'🧴',t:'Higienize',d:'Lave as mãos com água e sabão. Limpe o local com álcool 70% e aguarde secar.'},
+  {n:3,ic:'🩹',t:'Escolha o local',d:'Abdômen é preferencial (afaste 5 cm do umbigo). Coxa é alternativa. Braço só com ajuda de outra pessoa. <strong>Alterne o local a cada aplicação.</strong>'},
+  {n:4,ic:'💉',t:'Aplique',d:'Encaixe uma agulha nova. Faça a purga (purga de ar) apontando pra cima até sair uma gota. Insira a 90°, pressione o botão até o contador zerar e segure por 10 segundos.'},
+  {n:5,ic:'🗑️',t:'Descarte',d:'Recoloque a tampa externa da agulha sem usar a mão. Descarte em recipiente rígido (coletor de perfurocortantes ou pote plástico grosso). <strong>Nunca no lixo comum.</strong>'}
 ];
 var PASSOS_AMPOLA=[
-  {n:1,ic:'🧊',t:'Retire da geladeira',d:'Retire o frasco 30 minutos antes para atingir temperatura ambiente. Isso facilita a aspiração.'},
-  {n:2,ic:'🧴',t:'Higienize as mãos',d:'Lave as mãos com água e sabão por pelo menos 20 segundos.'},
-  {n:3,ic:'🔍',t:'Confira a calculadora',d:'Veja na aba Caneta → Calculadora quantas unidades de insulina você precisa aspirar para sua dose em mg.'},
-  {n:4,ic:'🩺',t:'Limpe a tampa do frasco',d:'Limpe a tampa de borracha com álcool 70% e deixe secar por 15 a 30 segundos.'},
-  {n:5,ic:'💨',t:'Aspire ar na seringa',d:'Puxe o êmbolo aspirando a mesma quantidade de ar que vai aspirar de líquido (ex: 50 unidades de ar para 50 UI de líquido).'},
-  {n:6,ic:'⬇️',t:'Injete ar no frasco',d:'Insira a agulha no frasco e injete o ar. Isso cria pressão positiva facilitando a aspiração do líquido.'},
-  {n:7,ic:'🔄',t:'Inverta o frasco',d:'Com a agulha ainda inserida, inverta o frasco. Aspire lentamente até a dose marcada na seringa.'},
-  {n:8,ic:'🫧',t:'Elimine bolhas de ar',d:'Com a agulha apontada para cima, dê leves batidinhas na seringa. Pressione levemente o êmbolo para expulsar as bolhas. Reajuste a dose se necessário.'},
-  {n:9,ic:'🩹',t:'Escolha e limpe o local',d:'Abdômen (preferencial), coxa ou braço. Limpe com álcool 70% e aguarde secar completamente.'},
-  {n:10,ic:'💉',t:'Aplique',d:'Faça uma prega na pele. Insira a agulha em 90° (ou 45° em pessoas muito magras). Injete lentamente. Segure 10 segundos antes de retirar.'},
-  {n:11,ic:'🗑️',t:'Descarte com segurança',d:'Descarte a seringa usada em recipiente rígido (coletor de perfurocortantes ou cano PVC tampado). Nunca no lixo comum.'}
+  {n:1,ic:'🧊',t:'Prepare',d:'Tire o frasco da geladeira 30 minutos antes — aspiração fica mais fácil em temperatura ambiente. O líquido deve estar transparente.'},
+  {n:2,ic:'🧴',t:'Higienize',d:'Lave as mãos com água e sabão. Limpe a tampa do frasco e o local de aplicação com álcool 70% e aguarde secar.'},
+  {n:3,ic:'🔢',t:'Confira a dose',d:'Veja na <strong>Calculadora de dose</strong> quantas UI aspirar para a sua dose em mg.'},
+  {n:4,ic:'💉',t:'Aspire',d:'Puxe ar na seringa igual ao volume que vai aspirar. Insira no frasco, injete o ar, inverta o frasco e aspire até a marca. Bata na seringa com a agulha pra cima e pressione devagar pra tirar bolhas.'},
+  {n:5,ic:'▶️',t:'Aplique',d:'Abdômen é preferencial. Insira a 90° (ou 45° se for muito magro — faça uma prega na pele). Injete devagar. Segure 10 segundos antes de retirar. <strong>Alterne o local a cada dose.</strong>'},
+  {n:6,ic:'🗑️',t:'Descarte',d:'Descarte a seringa em recipiente rígido (coletor de perfurocortantes ou cano de PVC com tampa). <strong>Nunca no lixo comum.</strong>'}
 ];
 function buildPassos(passos, wrId){
   var wrap=el(wrId);if(!wrap) return;
