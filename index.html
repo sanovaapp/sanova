@@ -4662,23 +4662,41 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         </div>
         <div class="fi"><label>Dose prescrita pelo seu médico</label><select id="cDose" aria-label="Dose prescrita"><option value="">— Registre a dose prescrita por seu médico —</option></select></div>
 
-        <!-- v3.3.0: concentração do frasco — só aparece quando tipo='frasco'. Salva no cadastro pra não digitar toda vez. -->
+        <!-- v3.4.0: bloco de FRASCO MANIPULADO — concentração + volume total separados pra eliminar a ambiguidade do rótulo brasileiro/sul-americano que mistura dose fracionada com conteúdo total. -->
         <div class="fi" id="cConcWrap" style="display:none">
-          <label>Concentração do seu frasco</label>
-          <div style="font-size:11.5px;color:rgba(255,255,255,.6);margin-bottom:8px;line-height:1.5">Olhe o rótulo do frasco atual. Esses valores ficam salvos até você trocar de frasco.</div>
-          <div style="display:flex;align-items:center;gap:10px">
+          <label>🏷️ Concentração do seu frasco</label>
+          <div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-bottom:10px;line-height:1.55">
+            Copie do rótulo, exatamente como aparece (ex: <strong style="color:#bbf7d0">15 mg / 0,6 mL</strong>):
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
             <div style="flex:1">
-              <input id="cConcMg" type="text" inputmode="decimal" placeholder="mg" aria-label="Miligramas no frasco"
+              <input id="cConcMg" type="text" inputmode="decimal" placeholder="15" oninput="atualizarPreviewConcentracao()"
                 style="width:100%;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center">
-              <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-align:center;margin-top:3px">mg totais</div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:3px">mg do rótulo</div>
             </div>
-            <div style="font-size:22px;color:rgba(255,255,255,.3);font-weight:300">/</div>
+            <div style="font-size:18px;color:rgba(255,255,255,.4);font-weight:500;padding-bottom:24px">em</div>
             <div style="flex:1">
-              <input id="cConcMl" type="text" inputmode="decimal" placeholder="mL" aria-label="Mililitros no frasco"
+              <input id="cConcMl" type="text" inputmode="decimal" placeholder="0,6" oninput="atualizarPreviewConcentracao()"
                 style="width:100%;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center">
-              <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-align:center;margin-top:3px">mL totais</div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:3px">mL do rótulo</div>
             </div>
           </div>
+          <div id="cConcPreview" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(74,222,128,.10);border:1px solid rgba(134,239,172,.30);border-radius:8px;font-size:12.5px;color:#bbf7d0;font-weight:600;text-align:center"></div>
+        </div>
+
+        <!-- v3.4.0: volume total do frasco — separado da concentração pra resolver multidose -->
+        <div class="fi" id="cVolWrap" style="display:none">
+          <label>🍶 Volume total do frasco</label>
+          <div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-bottom:10px;line-height:1.55">
+            Procure no rótulo onde diz <strong style="color:#bbf7d0">"X mL Solução"</strong> ou conte: doses × mL do rótulo.<br>
+            <span style="color:rgba(255,255,255,.55)">Ex: frasco multidose costuma ter <strong>2,4 mL</strong> ou <strong>3 mL</strong>. Dose única tem só o volume do rótulo (0,5 ou 0,6 mL).</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input id="cVolFrasco" type="text" inputmode="decimal" placeholder="2,4" oninput="atualizarPreviewVolume()"
+              style="flex:1;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center">
+            <div style="font-size:13px;color:rgba(255,255,255,.55);font-weight:600">mL totais</div>
+          </div>
+          <div id="cVolPreview" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(74,222,128,.10);border:1px solid rgba(134,239,172,.30);border-radius:8px;font-size:12.5px;color:#bbf7d0;font-weight:600;text-align:center"></div>
         </div>
 
         <div class="fi"><label>Frequência</label><select id="cFreq"><option value="semanal">Semanal</option><option value="diaria">Diária</option></select></div>
@@ -4694,29 +4712,22 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         <div class="fi"><label>Horário preferido</label><input id="cHora" type="time" placeholder="08:00" aria-label="Horário preferido para aplicação" value="08:00"></div>
       </div>
 
-      <!-- v3.1.67: Bloco de Estoque — previsibilidade de compra -->
+      <!-- v3.4.0: Bloco de Estoque reformulado — pergunta o que o paciente CONTA (frascos/canetas inteiras), nunca mg. App calcula mg internamente. -->
       <div id="estoqueBloco" style="margin-top:14px;padding:12px 14px;background:rgba(99,102,241,.10);border:1px solid rgba(165,180,252,.35);border-radius:12px">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
           <div style="font-size:20px;flex-shrink:0">📦</div>
           <div style="flex:1">
             <div style="font-size:14px;font-weight:800;color:#fff;line-height:1.3">Estoque atual</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.45">Quanto você tem em casa? O app calcula até quando dura.</div>
+            <div id="cEstoqueSubtitulo" style="font-size:12px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.45">Conte as unidades inteiras em casa — o app calcula quanto dura.</div>
           </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1">
-            <label id="cEstoqueLabel" for="cEstoque" style="display:block;font-size:11.5px;color:rgba(255,255,255,.85);font-weight:700;margin-bottom:4px">Quantidade</label>
-            <input id="cEstoque" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0"
-              style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:14px;background:#fff;color:var(--ink);outline:none"
+            <input id="cEstoque" type="text" inputmode="decimal" placeholder="0" oninput="atualizarPrevisaoEstoque()"
+              style="width:100%;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center"
               aria-label="Quantidade em estoque">
           </div>
-          <div style="flex:1">
-            <label for="cEstoqueUnidade" style="display:block;font-size:11.5px;color:rgba(255,255,255,.85);font-weight:700;margin-bottom:4px">Unidade</label>
-            <select id="cEstoqueUnidade" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:14px;background:#fff;color:var(--ink)" aria-label="Unidade do estoque">
-              <option value="mg">mg (frasco manipulado)</option>
-              <option value="canetas">canetas (industrial)</option>
-            </select>
-          </div>
+          <div id="cEstoqueUnidadeLabel" style="font-size:13px;color:rgba(255,255,255,.6);font-weight:600;min-width:90px">unidades</div>
         </div>
         <div id="cEstoqueDica" style="margin-top:8px;font-size:11.5px;color:rgba(255,255,255,.62);line-height:1.45"></div>
         <div id="cEstoquePrevisao" style="display:none;margin-top:10px;padding:9px 11px;background:rgba(74,222,128,.14);border:1px solid rgba(134,239,172,.32);border-radius:8px;font-size:12.5px;color:#bbf7d0;font-weight:600;line-height:1.5"></div>
@@ -4798,65 +4809,38 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 
     <!-- Estado: FRASCO MANIPULADO — calculadora mg → UI -->
     <div id="calcFrasco" style="display:none">
-      <!-- Disclaimer técnico U-100 (só faz sentido pra frasco) -->
+      <!-- Disclaimer técnico U-100 -->
       <div style="margin-bottom:14px;padding:12px 14px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.25);border-radius:12px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.7">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(232,200,120,.9);margin-bottom:6px">⚠️ Entenda a conversão antes de calcular</div>
-        A seringa de insulina U-100 possui <strong style="color:#e8c878">100 unidades por mL</strong> — ou seja, <strong>1 mL = 100 unidades</strong> e <strong>0,1 mL = 10 unidades</strong>.<br><br>
-        Sua dose é prescrita em <strong>mg</strong> pelo médico. O app converte automaticamente para <strong>unidades na seringa</strong>, usando a concentração do seu frasco.<br><br>
-        <span style="color:#f3a88a;font-weight:700">⛔ Nunca aspire em mL</span> — aspire sempre pela escala de unidades. Confirme com seu médico antes da primeira aplicação.
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(232,200,120,.9);margin-bottom:6px">⚠️ Entenda a conversão</div>
+        Seringa de insulina U-100: <strong style="color:#e8c878">100 UI = 1 mL</strong> · <strong>10 UI = 0,1 mL</strong>.<br>
+        <span style="color:#f3a88a;font-weight:700">⛔ Nunca aspire em mL</span> — sempre pela escala de unidades.
       </div>
 
-      <!-- Banner último cálculo salvo (S.ultimaCalc) -->
-      <div id="calcSalvoInfo" style="display:none;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.35);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;justify-content:space-between;gap:10px">
-        <div>
-          <div style="font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Último cálculo</div>
-          <div id="calcSalvoTxt" style="font-size:13px;color:#fff;font-weight:600;line-height:1.4">—</div>
-        </div>
-      </div>
-
-      <!-- Concentração (pré-preenchida do cadastro, editável se trocar de frasco) -->
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Concentração do seu frasco</div>
-        <div style="margin-bottom:10px;padding:10px 12px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.22);border-radius:10px;font-size:11.5px;color:rgba(255,255,255,.82);line-height:1.55">
-          💡 Valores vêm do seu cadastro. Edite só se trocou de frasco com concentração diferente — o novo valor será salvo.
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-            <input id="calcMg" type="text" inputmode="decimal" placeholder="mg" oninput="calcDil()"
-              style="width:100%;padding:13px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:20px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
-              onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-            <div style="font-size:11px;color:rgba(255,255,255,.4)">mg no frasco</div>
+      <!-- Resumo read-only do frasco e da dose (vêm do cadastro) -->
+      <div id="calcFrascoInfo" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.55);margin-bottom:10px">Configuração atual</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+          <div>
+            <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:3px">Frasco</div>
+            <div id="calcFrascoConc" style="font-size:14px;color:#fff;font-weight:700;line-height:1.3">—</div>
+            <div id="calcFrascoVol" style="font-size:11.5px;color:rgba(255,255,255,.55);margin-top:2px">—</div>
           </div>
-          <div style="font-size:32px;color:rgba(255,255,255,.25);font-weight:300;flex-shrink:0;padding-bottom:18px">/</div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-            <input id="calcMl" type="text" inputmode="decimal" placeholder="mL" oninput="calcDil()"
-              style="width:100%;padding:13px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:20px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
-              onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-            <div style="font-size:11px;color:rgba(255,255,255,.4)">mL no frasco</div>
+          <div>
+            <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:3px">Dose prescrita</div>
+            <div id="calcFrascoDose" style="font-size:14px;color:#fff;font-weight:700;line-height:1.3">—</div>
           </div>
         </div>
-        <div id="calcConcResult" style="display:none;margin-top:8px;text-align:center;font-size:12px;color:rgba(255,255,255,.45)"></div>
-        <div id="calcLoteAlerta" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.10);border:1px solid rgba(232,200,120,.32);border-radius:9px;font-size:11.5px;color:rgba(254,243,199,.92);line-height:1.5">
-          <strong>⚠️ Concentração diferente da última usada.</strong> Confira o rótulo do frasco atual antes de calcular — e atualize seu cadastro se trocou de frasco.
-        </div>
-      </div>
-
-      <!-- Dose prescrita (pré-preenchida do cadastro) -->
-      <div style="margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Dose prescrita pelo médico</div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-          <input id="calcDose" type="text" inputmode="decimal" placeholder="mg" oninput="calcDil()"
-            style="width:100%;padding:13px 8px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:20px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
-            onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-          <div style="font-size:11px;color:rgba(255,255,255,.4)">mg a aplicar por dose</div>
-        </div>
+        <button type="button" onclick="reajustarTratamento();var sec=el('sec-caneta');if(sec) sec.scrollIntoView({behavior:'smooth',block:'start'})"
+          style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.65);font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer">
+          ✏️ Editar frasco ou dose
+        </button>
       </div>
 
       <!-- Resultado do cálculo (UI na seringa) -->
-      <div id="calcRes" style="margin-top:12px"><div class="calc-empty">Preencha os campos acima para ver quantas unidades aspirar.</div></div>
+      <div id="calcRes" style="margin-bottom:12px"><div class="calc-empty">Configure seu frasco no formulário acima.</div></div>
 
-      <!-- Confirmação clínica + botões de registrar -->
-      <div id="frascoConfirmWrap" style="display:none;margin-top:14px">
+      <!-- Confirmação clínica + registrar -->
+      <div id="frascoConfirmWrap" style="display:none">
         <div id="frascoAvisoAlta" style="display:none;margin-bottom:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(232,168,138,.28);border-radius:10px;font-size:12px;color:#fca5a5;line-height:1.5">
           ⚠️ Esta dose resulta em mais de 100 unidades — acima da capacidade de uma seringa padrão. Confirme a prescrição com seu médico.
         </div>
@@ -4870,29 +4854,21 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(232,200,120,.8);margin-bottom:10px">⚠️ CONFIRME ANTES DE APLICAR</div>
           <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
             <input type="checkbox" id="chk1" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">O fármaco que cadastrei corresponde ao meu frasco</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">O fármaco e a concentração do meu cadastro correspondem ao frasco em mãos</span>
           </label>
           <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
             <input type="checkbox" id="chk2" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">Os valores de mg e mL acima batem com o rótulo</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">A dose prescrita pelo meu médico está correta</span>
           </label>
           <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
             <input type="checkbox" id="chk3" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">A dose acima foi prescrita pelo meu médico</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">Vou aspirar pela escala de unidades da seringa U-100</span>
           </label>
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s">
-            ✅ Apliquei agora — registrar dose
-          </button>
-          <button onclick="registrarSemAplicar()" style="width:100%;padding:13px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.08);color:rgba(187,247,208,.86);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
-            💉 Registrar medicação — aplico depois
-          </button>
-          <button onclick="fecharFluxoFrasco()" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
-            📋 Só estava calculando
-          </button>
-        </div>
+        <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s">
+          ✅ Apliquei agora — registrar dose
+        </button>
       </div>
     </div>
   </div>
@@ -5658,9 +5634,9 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.3.4';
+var SANOVA_VERSION = '3.4.0';
 
-var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
+var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
 /* ══ FUNDAÇÃO DE DADOS v3.1 (preparação para backend) ══
    Cada registro criado a partir daqui tem id (uuid) e createdAt (ISO UTC).
@@ -8614,7 +8590,7 @@ function carregar(){
       if(true){
         // Merge preservando campos novos que podem não estar no JSON antigo
         S=d;
-        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null};
+        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null};
         if(S.caneta.faseSac===undefined) S.caneta.faseSac='';
         if(!S.weights) S.weights=[];
         if(!S.daily) S.daily=[];
@@ -8632,7 +8608,7 @@ function carregar(){
       var d4=JSON.parse(r4);
       if(d4&&d4.profile){
         S=d4;
-        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null};
+        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null};
         S.caneta.faseSac=S.caneta.faseSac||'';
         if(!S.weights) S.weights=[];
         if(!S.daily) S.daily=[];
@@ -9546,7 +9522,6 @@ function buildNarr(M,rl,perd,dh,pd){
 function setTipoCaneta(t){
   window._tipoCanetaForm = t;
   var btnC = el('cTipoCaneta'), btnF = el('cTipoFrasco');
-  // v3.3.2: setar propriedades individualmente em vez de regex no cssText (mais robusto)
   function aplicar(btn, ativo){
     if(!btn) return;
     btn.style.borderColor = ativo ? 'var(--g500)' : 'rgba(255,255,255,.15)';
@@ -9555,8 +9530,46 @@ function setTipoCaneta(t){
   }
   aplicar(btnC, t==='caneta');
   aplicar(btnF, t==='frasco');
-  var conc = el('cConcWrap');
-  if(conc) conc.style.display = (t==='frasco') ? 'block' : 'none';
+  // v3.4.0: mostra/oculta blocos específicos de frasco
+  var conc = el('cConcWrap'); if(conc) conc.style.display = (t==='frasco') ? 'block' : 'none';
+  var vol  = el('cVolWrap');  if(vol)  vol.style.display  = (t==='frasco') ? 'block' : 'none';
+  // Atualiza label/dica do estoque conforme tipo
+  if(typeof atualizarPrevisaoEstoque === 'function') atualizarPrevisaoEstoque();
+}
+
+// v3.4.0: preview da concentração calculada em tempo real (X mg ÷ Y mL = Z mg/mL)
+function atualizarPreviewConcentracao(){
+  var mg = parseFloat((el('cConcMg')&&el('cConcMg').value||'').replace(',','.'));
+  var ml = parseFloat((el('cConcMl')&&el('cConcMl').value||'').replace(',','.'));
+  var p = el('cConcPreview'); if(!p) return;
+  if(mg>0 && ml>0){
+    var conc = mg/ml;
+    p.style.display = 'block';
+    p.innerHTML = '= <strong>' + (Math.round(conc*100)/100).toString().replace('.',',') + ' mg/mL</strong> de concentração';
+  } else { p.style.display = 'none'; }
+  // Repercute na previsão de estoque (depende da concentração + volume)
+  if(typeof atualizarPrevisaoEstoque === 'function') atualizarPrevisaoEstoque();
+}
+
+// v3.4.0: preview do volume total — mostra mg totais por frasco e doses por frasco
+function atualizarPreviewVolume(){
+  var mg = parseFloat((el('cConcMg')&&el('cConcMg').value||'').replace(',','.'));
+  var ml = parseFloat((el('cConcMl')&&el('cConcMl').value||'').replace(',','.'));
+  var vol = parseFloat((el('cVolFrasco')&&el('cVolFrasco').value||'').replace(',','.'));
+  var dose = parseFloat((el('cDose')&&el('cDose').value||'').replace(',','.'));
+  var p = el('cVolPreview'); if(!p) return;
+  if(mg>0 && ml>0 && vol>0){
+    var conc = mg/ml;
+    var mgPorFrasco = conc * vol;
+    var txt = '= <strong>' + (Math.round(mgPorFrasco*100)/100).toString().replace('.',',') + ' mg</strong> por frasco';
+    if(dose>0){
+      var dosesPorFrasco = Math.floor(mgPorFrasco / dose);
+      txt += ' · cobre <strong>' + dosesPorFrasco + ' dose' + (dosesPorFrasco!==1?'s':'') + '</strong>';
+    }
+    p.style.display = 'block';
+    p.innerHTML = txt;
+  } else { p.style.display = 'none'; }
+  if(typeof atualizarPrevisaoEstoque === 'function') atualizarPrevisaoEstoque();
 }
 
 function renderCalc(){
@@ -9593,63 +9606,39 @@ function renderCalc(){
   elSem.style.display = 'none';
   elCan.style.display = 'none';
   elFra.style.display = 'block';
-  // Pré-popula concentração do cadastro (editável)
-  var mgEl = el('calcMg'), mlEl = el('calcMl'), doseEl = el('calcDose');
-  if(mgEl && S.caneta.concentracaoMg != null) mgEl.value = String(S.caneta.concentracaoMg).replace('.',',');
-  if(mlEl && S.caneta.concentracaoMl != null) mlEl.value = String(S.caneta.concentracaoMl).replace('.',',');
-  if(doseEl && S.caneta.dose) doseEl.value = String(S.caneta.dose).replace('.',',');
+  // v3.4.0: calcDil lê tudo de S.caneta e renderiza display read-only + UI
   if(typeof calcDil === 'function') calcDil();
-}
-
-/* ══ v3.1.11: Detectar mudança de concentração entre o frasco cadastrado e o atual ══ */
-function detectarMudancaLote(){
-  try{
-    var concMg = S.caneta && S.caneta.concentracaoMg, concMl = S.caneta && S.caneta.concentracaoMl;
-    if(!concMg || !concMl) return;
-    var mgAtual = parseFloat((el('calcMg').value||'').replace(',','.'));
-    var mlAtual = parseFloat((el('calcMl').value||'').replace(',','.'));
-    if(!mgAtual || !mlAtual) return;
-    var concAtual = mgAtual / mlAtual;
-    var concSalva = concMg / concMl;
-    var diff = Math.abs(concAtual - concSalva) / concSalva;
-    var alerta = el('calcLoteAlerta');
-    if(alerta) alerta.style.display = (diff > 0.05) ? 'block' : 'none';
-  }catch(e){}
 }
 
 
 function calcDil(){
-  // v3.3.0: calculadora só roda em modo frasco; tipo+fármaco vêm do cadastro
+  // v3.4.0: lê tudo de S.caneta (cadastro). Sem inputs editáveis na calculadora.
   if(!S.caneta || S.caneta.tipo !== 'frasco' || !S.caneta.farmaco) return;
   var f = S.caneta.farmaco;
-  // v3.3.1: normaliza vírgula → ponto antes de parseFloat (BR usa vírgula como decimal)
-  var _norm = function(v){ return (v||'').toString().replace(',','.'); };
-  var mgFrasco=nv(_norm(el('calcMg').value)),mlFrasco=nv(_norm(el('calcMl').value)),dose=nv(_norm(el('calcDose').value));
-  // Mostrar concentração calculada em tempo real
-  var concEl=el('calcConcResult');
-  if(mgFrasco>0&&mlFrasco>0){
-    var conc=mgFrasco/mlFrasco;
-    concEl.style.display='block';
-    concEl.innerHTML='= <strong style="color:#4ade80">'+rd(conc,2)+' mg/mL</strong>';
-    // Detecta divergência entre frasco cadastrado e atual (paciente trocou de frasco)
-    if(typeof detectarMudancaLote === 'function') detectarMudancaLote();
-  } else {
-    concEl.style.display='none';
-    var alerta_ = el('calcLoteAlerta'); if(alerta_) alerta_.style.display='none';
-  }
-  if(!mgFrasco||!mlFrasco||!dose){
-    if(mgFrasco>0&&mlFrasco>0&&!dose) el('calcRes').innerHTML='<div class="calc-empty">Informe a dose prescrita abaixo.</div>';
-    else if(!mgFrasco||!mlFrasco) el('calcRes').innerHTML='<div class="calc-empty">Preencha as informações do frasco acima.</div>';
+  var mgFrasco = parseFloat(S.caneta.concRotuloMg) || 0;
+  var mlFrasco = parseFloat(S.caneta.concRotuloMl) || 0;
+  var vol      = parseFloat(S.caneta.volumeFrasco) || 0;
+  var dose     = parseFloat(String(S.caneta.dose||'').replace(',','.')) || 0;
+  // Atualiza display read-only do frasco e dose
+  var conc = (mgFrasco>0 && mlFrasco>0) ? (mgFrasco/mlFrasco) : 0;
+  var elConc = el('calcFrascoConc'), elVol = el('calcFrascoVol'), elDose = el('calcFrascoDose');
+  if(elConc) elConc.innerHTML = mgFrasco>0 && mlFrasco>0
+    ? mgFrasco.toString().replace('.',',') + ' mg / ' + mlFrasco.toString().replace('.',',') + ' mL<br><span style="font-size:12px;color:#bbf7d0;font-weight:600">= ' + (Math.round(conc*100)/100).toString().replace('.',',') + ' mg/mL</span>'
+    : '<span style="color:rgba(255,255,255,.4)">—</span>';
+  if(elVol) elVol.textContent  = vol>0 ? (vol.toString().replace('.',',') + ' mL totais') : '';
+  if(elDose) elDose.innerHTML  = dose>0 ? (dose.toString().replace('.',',') + ' mg') : '<span style="color:rgba(255,255,255,.4)">—</span>';
+  if(!mgFrasco || !mlFrasco || !dose){
+    var msg = !dose ? 'Defina sua dose prescrita no cadastro acima.' : 'Defina concentração do frasco no cadastro acima.';
+    el('calcRes').innerHTML='<div class="calc-empty">'+msg+'</div>';
     var fc1=el('frascoConfirmWrap');if(fc1) fc1.style.display='none';
     return;
   }
-  var conc=mgFrasco/mlFrasco;
   if(conc<=0){
-    el('calcRes').innerHTML='<div class="calc-empty" style="color:#f3a88a">Valores inválidos.</div>';
+    el('calcRes').innerHTML='<div class="calc-empty" style="color:#f3a88a">Valores inválidos no cadastro.</div>';
     var fc2=el('frascoConfirmWrap');if(fc2) fc2.style.display='none';
     return;
   }
-  var vol=dose/conc,uni=Math.round(vol*100),uniR=Math.round(uni/5)*5;
+  var volAspirar = dose/conc, uni = Math.round(volAspirar*100), uniR = Math.round(uni/5)*5;
   var avisoSer=uni>100?'<div style="margin-top:10px;padding:10px;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:8px;font-size:12px;color:#fca5a5">🚨 <strong>Atenção:</strong> '+uni+' UI excede 100 UI (capacidade da seringa). Confirme os dados com seu médico.</div>':'';
   var html='<div class="calc-result">'
     +'<div class="calc-big">'+uni+'</div>'
@@ -9657,7 +9646,7 @@ function calcDil(){
     +'<div class="calc-row">'
     +'<div class="calc-det-item"><div class="calc-item-val">'+dose+' mg</div><div class="calc-item-lbl">Dose prescrita</div></div>'
     +'<div class="calc-det-item"><div class="calc-item-val">'+rd(conc,2)+' mg/mL</div><div class="calc-item-lbl">Concentração</div></div>'
-    +'<div class="calc-det-item"><div class="calc-item-val">'+rd(vol,3)+' mL</div><div class="calc-item-lbl">Volume</div></div>'
+    +'<div class="calc-det-item"><div class="calc-item-val">'+rd(volAspirar,3)+' mL</div><div class="calc-item-lbl">Volume</div></div>'
     +'</div>';
   if(Math.abs(uni-uniR)>0) html+='<div style="margin-top:10px;font-size:12px;color:#a5b4fc;text-align:center">Arredondamento sugerido: <strong>'+uniR+' UI</strong></div>';
   html+=avisoSer+'</div>'
@@ -9666,8 +9655,6 @@ function calcDil(){
   // Salvar último cálculo
   S.ultimaCalc={farm:f,mg:mgFrasco,ml:mlFrasco,dose:dose,uni:uni,conc:rd(conc,2),data:hoje()};
   salvar();
-  // Mostrar botão de salvo (visível quando calc completo)
-  atualizarCalcSalvoInfo();
 
   // v3.1.64: Mostra bloco de confirmação clínica + botões registrar.
   // Reseta checkboxes a cada recálculo — segurança: paciente não pode mudar
@@ -14669,183 +14656,185 @@ function salvarPerfil(){
    dose interrompe tratamento.
    ════════════════════════════════════════════════════════════════════════ */
 
-// Calcula doses, semanas e DATA PREVISTA de fim do estoque baseado no estoque atual
+// v3.4.0: estoque é sempre em mg internamente. Doses = estoque ÷ dose. Sem casos especiais.
 function calcEstoquePrevisao(){
   if(!S.caneta || !S.caneta.estoqueAtual || S.caneta.estoqueAtual <= 0) return null;
-  var unidade = S.caneta.estoqueUnidade || 'mg';
   var dose = parseFloat(S.caneta.dose) || 0;
   if(!dose) return null;
   var freq = S.caneta.freq || 'semanal';
-  var doses;
-  if(unidade === 'canetas'){
-    // Caneta industrial: 1 caneta = 1 ou mais doses dependendo da apresentação.
-    // Padrão seguro: 1 caneta = 4 doses (média Mounjaro/Ozempic semanais).
-    // Liraglutida (Saxenda) é diária, 1 caneta = ~30 dias = ~30 doses.
-    var dosesPorCaneta = (S.caneta.farmaco === 'Liraglutida') ? 30 : 4;
-    doses = Math.floor(S.caneta.estoqueAtual * dosesPorCaneta);
-  } else {
-    // mg total ÷ mg por dose
-    doses = Math.floor(S.caneta.estoqueAtual / dose);
-  }
+  var doses = Math.floor(S.caneta.estoqueAtual / dose);
   if(doses < 0) doses = 0;
-  // Converter doses em semanas
-  var semanas;
-  var intervaloDias;
-  if(freq === 'diaria'){
-    semanas = doses / 7;
-    intervaloDias = 1;
-  } else {
-    semanas = doses;  // semanal: 1 dose = 1 semana
-    intervaloDias = 7;
-  }
-  // v3.1.69: Data prevista de fim do estoque
+  var intervaloDias = (freq === 'diaria') ? 1 : 7;
+  var semanas = (freq === 'diaria') ? (doses / 7) : doses;
   var dataFim = null;
   if(doses > 0){
     var d = new Date();
     d.setDate(d.getDate() + (doses * intervaloDias));
-    var dd = String(d.getDate()).padStart(2,'0');
-    var mm = String(d.getMonth()+1).padStart(2,'0');
-    var yyyy = d.getFullYear();
-    dataFim = dd + '/' + mm + '/' + yyyy;
+    dataFim = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
   }
-  return {
-    doses: doses,
-    semanas: Math.round(semanas * 10) / 10,
-    unidade: unidade,
-    dataFim: dataFim
-  };
+  return { doses: doses, semanas: Math.round(semanas * 10) / 10, dataFim: dataFim };
 }
 
-// Decrementa estoque após cada aplicação registrada
+// v3.4.0: decremento sempre em mg. Cada aplicação retira S.caneta.dose mg.
 function aplicarDecrementoEstoque(){
-  if(!S.caneta || S.caneta.estoqueAtual === null || S.caneta.estoqueAtual === undefined) return;
-  var unidade = S.caneta.estoqueUnidade || 'mg';
+  if(!S.caneta || S.caneta.estoqueAtual == null) return;
   var dose = parseFloat(S.caneta.dose) || 0;
   if(!dose) return;
-  if(unidade === 'canetas'){
-    // Cada aplicação = 1 dose = 1/dosesPorCaneta de uma caneta
-    var dosesPorCaneta = (S.caneta.farmaco === 'Liraglutida') ? 30 : 4;
-    S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual - (1/dosesPorCaneta));
-    // Arredondar pra 2 casas pra evitar float feio
-    S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
-  } else {
-    S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual - dose);
-  }
+  S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual - dose);
+  S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
 }
 
-// Atualiza visual da previsão dentro do form de cadastro
+// v3.4.0: helper — quantos mg vêm em 1 unidade (frasco cheio ou caneta cheia)
+function _mgPorUnidade(){
+  if(!S.caneta) return 0;
+  if(S.caneta.tipo === 'frasco'){
+    var mg = parseFloat(S.caneta.concRotuloMg)||0, ml = parseFloat(S.caneta.concRotuloMl)||0, vol = parseFloat(S.caneta.volumeFrasco)||0;
+    if(!mg || !ml || !vol) return 0;
+    return (mg/ml) * vol;
+  }
+  if(S.caneta.tipo === 'caneta'){
+    // Caneta industrial: 1 caneta = 4 doses (semanal) ou ~30 (Liraglutida diária)
+    var dosesPorCaneta = (S.caneta.farmaco === 'Liraglutida') ? 30 : 4;
+    return (parseFloat(S.caneta.dose)||0) * dosesPorCaneta;
+  }
+  return 0;
+}
+
+// v3.4.0: estoque agora é em "frascos cheios" ou "canetas cheias" — app converte pra mg internamente.
 function atualizarPrevisaoEstoque(){
   var box = el('cEstoquePrevisao');
-  if(!box) return;
   var inp = el('cEstoque');
-  var sel = el('cEstoqueUnidade');
-  if(!inp || !sel) return;
-  // v3.1.79: label + dica dinâmicos conforme unidade (elimina ambiguidade "1 frasco" vs "1 mg")
-  var lbl = el('cEstoqueLabel');
+  var lblUnid = el('cEstoqueUnidadeLabel');
+  var subt = el('cEstoqueSubtitulo');
   var dica = el('cEstoqueDica');
-  if(sel.value === 'canetas'){
-    if(lbl) lbl.textContent = 'Quantas canetas?';
-    inp.placeholder = 'ex: 1';
-    if(dica) dica.innerHTML = '💡 Conte as <strong>canetas inteiras</strong> que tem em casa. Cada caneta cobre ~4 aplicações semanais (ou ~30 diárias).';
+  if(!box || !inp) return;
+  var tipo = window._tipoCanetaForm || (S.caneta && S.caneta.tipo) || '';
+  // Label + subtitle + placeholder dinâmicos por tipo
+  if(tipo === 'frasco'){
+    if(lblUnid) lblUnid.textContent = 'frascos cheios';
+    if(subt) subt.textContent = 'Conte os frascos cheios (sem usar) em casa — o app calcula quanto dura.';
+    if(dica) dica.innerHTML = '💡 Frasco aberto não conta. Quando comprar mais, use o botão <strong>Repor estoque</strong>.';
+    inp.placeholder = 'ex: 3';
+  } else if(tipo === 'caneta'){
+    if(lblUnid) lblUnid.textContent = 'canetas cheias';
+    if(subt) subt.textContent = 'Conte as canetas inteiras (sem usar) em casa — o app calcula quanto dura.';
+    if(dica) dica.innerHTML = '💡 Cada caneta cobre ~' + (S.caneta && S.caneta.farmaco === 'Liraglutida' ? '30 aplicações diárias' : '4 aplicações semanais') + '.';
+    inp.placeholder = 'ex: 2';
   } else {
-    if(lbl) lbl.textContent = 'Quantos mg no total?';
-    inp.placeholder = 'ex: 8';
-    if(dica) dica.innerHTML = '💡 Olhe o rótulo e some os <strong>mg</strong>. 1 frasco de 8mg → digite <strong>8</strong>. Dois frascos de 8mg → digite <strong>16</strong>.';
+    if(lblUnid) lblUnid.textContent = 'unidades';
+    if(subt) subt.textContent = 'Escolha primeiro como você aplica (caneta ou frasco).';
+    if(dica) dica.innerHTML = '';
+    inp.placeholder = '0';
   }
-  var val = parseFloat(inp.value);
-  var unid = sel.value;
+  // Conversão pra mg + previsão
+  var val = parseFloat((inp.value||'').replace(',','.'));
   if(!val || val <= 0){ box.style.display='none'; return; }
-  // Simula com valores temporários
-  var dose = parseFloat(el('cDose')&&el('cDose').value) || parseFloat(S.caneta.dose) || 0;
-  var farm = (el('cFarm')&&el('cFarm').value) || S.caneta.farmaco || '';
-  var freq = (el('cFreq')&&el('cFreq').value) || S.caneta.freq || 'semanal';
+  var dose = parseFloat((el('cDose')&&el('cDose').value||'').replace(',','.')) || parseFloat(S.caneta && S.caneta.dose) || 0;
   if(!dose){ box.style.display='block'; box.innerHTML='ℹ️ Defina a dose acima pra calcular.'; return; }
-  var doses;
-  if(unid === 'canetas'){
-    var dpc = farm === 'Liraglutida' ? 30 : 4;
-    doses = Math.floor(val * dpc);
-  } else {
-    doses = Math.floor(val / dose);
-  }
+  // mg por unidade (frasco ou caneta) — usa valores do form em tempo real
+  var mgUnid;
+  if(tipo === 'frasco'){
+    var mg = parseFloat((el('cConcMg')&&el('cConcMg').value||'').replace(',','.'));
+    var ml = parseFloat((el('cConcMl')&&el('cConcMl').value||'').replace(',','.'));
+    var vol = parseFloat((el('cVolFrasco')&&el('cVolFrasco').value||'').replace(',','.'));
+    if(!mg || !ml || !vol){ box.style.display='block'; box.innerHTML='ℹ️ Preencha concentração e volume do frasco pra calcular.'; return; }
+    mgUnid = (mg/ml) * vol;
+  } else if(tipo === 'caneta'){
+    var farm = (el('cFarm')&&el('cFarm').value) || S.caneta.farmaco || '';
+    var dpc = (farm === 'Liraglutida') ? 30 : 4;
+    mgUnid = dose * dpc;
+  } else { box.style.display='none'; return; }
+  var mgTotais = val * mgUnid;
+  var doses = Math.floor(mgTotais / dose);
   if(doses < 0) doses = 0;
-  // v3.1.69: data prevista de fim em vez de "~N semanas"
-  var intervaloDias = freq === 'diaria' ? 1 : 7;
+  var freq = (el('cFreq')&&el('cFreq').value) || S.caneta.freq || 'semanal';
+  var intervaloDias = (freq === 'diaria') ? 1 : 7;
   var dataFimStr = '';
   if(doses > 0){
     var d = new Date();
     d.setDate(d.getDate() + (doses * intervaloDias));
-    var dd = String(d.getDate()).padStart(2,'0');
-    var mm = String(d.getMonth()+1).padStart(2,'0');
-    var yyyy = d.getFullYear();
-    dataFimStr = dd + '/' + mm + '/' + yyyy;
+    dataFimStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
   }
-  var semanas = freq === 'diaria' ? Math.round((doses/7)*10)/10 : doses;
+  var semanas = (freq === 'diaria') ? (doses/7) : doses;
   var icone = semanas <= 1 ? '🚨' : semanas <= 2 ? '⚠️' : '✅';
   box.style.display='block';
-  box.innerHTML = icone + ' Cobre <strong>' + doses + ' dose' + (doses!==1?'s':'') +
-                  '</strong>' + (dataFimStr ? ' — vai durar até <strong>' + dataFimStr + '</strong>.' : '.');
+  box.innerHTML = icone + ' Cobre <strong>' + doses + ' dose' + (doses!==1?'s':'') + '</strong>' +
+                  ' (' + (Math.round(mgTotais*10)/10).toString().replace('.',',') + ' mg)' +
+                  (dataFimStr ? ' — vai durar até <strong>' + dataFimStr + '</strong>.' : '.');
 }
 
-// Botão "📦 Repor estoque" — soma quantidade ao atual
+// v3.4.0: paciente diz quantos FRASCOS ou CANETAS comprou — app converte pra mg
 function reporEstoque(){
-  var qtd = prompt('Quanto você comprou agora?\n(' + (S.caneta.estoqueUnidade==='canetas'?'número de canetas':'mg') + ')');
+  if(!S.caneta || !S.caneta.tipo){ toast('Configure sua medicação primeiro.', 2500); return; }
+  var unid = (S.caneta.tipo === 'frasco') ? 'frasco(s)' : 'caneta(s)';
+  var qtd = prompt('Quantos ' + unid + ' você comprou agora?');
   if(qtd===null) return;
   var n = parseFloat((qtd||'').replace(',','.'));
   if(!n || n <= 0){ toast('Valor inválido.', 2000); return; }
-  S.caneta.estoqueAtual = (parseFloat(S.caneta.estoqueAtual)||0) + n;
+  var mgPorUnidade = _mgPorUnidade();
+  if(!mgPorUnidade){ toast('Configure concentração e volume do frasco primeiro.', 3000); return; }
+  S.caneta.estoqueAtual = (parseFloat(S.caneta.estoqueAtual)||0) + (n * mgPorUnidade);
   S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
   salvar();
-  toast('📦 +' + n + ' ' + (S.caneta.estoqueUnidade==='canetas'?'caneta(s)':'mg') + ' adicionados ao estoque', 2800);
+  toast('📦 +' + n + ' ' + unid + ' adicionados ao estoque', 2800);
   if(typeof renderHero === 'function') renderHero();
 }
 // v3.2.1: configurar estoque do ZERO direto do dashboard (define, não soma).
 // Resolve bug: paciente sem estoque configurado não tinha como abrir o controle.
+// v3.4.0: configura estoque do zero — paciente fala N frascos/canetas, app converte pra mg.
 function configurarEstoque(){
-  if(!S.caneta || !S.caneta.farmaco){
-    toast('Configure seu fármaco e dose em "Medicação" primeiro.', 3200);
+  if(!S.caneta || !S.caneta.tipo || !S.caneta.farmaco){
+    toast('Configure sua medicação em "Medicação" primeiro.', 3200);
     if(typeof go==='function') go('caneta');
     return;
   }
-  var unid = S.caneta.estoqueUnidade || 'mg';
-  var perg = unid==='canetas'
-    ? 'Quantas canetas você tem em casa agora?\n(conte as canetas inteiras)'
-    : 'Quantos mg você tem em casa no total?\n(some os frascos: 1 frasco de 8mg = 8)';
-  var qtd = prompt(perg);
+  var mgPorUnidade = _mgPorUnidade();
+  if(!mgPorUnidade){
+    toast(S.caneta.tipo==='frasco' ? 'Defina concentração e volume do frasco primeiro.' : 'Defina a dose primeiro.', 3200);
+    if(typeof go==='function') go('caneta');
+    return;
+  }
+  var unid = (S.caneta.tipo === 'frasco') ? 'frasco(s)' : 'caneta(s)';
+  var qtd = prompt('Quantos ' + unid + ' você tem em casa agora?\n(conte as unidades inteiras, sem usar)');
   if(qtd===null) return;
   var n = parseFloat((qtd||'').replace(',','.'));
   if(isNaN(n) || n < 0){ toast('Valor inválido.', 2000); return; }
-  S.caneta.estoqueAtual = Math.round(n * 100) / 100;
-  if(!S.caneta.estoqueUnidade) S.caneta.estoqueUnidade = 'mg';
+  S.caneta.estoqueAtual = Math.round(n * mgPorUnidade * 100) / 100;
   salvar();
-  toast('📦 Estoque definido: ' + n + ' ' + (unid==='canetas'?'caneta(s)':'mg'), 2800);
+  toast('📦 Estoque: ' + n + ' ' + unid, 2800);
   if(typeof renderHero === 'function') renderHero();
 }
 
 function salvarCaneta(){
-  // v3.3.0: tipo (caneta industrial vs frasco manipulado) é obrigatório
   var tipo = window._tipoCanetaForm || (S.caneta && S.caneta.tipo) || '';
   if(!tipo){alert('Escolha como você aplica: caneta industrial ou frasco manipulado.');return;}
   var f=el('cFarm').value;if(!f){alert('Selecione o fármaco.');return;}
   S.caneta.tipo=tipo;
   S.caneta.farmaco=f;S.caneta.dose=el('cDose').value;S.caneta.freq=el('cFreq').value;S.caneta.inicio=el('cIni').value;S.caneta.ultima=el('cUlt').value;
   if(el('cHora')) S.caneta.horario=el('cHora').value || '08:00';S.caneta.diaSem=nv(el('cDia').value,1);S.caneta.obs=el('cObs').value;
-  // v3.3.0: apresentação (label da caneta industrial) — só relevante quando tipo='caneta'
   if(tipo==='caneta'){
     S.caneta.apresentacao = f + ' ' + (S.caneta.dose || '') + ' mg';
-    S.caneta.concentracaoMg = null;
-    S.caneta.concentracaoMl = null;
+    S.caneta.concRotuloMg = null;
+    S.caneta.concRotuloMl = null;
+    S.caneta.volumeFrasco = null;
   } else {
-    // tipo='frasco': captura concentração do frasco manipulado
-    var mgF = el('cConcMg') ? parseFloat((el('cConcMg').value||'').replace(',','.')) : null;
-    var mlF = el('cConcMl') ? parseFloat((el('cConcMl').value||'').replace(',','.')) : null;
-    S.caneta.concentracaoMg = (mgF && mgF>0) ? mgF : null;
-    S.caneta.concentracaoMl = (mlF && mlF>0) ? mlF : null;
+    // v3.4.0: tipo='frasco' — concentração (X mg em Y mL do rótulo) + volume total do frasco
+    var mgF  = el('cConcMg')   ? parseFloat((el('cConcMg').value||'').replace(',','.')) : null;
+    var mlF  = el('cConcMl')   ? parseFloat((el('cConcMl').value||'').replace(',','.')) : null;
+    var volF = el('cVolFrasco')? parseFloat((el('cVolFrasco').value||'').replace(',','.')) : null;
+    S.caneta.concRotuloMg = (mgF  && mgF>0)  ? mgF  : null;
+    S.caneta.concRotuloMl = (mlF  && mlF>0)  ? mlF  : null;
+    S.caneta.volumeFrasco = (volF && volF>0) ? volF : null;
     S.caneta.apresentacao = '';
   }
-  // v3.1.67: capturar estoque
-  var estVal = el('cEstoque') ? parseFloat((el('cEstoque').value||'').replace(',','.')) : null;
-  S.caneta.estoqueAtual = (estVal && estVal > 0) ? estVal : null;
-  S.caneta.estoqueUnidade = el('cEstoqueUnidade') ? el('cEstoqueUnidade').value : 'mg';
+  // v3.4.0: estoque vem em frascos/canetas cheias — converter pra mg internos
+  var estUnid = el('cEstoque') ? parseFloat((el('cEstoque').value||'').replace(',','.')) : null;
+  if(estUnid && estUnid > 0){
+    var mgUnid = _mgPorUnidade();
+    S.caneta.estoqueAtual = mgUnid > 0 ? Math.round(estUnid * mgUnid * 100) / 100 : null;
+  } else {
+    S.caneta.estoqueAtual = null;
+  }
   if(S.caneta.ultima) S.caneta.ultimaISO=new Date(S.caneta.ultima+'T12:00:00').toISOString();
   salvar();
   render();
@@ -16901,13 +16890,14 @@ function renderHero(){
       } else {
         cor = '#bbf7d0'; bg = 'rgba(74,222,128,.08)'; borda = 'rgba(74,222,128,.22)'; alerta = '';
       }
-      // Texto adaptado por unidade
+      // v3.4.0: mostra restante em FRASCOS/CANETAS (não mg crus — mais intuitivo)
       var qtdStr, unidLabel;
-      if(prev.unidade === 'canetas'){
-        var qtdNum = S.caneta.estoqueAtual;
-        // Mostrar inteiro se for inteiro, senão 1 casa decimal
-        qtdStr = (qtdNum === Math.floor(qtdNum)) ? String(qtdNum) : qtdNum.toFixed(1);
-        unidLabel = qtdNum === 1 ? 'caneta' : 'canetas';
+      var mgUnid = (typeof _mgPorUnidade === 'function') ? _mgPorUnidade() : 0;
+      if(mgUnid > 0){
+        var unidades = S.caneta.estoqueAtual / mgUnid;
+        qtdStr = (unidades >= 1) ? unidades.toFixed(1).replace('.0','').replace('.',',') : (Math.round(unidades*10)/10).toString().replace('.',',');
+        var ehFrasco = S.caneta.tipo === 'frasco';
+        unidLabel = (unidades >= 2) ? (ehFrasco ? 'frascos' : 'canetas') : (ehFrasco ? 'frasco' : 'caneta');
       } else {
         qtdStr = String(Math.round(S.caneta.estoqueAtual));
         unidLabel = 'mg restantes';
@@ -16920,7 +16910,7 @@ function renderHero(){
         '<div style="padding:7px 10px;background:'+bg+';border:1px solid '+borda+';border-radius:9px;color:'+cor+';line-height:1.4">'+
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<div style="flex:1;min-width:0;font-size:11.5px">'+
-              '📦 <strong>'+qtdStr+(prev.unidade==='canetas'?' ':'')+unidLabel+'</strong>'+
+              '📦 <strong>'+qtdStr+' '+unidLabel+'</strong>'+
               ' · cobre <strong>'+prev.doses+' '+dosesLabel+'</strong>'+
               (prev.dataFim?' até <strong>'+prev.dataFim+'</strong>':'')+
               (alerta ? ' <span style="font-weight:800;margin-left:4px">'+alerta+'</span>' : '')+
@@ -17824,55 +17814,39 @@ function verificarCheckboxes(){
   }
 }
 
-// Helper: lê os dados do form manual e devolve normalizado
-// v3.3.0: farmaco vem do cadastro (S.caneta), não há mais seletor duplicado na calculadora
-function _lerFormFrascoManual(){
-  var farm=(S.caneta && S.caneta.farmaco)||'';
-  var mg=parseFloat((el('calcMg')&&el('calcMg').value||'').replace(',','.'));
-  var ml=parseFloat((el('calcMl')&&el('calcMl').value||'').replace(',','.'));
-  var dose=parseFloat((el('calcDose')&&el('calcDose').value||'').replace(',','.'));
-  return {farmaco:farm,mgTotal:isNaN(mg)?null:mg,mlTotal:isNaN(ml)?null:ml,dose:isNaN(dose)?null:dose};
-}
-
+// v3.4.0: tudo vem de S.caneta — não há mais inputs editáveis na calculadora
 function registrarAplicacaoFrasco(){
-  var dados=_lerFormFrascoManual();
-  if(!dados.farmaco){toast('Configure seu fármaco no cadastro acima.',3000);return;}
-  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita.',3000);return;}
+  if(!S.caneta || !S.caneta.farmaco){toast('Configure sua medicação primeiro.',3000);return;}
+  var dose = parseFloat(String(S.caneta.dose||'').replace(',','.'));
+  if(!dose||dose<=0){toast('Defina a dose prescrita no cadastro.',3000);return;}
 
   var hoje2=hoje();
   var agora=new Date().toISOString();
 
-  // Alimentar S.caneta
   S.caneta.ultima=hoje2;
   S.caneta.ultimaISO=agora;
   if(!S.caneta.inicio) S.caneta.inicio=hoje2;
-  S.caneta.farmaco=dados.farmaco;
-  S.caneta.freq=dados.farmaco==='Liraglutida'?'diaria':'semanal';
-  S.caneta.dose=dados.dose;
-  // v3.3.0: se paciente trocou de frasco e editou mg/mL na calculadora, salva a nova concentração no cadastro
-  if(dados.mgTotal) S.caneta.concentracaoMg = dados.mgTotal;
-  if(dados.mlTotal) S.caneta.concentracaoMl = dados.mlTotal;
 
-  // Popular form da caneta (aba "Tratamento atual" usa cFarm/cDose/cFreq/cUlt/cIni)
-  if(el('cFarm')){
-    el('cFarm').value=S.caneta.farmaco;
-    if(typeof updateDoses==='function') updateDoses();
-    setTimeout(function(){
-      if(el('cDose')&&S.caneta.dose) el('cDose').value=String(S.caneta.dose);
-    },100);
-  }
-  if(el('cFreq')&&S.caneta.freq) el('cFreq').value=S.caneta.freq;
-  if(el('cUlt')) el('cUlt').value=hoje2;
-  if(el('cIni')&&S.caneta.inicio) el('cIni').value=S.caneta.inicio;
+  // v3.4.0: registra no histórico (consistente com registrarAplicacaoHoje)
+  if(!S.applications) S.applications = [];
+  S.applications.push({
+    id: (typeof uuid === 'function') ? uuid() : String(Date.now()),
+    farmaco: S.caneta.farmaco,
+    dose: dose,
+    date: hoje2,
+    appliedAt: agora,
+    createdAt: agora,
+    retroativo: false
+  });
 
-  // v3.1.67: decrementar estoque
+  // Decrementa estoque
   if(typeof aplicarDecrementoEstoque === 'function') aplicarDecrementoEstoque();
   salvar();
-  avancarLocalInjecao();
+  if(typeof avancarLocalInjecao === 'function') avancarLocalInjecao();
   render();
 
-  var freq=S.caneta.farmaco==='Liraglutida'?'amanhã':'em 7 dias';
-  toast('✅ Dose registrada! Próxima: '+freq);
+  var proximaTxt = S.caneta.farmaco==='Liraglutida' ? 'amanhã' : 'em 7 dias';
+  toast('✅ Dose registrada! Próxima: '+proximaTxt);
   frascoReiniciar();
   setTimeout(function(){
     go('dashboard');
@@ -17881,38 +17855,6 @@ function registrarAplicacaoFrasco(){
       if(typeof renderQuatroGauges==='function') renderQuatroGauges();
     },200);
   },400);
-}
-
-function fecharFluxoFrasco(){
-  frascoReiniciar();
-  toast('Cálculo concluído. Dose não registrada.');
-}
-
-function registrarSemAplicar(){
-  var dados=_lerFormFrascoManual();
-  if(!dados.farmaco){toast('Configure seu fármaco no cadastro acima.',3000);return;}
-  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita.',3000);return;}
-
-  S.caneta.farmaco=dados.farmaco;
-  S.caneta.freq=dados.farmaco==='Liraglutida'?'diaria':'semanal';
-  S.caneta.dose=dados.dose;
-  // v3.3.0: salva concentração atualizada se editada
-  if(dados.mgTotal) S.caneta.concentracaoMg = dados.mgTotal;
-  if(dados.mlTotal) S.caneta.concentracaoMl = dados.mlTotal;
-
-  if(el('cFarm')){
-    el('cFarm').value=S.caneta.farmaco;
-    if(typeof updateDoses==='function') updateDoses();
-    setTimeout(function(){if(el('cDose')&&S.caneta.dose) el('cDose').value=String(S.caneta.dose);},100);
-  }
-  salvar();
-  render();
-  toast('💉 Medicação registrada! Registre a aplicação quando usar.',3500);
-  frascoReiniciar();
-  setTimeout(function(){
-    go('dashboard');
-    setTimeout(function(){if(typeof renderHero==='function') renderHero();},200);
-  },500);
 }
 
 function liberarMemoria(){
@@ -17953,7 +17895,7 @@ function confirmarRefazer(){
   el('modalAna').classList.remove('open');
   var bkpW=S.weights.slice();var bkpD=S.daily.slice();
   S.profile={sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null};
-  S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null};
+  S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null};
   S.weights=bkpW;S.daily=bkpD;
   ANA.step=0;ANA.data={};
   el('anaMsgs').innerHTML='';el('anaInput').innerHTML='';
@@ -18026,29 +17968,17 @@ function popularPerfil(){
   if(el('ativ')) el('ativ').value=S.profile.activityLevel||'Moderada';
   if(el('dtIni')) el('dtIni').value=S.profile.startDate||'';
 }
-// v3.3.0: banner "Último cálculo" só aparece em modo frasco (dentro de #calcFrasco)
-function atualizarCalcSalvoInfo(){
-  var infoEl=el('calcSalvoInfo');
-  var txtEl=el('calcSalvoTxt');
-  if(!infoEl) return;
-  if(S.caneta && S.caneta.tipo==='frasco' && S.ultimaCalc && S.ultimaCalc.uni){
-    var uc2=S.ultimaCalc;
-    var apNome=uc2.farm+' · '+uc2.dose+'mg → '+uc2.uni+' UI na seringa';
-    if(txtEl) txtEl.textContent=apNome+(uc2.data?' ('+new Date(uc2.data+'T12:00:00').toLocaleDateString('pt-BR')+')':'');
-    infoEl.style.display='flex';
-  } else {
-    infoEl.style.display='none';
-  }
-}
 function popularCaneta(){
   var cf=el('cFarm');if(!cf) return;
-  // v3.3.0: restaurar tipo (caneta/frasco) e concentração do frasco
+  // v3.4.0: restaurar tipo (caneta/frasco)
   if(S.caneta.tipo){
     window._tipoCanetaForm = S.caneta.tipo;
     setTipoCaneta(S.caneta.tipo);
   }
-  if(el('cConcMg')) el('cConcMg').value = (S.caneta.concentracaoMg!=null) ? String(S.caneta.concentracaoMg).replace('.',',') : '';
-  if(el('cConcMl')) el('cConcMl').value = (S.caneta.concentracaoMl!=null) ? String(S.caneta.concentracaoMl).replace('.',',') : '';
+  // v3.4.0: concentração + volume do frasco (só relevante pra tipo='frasco')
+  if(el('cConcMg'))   el('cConcMg').value   = (S.caneta.concRotuloMg!=null) ? String(S.caneta.concRotuloMg).replace('.',',') : '';
+  if(el('cConcMl'))   el('cConcMl').value   = (S.caneta.concRotuloMl!=null) ? String(S.caneta.concRotuloMl).replace('.',',') : '';
+  if(el('cVolFrasco'))el('cVolFrasco').value= (S.caneta.volumeFrasco!=null) ? String(S.caneta.volumeFrasco).replace('.',',') : '';
   if(S.caneta.farmaco){
     cf.value=S.caneta.farmaco;
     if(typeof updateDoses==='function') updateDoses();
@@ -18059,13 +17989,23 @@ function popularCaneta(){
   if(el('cUlt')&&S.caneta.ultima) el('cUlt').value=S.caneta.ultima;
   if(el('cDia')&&S.caneta.diaSem!=null) el('cDia').value=String(S.caneta.diaSem);
   if(el('cObs')&&S.caneta.obs) el('cObs').value=S.caneta.obs;
-  // v3.1.67: estoque
-  if(el('cEstoque')) el('cEstoque').value = (S.caneta.estoqueAtual!=null) ? String(S.caneta.estoqueAtual) : '';
-  if(el('cEstoqueUnidade')) el('cEstoqueUnidade').value = S.caneta.estoqueUnidade || 'mg';
-  // v3.3.0: renderizar a calculadora condicional baseada no tipo
+  // v3.4.0: estoque interno é mg, mas mostramos em FRASCOS/CANETAS no input (mais natural)
+  if(el('cEstoque')){
+    var mgUnid = _mgPorUnidade();
+    if(mgUnid > 0 && S.caneta.estoqueAtual != null){
+      var unidades = S.caneta.estoqueAtual / mgUnid;
+      el('cEstoque').value = (Math.round(unidades * 10) / 10).toString().replace('.',',');
+    } else {
+      el('cEstoque').value = '';
+    }
+  }
+  // Previews
+  if(typeof atualizarPreviewConcentracao === 'function') atualizarPreviewConcentracao();
+  if(typeof atualizarPreviewVolume === 'function') atualizarPreviewVolume();
+  // Renderizar a calculadora condicional baseada no tipo
   if(typeof renderCalc === 'function') renderCalc();
-  // Listeners pra previsão dinâmica (idempotente)
-  ['cEstoque','cEstoqueUnidade','cDose','cFarm','cFreq'].forEach(function(id){
+  // v3.4.0: listeners pra previsão dinâmica (idempotente) — inclui concentração + volume
+  ['cEstoque','cDose','cFarm','cFreq','cConcMg','cConcMl','cVolFrasco'].forEach(function(id){
     var e = el(id);
     if(e && !e._estListenerAttached){
       e.addEventListener('input', atualizarPrevisaoEstoque);
@@ -18088,8 +18028,6 @@ function popularCaneta(){
     if(infoEl) infoEl.style.display='none';
     if(formEl) formEl.style.display='block';
   }
-  // Calculadora salva
-  atualizarCalcSalvoInfo();
   // Peso salvo
   atualizarPesoSalvoInfo();
 }
