@@ -7,7 +7,7 @@
    remover cache antigo. Sem isso, paciente vê HTML antigo.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'sanova-v3.2.1';
+const VERSION = 'sanova-v3.3.0';
 const ASSETS = [
   './',
   './index.html',

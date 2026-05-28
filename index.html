@@ -4626,6 +4626,22 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <!-- FORMULÁRIO DE CONFIGURAÇÃO (colapsável) -->
     <div id="tratFormWrap" style="border-top:1px solid rgba(74,222,128,.1);padding:16px 20px">
       <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Informações da prescrição</div>
+
+      <!-- v3.3.0: seletor de tipo de apresentação — separa caneta industrial de frasco manipulado -->
+      <div class="fi" style="margin-bottom:14px">
+        <label>Como você aplica sua medicação?</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button type="button" id="cTipoCaneta" onclick="setTipoCaneta('caneta')"
+            style="flex:1;padding:12px 10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.3">
+            🖊️ Caneta industrial<br><span style="font-size:10.5px;font-weight:500;opacity:.8">pronta para usar</span>
+          </button>
+          <button type="button" id="cTipoFrasco" onclick="setTipoCaneta('frasco')"
+            style="flex:1;padding:12px 10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.3">
+            ⚗️ Frasco manipulado<br><span style="font-size:10.5px;font-weight:500;opacity:.8">aspirar com seringa</span>
+          </button>
+        </div>
+      </div>
+
       <div class="fg">
         <div class="fi">
           <label>Fármaco</label>
@@ -4637,6 +4653,26 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           </select>
         </div>
         <div class="fi"><label>Dose prescrita pelo seu médico</label><select id="cDose" aria-label="Dose prescrita"><option value="">— Registre a dose prescrita por seu médico —</option></select></div>
+
+        <!-- v3.3.0: concentração do frasco — só aparece quando tipo='frasco'. Salva no cadastro pra não digitar toda vez. -->
+        <div class="fi" id="cConcWrap" style="display:none">
+          <label>Concentração do seu frasco</label>
+          <div style="font-size:11.5px;color:rgba(255,255,255,.6);margin-bottom:8px;line-height:1.5">Olhe o rótulo do frasco atual. Esses valores ficam salvos até você trocar de frasco.</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="flex:1">
+              <input id="cConcMg" type="text" inputmode="decimal" placeholder="mg" aria-label="Miligramas no frasco"
+                style="width:100%;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center">
+              <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-align:center;margin-top:3px">mg totais</div>
+            </div>
+            <div style="font-size:22px;color:rgba(255,255,255,.3);font-weight:300">/</div>
+            <div style="flex:1">
+              <input id="cConcMl" type="text" inputmode="decimal" placeholder="mL" aria-label="Mililitros no frasco"
+                style="width:100%;padding:11px 8px;border-radius:8px;border:1.5px solid var(--cream3);font-family:var(--ss);font-size:15px;font-weight:700;background:#fff;color:var(--ink);outline:none;text-align:center">
+              <div style="font-size:10.5px;color:rgba(255,255,255,.5);text-align:center;margin-top:3px">mL totais</div>
+            </div>
+          </div>
+        </div>
+
         <div class="fi"><label>Frequência</label><select id="cFreq"><option value="semanal">Semanal</option><option value="diaria">Diária</option></select></div>
         <div class="fi" id="diaSemW">
           <label>Dia da aplicação</label>
@@ -4719,81 +4755,62 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div style="color:rgba(255,255,255,.6);font-size:13px;font-family:var(--ss)">Toque para fechar</div>
   </div>
 
+  <!-- v3.3.0: bloco de aplicação condicional por S.caneta.tipo.
+       Caneta industrial → card simples de registro (sem cálculo de UI).
+       Frasco manipulado → calculadora mg→UI completa. -->
   <div class="calc-hero">
-    <div class="calc-tag">🧪 CANETA MANIPULADA — FRASCO + SERINGA</div>
-    <div class="calc-title">Calculadora de dose</div>
+    <div class="calc-tag">💉 APLICAR DOSE</div>
+    <div class="calc-title">Registre sua aplicação</div>
     <div style="margin-bottom:14px;padding:8px 12px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:10px;font-size:11px;color:rgba(253,230,138,.7);line-height:1.5">
-      ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Este cálculo é uma estimativa baseada nas informações fornecidas. Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
+      ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
     </div>
 
-    <!-- v3.1.64: Banner educativo - freio cognitivo antes de digitar dose.
-         Decisão clínica: como removemos a foto-IA pra evitar leitura errada de rótulo,
-         este banner reforça que paciente deve OLHAR o frasco antes de preencher. -->
-    <div style="margin-bottom:14px;padding:12px 14px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.25);border-radius:12px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.6">
-      💉 <strong style="color:rgba(232,200,120,.9)">Preencha com base no rótulo do seu frasco.</strong><br>
-      Em caso de dúvida sobre concentração ou dose, confirme com seu médico ou farmacêutico antes de aplicar.
+    <!-- Estado: sem tipo configurado -->
+    <div id="calcSemConfig" style="display:none;padding:18px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:12px;text-align:center;color:rgba(255,255,255,.6);font-size:13px;line-height:1.6">
+      Configure sua medicação no formulário acima<br>para poder registrar uma aplicação aqui.
     </div>
 
-    <!-- Banner último cálculo salvo -->
-    <div id="calcSalvoInfo" style="display:none;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.35);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;justify-content:space-between;gap:10px">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Último cálculo</div>
-        <div id="calcSalvoTxt" style="font-size:13px;color:#fff;font-weight:600;line-height:1.4">—</div>
+    <!-- Estado: CANETA INDUSTRIAL — registro simples sem calculadora -->
+    <div id="calcCaneta" style="display:none">
+      <div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.25);border-radius:14px;padding:18px;margin-bottom:12px;text-align:center">
+        <div style="font-size:40px;margin-bottom:8px">🖊️</div>
+        <div id="calcCanetaNome" style="font-size:15px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:6px">—</div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:4px">Dose</div>
+        <div id="calcCanetaDose" style="font-size:26px;font-weight:800;color:#4ade80;letter-spacing:-.02em">— mg</div>
       </div>
-      <button onclick="reajustarCalc()" style="flex-shrink:0;padding:7px 14px;border-radius:8px;border:1px solid rgba(74,222,128,.5);background:rgba(74,222,128,.2);color:#4ade80;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">✏️ Recalcular</button>
-    </div>
-    <div id="calcFormWrap">
-    <!-- ABAS: Caneta industrial primeiro (mais comum), Frasco/Ampola depois -->
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <button id="abaCanetaBtn" onclick="setAbaCaneta('caneta')"
-        style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--g500);background:var(--g700);color:#fff;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer">
-        ✏️ Caneta industrial
-      </button>
-      <button id="abaAmpolaBtn" onclick="setAbaCaneta('ampola')"
-        style="flex:1;padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
-        💉 Frasco / Ampola
+      <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,.72);line-height:1.6">
+        ✅ Selecione a dose no dial da caneta conforme a prescrição.<br>
+        ✅ Aplique subcutaneamente.<br>
+        ✅ Não é necessário seringa de insulina para caneta industrial.
+      </div>
+      <button onclick="registrarAplicacaoHoje()" style="width:100%;padding:16px;border-radius:12px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        ✅ Apliquei agora — registrar dose
       </button>
     </div>
-    <div id="abaAmpolaInfo" style="display:none;margin-bottom:12px;padding:10px 12px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:10px;font-size:12px;color:rgba(255,255,255,.75);line-height:1.6">
-      💉 <strong>Frasco / Ampola:</strong> Aspirar com seringa de insulina U-100. Informe a dose prescrita e o app calcula quantas unidades aspirar.
-    </div>
 
-    <!-- v3.1.66: Disclaimer técnico U-100 — só faz sentido na aba Frasco/Ampola.
-         Ganha id pra ser controlado por setAbaCaneta. -->
-    <div id="discU100" style="display:none;margin-bottom:14px;padding:12px 14px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.25);border-radius:12px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.7">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(232,200,120,.9);margin-bottom:6px">⚠️ Entenda a conversão antes de calcular</div>
-      A seringa de insulina U-100 possui <strong style="color:#e8c878">100 unidades por mL</strong> — ou seja, <strong>1 mL = 100 unidades</strong> e <strong>0,1 mL = 10 unidades</strong>.<br><br>
-      Sua dose é prescrita em <strong>mg</strong> pelo médico. O app converte automaticamente para <strong>unidades na seringa</strong>, levando em conta a concentração do seu frasco.<br><br>
-      <span style="color:#f3a88a;font-weight:700">⛔ Nunca aspire em mL</span> — aspire sempre pela escala de unidades da seringa. Confirme com seu médico antes da primeira aplicação.
-    </div>
-    <!-- v3.1.66: abaCanetaInfo removido — disclaimer "não precisa de seringa" era redundante,
-         a aba Caneta industrial já fala por si. -->
-    <div class="calc-form">
-      <div class="calc-fi">
-        <label>Fármaco</label>
-        <select id="calcFarm" onchange="updateCalcApres()">
-          <option value="">— selecione —</option>
-          <option>Tirzepatida</option>
-          <option>Semaglutida</option>
-          <option>Liraglutida</option>
-        </select>
+    <!-- Estado: FRASCO MANIPULADO — calculadora mg → UI -->
+    <div id="calcFrasco" style="display:none">
+      <!-- Disclaimer técnico U-100 (só faz sentido pra frasco) -->
+      <div style="margin-bottom:14px;padding:12px 14px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.25);border-radius:12px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.7">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(232,200,120,.9);margin-bottom:6px">⚠️ Entenda a conversão antes de calcular</div>
+        A seringa de insulina U-100 possui <strong style="color:#e8c878">100 unidades por mL</strong> — ou seja, <strong>1 mL = 100 unidades</strong> e <strong>0,1 mL = 10 unidades</strong>.<br><br>
+        Sua dose é prescrita em <strong>mg</strong> pelo médico. O app converte automaticamente para <strong>unidades na seringa</strong>, usando a concentração do seu frasco.<br><br>
+        <span style="color:#f3a88a;font-weight:700">⛔ Nunca aspire em mL</span> — aspire sempre pela escala de unidades. Confirme com seu médico antes da primeira aplicação.
       </div>
-      <div class="calc-fi">
-        <label>Apresentação / produto</label>
-        <select id="calcApres" onchange="updateCalcTipo()">
-          <option value="">— selecione o fármaco primeiro —</option>
-        </select>
+
+      <!-- Banner último cálculo salvo (S.ultimaCalc) -->
+      <div id="calcSalvoInfo" style="display:none;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.35);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Último cálculo</div>
+          <div id="calcSalvoTxt" style="font-size:13px;color:#fff;font-weight:600;line-height:1.4">—</div>
+        </div>
       </div>
-    </div>
-    <div id="calcAmpolaWrap" style="display:none;margin-top:12px">
-      <div id="calcConcWrap" style="margin-bottom:14px">
+
+      <!-- Concentração (pré-preenchida do cadastro, editável se trocar de frasco) -->
+      <div style="margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Concentração do seu frasco</div>
-        <!-- v3.1.67: Banner explicando equivalência. Manipulado vem em vários
-             formatos (15mg/0,6mL, 60mg/2,4mL, 90mg/3,6mL) — todos podem ter
-             a MESMA concentração e dão o mesmo cálculo de UI. Paciente pode
-             usar o que estiver mais visível no rótulo. -->
         <div style="margin-bottom:10px;padding:10px 12px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.22);border-radius:10px;font-size:11.5px;color:rgba(255,255,255,.82);line-height:1.55">
-          💡 <strong style="color:#bbf7d0">Manipulado vem em vários formatos.</strong> Ex: <strong>15mg/0,6mL</strong>, <strong>25mg/1mL</strong>, <strong>60mg/2,4mL</strong>, <strong>90mg/3,6mL</strong> — todos podem ter a <strong style="color:#bbf7d0">mesma concentração (25mg/mL)</strong> e dão o mesmo cálculo. Use o que estiver mais visível no seu rótulo.
+          💡 Valores vêm do seu cadastro. Edite só se trocou de frasco com concentração diferente — o novo valor será salvo.
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
@@ -4811,22 +4828,13 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           </div>
         </div>
         <div id="calcConcResult" style="display:none;margin-top:8px;text-align:center;font-size:12px;color:rgba(255,255,255,.45)"></div>
-        <!-- v3.1.11: Alerta de mudança de lote/concentração -->
         <div id="calcLoteAlerta" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.10);border:1px solid rgba(232,200,120,.32);border-radius:9px;font-size:11.5px;color:rgba(254,243,199,.92);line-height:1.5">
-          <strong>⚠️ Concentração diferente da última usada.</strong> Confira que esta é a concentração do seu frasco atual antes de calcular.
+          <strong>⚠️ Concentração diferente da última usada.</strong> Confira o rótulo do frasco atual antes de calcular — e atualize seu cadastro se trocou de frasco.
         </div>
-        <!-- v3.1.11: Card educativo "Exemplos comuns no mercado" -->
-        <details id="calcExemplosCard" style="margin-top:12px;padding:11px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;color:rgba(255,255,255,.78);font-size:12px;line-height:1.6">
-          <summary style="cursor:pointer;font-weight:700;color:#bbf7d0;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;list-style:none">💡 Exemplos comuns no mercado brasileiro</summary>
-          <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">
-            <div id="calcExemplosLista" style="font-size:11.5px;color:rgba(255,255,255,.7);line-height:1.7"></div>
-            <div style="margin-top:10px;padding:8px 10px;background:rgba(232,200,120,.08);border-radius:7px;font-size:10.5px;color:rgba(254,243,199,.78);line-height:1.5">
-              ⚠️ Concentrações <strong>variam</strong> entre farmácias e lotes — o Sanova não chancela nenhuma marca específica. <strong>Sempre confirme com o rótulo do seu frasco atual.</strong>
-            </div>
-          </div>
-        </details>
       </div>
-      <div>
+
+      <!-- Dose prescrita (pré-preenchida do cadastro) -->
+      <div style="margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Dose prescrita pelo médico</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
           <input id="calcDose" type="text" inputmode="decimal" placeholder="mg" oninput="calcDil()"
@@ -4835,53 +4843,48 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           <div style="font-size:11px;color:rgba(255,255,255,.4)">mg a aplicar por dose</div>
         </div>
       </div>
-    </div>
-    </div><!-- /calcFormWrap -->
-    <div id="calcRes" style="margin-top:12px"><div class="calc-empty">Selecione o fármaco e a apresentação acima.</div></div>
 
-    <!-- v3.1.64: Bloco de confirmação clínica + registrar dose.
-         Aparece somente quando o cálculo manual está completo (calcDil seta display:block).
-         Substituiu o frascoEstado3 que dependia da IA. -->
-    <div id="frascoConfirmWrap" style="display:none;margin-top:14px">
-      <!-- Aviso dose alta (>100 UI) -->
-      <div id="frascoAvisoAlta" style="display:none;margin-bottom:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(232,168,138,.28);border-radius:10px;font-size:12px;color:#fca5a5;line-height:1.5">
-        ⚠️ Esta dose resulta em mais de 100 unidades — acima da capacidade de uma seringa padrão. Confirme a prescrição com seu médico.
-      </div>
+      <!-- Resultado do cálculo (UI na seringa) -->
+      <div id="calcRes" style="margin-top:12px"><div class="calc-empty">Preencha os campos acima para ver quantas unidades aspirar.</div></div>
 
-      <!-- Instrução de aplicação (rodízio de locais) -->
-      <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:14px;padding:14px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(74,222,128,.7);margin-bottom:10px">💉 Como aplicar</div>
-        <div id="frascoLocalInjecao" style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.7">—</div>
-      </div>
+      <!-- Confirmação clínica + botões de registrar -->
+      <div id="frascoConfirmWrap" style="display:none;margin-top:14px">
+        <div id="frascoAvisoAlta" style="display:none;margin-bottom:12px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(232,168,138,.28);border-radius:10px;font-size:12px;color:#fca5a5;line-height:1.5">
+          ⚠️ Esta dose resulta em mais de 100 unidades — acima da capacidade de uma seringa padrão. Confirme a prescrição com seu médico.
+        </div>
 
-      <!-- Checkboxes de confirmação clínica -->
-      <div style="background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:14px;padding:14px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(232,200,120,.8);margin-bottom:10px">⚠️ CONFIRME ANTES DE APLICAR</div>
-        <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
-          <input type="checkbox" id="chk1" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-          <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">O fármaco que selecionei corresponde ao meu frasco</span>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
-          <input type="checkbox" id="chk2" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-          <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">Os valores de mg e mL que digitei batem com o rótulo</span>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-          <input type="checkbox" id="chk3" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
-          <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">A dose que digitei foi prescrita pelo meu médico</span>
-        </label>
-      </div>
+        <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:14px;padding:14px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(74,222,128,.7);margin-bottom:10px">💉 Como aplicar</div>
+          <div id="frascoLocalInjecao" style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.7">—</div>
+        </div>
 
-      <!-- Três botões de registrar -->
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s">
-          ✅ Apliquei agora — registrar dose
-        </button>
-        <button onclick="registrarSemAplicar()" style="width:100%;padding:13px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.08);color:rgba(187,247,208,.86);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
-          💉 Registrar medicação — aplico depois
-        </button>
-        <button onclick="fecharFluxoFrasco()" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
-          📋 Só estava calculando
-        </button>
+        <div style="background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:14px;padding:14px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(232,200,120,.8);margin-bottom:10px">⚠️ CONFIRME ANTES DE APLICAR</div>
+          <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
+            <input type="checkbox" id="chk1" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">O fármaco que cadastrei corresponde ao meu frasco</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer">
+            <input type="checkbox" id="chk2" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">Os valores de mg e mL acima batem com o rótulo</span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+            <input type="checkbox" id="chk3" onchange="verificarCheckboxes()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#4ade80">
+            <span style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.5">A dose acima foi prescrita pelo meu médico</span>
+          </label>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s">
+            ✅ Apliquei agora — registrar dose
+          </button>
+          <button onclick="registrarSemAplicar()" style="width:100%;padding:13px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.08);color:rgba(187,247,208,.86);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
+            💉 Registrar medicação — aplico depois
+          </button>
+          <button onclick="fecharFluxoFrasco()" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
+            📋 Só estava calculando
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -5647,9 +5650,9 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.2.1';
+var SANOVA_VERSION = '3.3.0';
 
-var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
+var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
 /* ══ FUNDAÇÃO DE DADOS v3.1 (preparação para backend) ══
    Cada registro criado a partir daqui tem id (uuid) e createdAt (ISO UTC).
@@ -8603,7 +8606,7 @@ function carregar(){
       if(true){
         // Merge preservando campos novos que podem não estar no JSON antigo
         S=d;
-        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null};
+        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null};
         if(S.caneta.faseSac===undefined) S.caneta.faseSac='';
         if(!S.weights) S.weights=[];
         if(!S.daily) S.daily=[];
@@ -8621,7 +8624,7 @@ function carregar(){
       var d4=JSON.parse(r4);
       if(d4&&d4.profile){
         S=d4;
-        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null};
+        if(!S.caneta) S.caneta={farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null};
         S.caneta.faseSac=S.caneta.faseSac||'';
         if(!S.weights) S.weights=[];
         if(!S.daily) S.daily=[];
@@ -9527,187 +9530,78 @@ function buildNarr(M,rl,perd,dh,pd){
   return{tag:s.toUpperCase(),msg:msg,det:det,btn:false};
 }
 
-/* ══ CALCULADORA DILUIÇÃO ══ */
-function setAbaCaneta(tipo){
-  window._abaFiltro=tipo;
-  var btnC=el('abaCanetaBtn'),btnA=el('abaAmpolaBtn');
-  var infoA=el('abaAmpolaInfo');
-  var discU100=el('discU100');
-  var on='flex:1;padding:10px;border-radius:10px;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--g500);background:var(--g700);color:#fff;';
-  var off='flex:1;padding:10px;border-radius:10px;font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);';
-  if(btnC)btnC.style.cssText=tipo==='caneta'?on:off;
-  if(btnA)btnA.style.cssText=tipo==='ampola'?on:off;
-  if(infoA)infoA.style.display=tipo==='ampola'?'block':'none';
-  // v3.1.66: disclaimer técnico U-100 só faz sentido em Frasco/Ampola
-  if(discU100)discU100.style.display=tipo==='ampola'?'block':'none';
-  updateCalcApres();
-}
-function updateCalcApres(){
-  var f=el('calcFarm').value,s=el('calcApres');
-  s.innerHTML='<option value="">— selecione a apresentação —</option>';
-  el('calcAmpolaWrap').style.display='none';
-  el('calcRes').innerHTML='<div class="calc-empty">Selecione a apresentação acima.</div>';
-  if(!f){s.innerHTML='<option value="">— selecione o fármaco primeiro —</option>';return;}
-  var list=APRES[f]||[];
-  // v3.1.15: SEMPRE mostrar todas as opções (caneta + ampola), respeitando filtro de aba
-  // Mas se filtro deixa lista vazia, mostra tudo (defesa para Liraglutida que tem só 2 opções)
-  var temCaneta=list.some(function(a){return a.tipo==='caneta';});
-  var temAmpola=list.some(function(a){return a.tipo==='ampola'||a.tipo==='ampola_manual';});
-  var filtro=window._abaFiltro||'caneta';
+/* ══ v3.3.0: SETTER DE TIPO + RENDER DA CALCULADORA ══
+   A calculadora agora é condicional ao S.caneta.tipo, decidido no cadastro.
+   Caneta industrial → registro simples (sem cálculo de UI).
+   Frasco manipulado → calculadora mg → UI completa. */
 
-  // Se filtro pede caneta mas só tem ampola (ou vice-versa), mostra tudo
-  var mostrarCaneta = temCaneta && (filtro==='caneta' || !temAmpola);
-  var mostrarAmpola = temAmpola && (filtro==='ampola' || !temCaneta);
-
-  if(mostrarCaneta){
-    var og=document.createElement('optgroup');og.label='✏️ Canetas industriais';
-    list.forEach(function(a,i){if(a.tipo==='caneta'){var o=document.createElement('option');o.value=i;o.textContent=a.lbl;og.appendChild(o);}});s.appendChild(og);
-  }
-  if(mostrarAmpola){
-    var og2=document.createElement('optgroup');og2.label='💉 Frascos / Ampolas';
-    list.forEach(function(a,i){if(a.tipo==='ampola'||a.tipo==='ampola_manual'){var o=document.createElement('option');o.value=i;o.textContent=a.lbl;og2.appendChild(o);}});s.appendChild(og2);
-  }
-
-  // Se nada mostrado (improvável), avisa
-  if(s.children.length <= 1){
-    s.innerHTML = '<option value="">Nenhuma apresentação encontrada — alterne a aba acima</option>';
-  }
-}
-function updateCalcTipo(){
-  var f=el('calcFarm').value,ai=el('calcApres').value;
-  el('calcAmpolaWrap').style.display='none';
-  el('calcRes').innerHTML='<div class="calc-empty">Selecione a apresentação acima.</div>';
-  if(!f||ai==='') return;
-  var ap=APRES[f][parseInt(ai,10)];if(!ap) return;
-  if(ap.tipo==='caneta'){
-    el('calcAmpolaWrap').style.display='none';
-    el('calcRes').innerHTML='<div class="calc-result"><div style="font-size:40px;text-align:center;margin-bottom:12px">🖊️</div>'
-      +'<div class="calc-big-lbl" style="text-align:center;font-size:16px;color:#4ade80;font-weight:700;margin-bottom:8px">Caneta industrial — sem cálculo necessário!</div>'
-      +'<div style="background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:10px;padding:14px;margin-bottom:12px">'
-      +'<div style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.7">'
-      +'<strong style="color:#4ade80">'+ap.marca+'</strong> já entrega a dose exata.<br>'
-      +'Cada aplicação = <strong style="color:#fff">'+ap.dose+'</strong>.<br><br>'
-      +'<span style="color:rgba(255,255,255,.6)">'+ap.info+'</span></div></div>'
-      +'<div style="background:rgba(255,255,255,.06);border-radius:8px;padding:12px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.6">'
-      +'✅ Selecione a dose no dial da caneta conforme a prescrição.<br>'
-      +'✅ Aplique subcutaneamente conforme orientação médica.<br>'
-      +'✅ Não é necessário seringa de insulina para esta apresentação.'
-      +'</div></div>'
-      +'<div class="calc-warn">⚠️ Siga sempre as instruções do seu médico e do manual da caneta.</div>';
-  } else if(ap.tipo==='ampola'){
-    // Frasco com concentração conhecida — pré-preenche mg e mL
-    el('calcAmpolaWrap').style.display='block';
-    var mgEl=el('calcMg'),mlEl=el('calcMl');
-    mgEl.value=ap.mgTotal||'';mlEl.value=ap.vol||'';
-    mgEl.readOnly=true;mlEl.readOnly=true;
-    mgEl.style.opacity='0.6';mlEl.style.opacity='0.6';
-    el('calcDose').value='';el('calcDose').focus();
-    el('calcRes').innerHTML='<div class="calc-empty">Informe a dose prescrita abaixo para calcular.</div>';
-    calcDil();
-  } else if(ap.tipo==='ampola_manual'){
-    // Frasco com valores a preencher pelo paciente
-    el('calcAmpolaWrap').style.display='block';
-    var mgEl=el('calcMg'),mlEl=el('calcMl');
-    mgEl.readOnly=false;mlEl.readOnly=false;
-    mgEl.style.opacity='1';mlEl.style.opacity='1';
-    // v3.1.10: tentar pré-popular com a última concentração usada
-    var preencheu = false;
-    var fa = el('calcFarm').value;
-    try{
-      var key = 'sanova_lastManip_'+fa;
-      var raw = localStorage.getItem(key);
-      if(raw){
-        var last = JSON.parse(raw);
-        if(last && last.mg && last.ml){
-          mgEl.value = last.mg;
-          mlEl.value = last.ml;
-          preencheu = true;
-        }
-      }
-    }catch(e){}
-    if(!preencheu){ mgEl.value=''; mlEl.value=''; }
-    el('calcDose').value='';
-
-    // v3.1.11: popular card de exemplos por princípio ativo
-    popularExemplosCalc(fa);
-
-    el('calcRes').innerHTML = preencheu
-      ? '<div class="calc-empty" style="color:#4ade80">Última concentração restaurada — confira no rótulo do seu frasco atual.</div>'
-      : '<div class="calc-empty">Olhe o rótulo do seu frasco e preencha mg e mL.</div>';
-    if(preencheu){ calcDil(); el('calcDose').focus(); }
-  }
+function setTipoCaneta(t){
+  window._tipoCanetaForm = t;
+  var btnC = el('cTipoCaneta'), btnF = el('cTipoFrasco');
+  var on  = '2px solid var(--g500);background:var(--g700);color:#fff';
+  var off = '2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6)';
+  if(btnC) btnC.style.cssText = btnC.style.cssText.replace(/border:[^;]*;background:[^;]*;color:[^;]*/, '') + ';border:' + (t==='caneta'?on:off);
+  if(btnF) btnF.style.cssText = btnF.style.cssText.replace(/border:[^;]*;background:[^;]*;color:[^;]*/, '') + ';border:' + (t==='frasco'?on:off);
+  var conc = el('cConcWrap');
+  if(conc) conc.style.display = (t==='frasco') ? 'block' : 'none';
 }
 
-/* ══ v3.1.11: Exemplos comuns de manipulado por princípio ativo ══
-   Lista educativa baseada em farmácias reais do mercado brasileiro.
-   NÃO chancela marca — apenas mostra a variação que existe. */
-var EXEMPLOS_MANIPULADO = {
-  Tirzepatida: [
-    {desc: '40 mg / 2 mL', conc: '20 mg/mL'},
-    {desc: '60 mg / 2 mL', conc: '30 mg/mL'},
-    {desc: '90 mg / 3 mL', conc: '30 mg/mL'},
-    {desc: '90 mg / 2 mL', conc: '45 mg/mL'}
-  ],
-  Semaglutida: [
-    {desc: '3,5 mg / 3 mL', conc: '~1,17 mg/mL'},
-    {desc: '4 mg / 1,6 mL', conc: '2,5 mg/mL'},
-    {desc: '5 mg / 1,5 mL', conc: '~3,33 mg/mL'},
-    {desc: '6 mg / 3 mL', conc: '2 mg/mL'}
-  ],
-  Liraglutida: [
-    {desc: '6 mg / 1 mL', conc: '6 mg/mL (igual ao Saxenda)'},
-    {desc: '18 mg / 3 mL', conc: '6 mg/mL'},
-    {desc: '30 mg / 3 mL', conc: '10 mg/mL'}
-  ]
-};
+function renderCalc(){
+  var tipo = S.caneta && S.caneta.tipo;
+  var elSem = el('calcSemConfig'), elCan = el('calcCaneta'), elFra = el('calcFrasco');
+  if(!elSem || !elCan || !elFra) return;
 
-function popularExemplosCalc(farmaco){
-  var lista = el('calcExemplosLista');
-  if(!lista) return;
-  var pa = (typeof principioAtivo === 'function') ? principioAtivo(farmaco) : farmaco;
-  var ex = EXEMPLOS_MANIPULADO[pa];
-  if(!ex || !ex.length){ lista.innerHTML = '<em style="color:rgba(255,255,255,.4)">Sem exemplos para este fármaco.</em>'; return; }
-  var html = '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-bottom:7px">Apresentações encontradas no mercado para <strong style="color:#bbf7d0">' + pa + '</strong>:</div>';
-  html += '<ul style="list-style:none;padding:0;margin:0">';
-  ex.forEach(function(e){
-    html += '<li style="padding:3px 0;display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.04)">';
-    html += '<span style="color:rgba(255,255,255,.78)">' + e.desc + '</span>';
-    html += '<span style="color:rgba(187,247,208,.7);font-weight:600">' + e.conc + '</span>';
-    html += '</li>';
-  });
-  html += '</ul>';
-  lista.innerHTML = html;
+  if(!tipo || !S.caneta.farmaco){
+    elSem.style.display = 'block';
+    elCan.style.display = 'none';
+    elFra.style.display = 'none';
+    return;
+  }
+
+  if(tipo === 'caneta'){
+    elSem.style.display = 'none';
+    elFra.style.display = 'none';
+    elCan.style.display = 'block';
+    var nome = S.caneta.apresentacao || (S.caneta.farmaco + ' — caneta industrial');
+    var dose = S.caneta.dose ? (String(S.caneta.dose).replace(',','.') + ' mg') : '— mg';
+    if(el('calcCanetaNome')) el('calcCanetaNome').textContent = nome;
+    if(el('calcCanetaDose')) el('calcCanetaDose').textContent = dose;
+    return;
+  }
+
+  // tipo === 'frasco'
+  elSem.style.display = 'none';
+  elCan.style.display = 'none';
+  elFra.style.display = 'block';
+  // Pré-popula concentração do cadastro (editável)
+  var mgEl = el('calcMg'), mlEl = el('calcMl'), doseEl = el('calcDose');
+  if(mgEl && S.caneta.concentracaoMg != null) mgEl.value = String(S.caneta.concentracaoMg).replace('.',',');
+  if(mlEl && S.caneta.concentracaoMl != null) mlEl.value = String(S.caneta.concentracaoMl).replace('.',',');
+  if(doseEl && S.caneta.dose) doseEl.value = String(S.caneta.dose).replace('.',',');
+  if(typeof calcDil === 'function') calcDil();
 }
 
-/* ══ v3.1.11: Detectar mudança de concentração entre lotes ══ */
+/* ══ v3.1.11: Detectar mudança de concentração entre o frasco cadastrado e o atual ══ */
 function detectarMudancaLote(){
   try{
-    var fa = el('calcFarm').value;
-    if(!fa) return;
-    var key = 'sanova_lastManip_'+fa;
-    var raw = localStorage.getItem(key);
-    if(!raw) return;
-    var last = JSON.parse(raw);
-    if(!last || !last.mg || !last.ml) return;
-    var mgAtual = parseFloat(el('calcMg').value);
-    var mlAtual = parseFloat(el('calcMl').value);
+    var concMg = S.caneta && S.caneta.concentracaoMg, concMl = S.caneta && S.caneta.concentracaoMl;
+    if(!concMg || !concMl) return;
+    var mgAtual = parseFloat((el('calcMg').value||'').replace(',','.'));
+    var mlAtual = parseFloat((el('calcMl').value||'').replace(',','.'));
     if(!mgAtual || !mlAtual) return;
     var concAtual = mgAtual / mlAtual;
-    var concUlt = last.mg / last.ml;
-    // Se diferença > 5%, alerta
-    var diff = Math.abs(concAtual - concUlt) / concUlt;
+    var concSalva = concMg / concMl;
+    var diff = Math.abs(concAtual - concSalva) / concSalva;
     var alerta = el('calcLoteAlerta');
-    if(alerta){
-      alerta.style.display = (diff > 0.05) ? 'block' : 'none';
-    }
+    if(alerta) alerta.style.display = (diff > 0.05) ? 'block' : 'none';
   }catch(e){}
 }
 
 
 function calcDil(){
-  var f=el('calcFarm').value,ai=el('calcApres').value;
-  if(!f||ai==='') return;
-  var ap=APRES[f][parseInt(ai,10)];if(!ap||ap.tipo==='caneta') return;
+  // v3.3.0: calculadora só roda em modo frasco; tipo+fármaco vêm do cadastro
+  if(!S.caneta || S.caneta.tipo !== 'frasco' || !S.caneta.farmaco) return;
+  var f = S.caneta.farmaco;
   var mgFrasco=nv(el('calcMg').value),mlFrasco=nv(el('calcMl').value),dose=nv(el('calcDose').value);
   // Mostrar concentração calculada em tempo real
   var concEl=el('calcConcResult');
@@ -9715,13 +9609,8 @@ function calcDil(){
     var conc=mgFrasco/mlFrasco;
     concEl.style.display='block';
     concEl.innerHTML='= <strong style="color:#4ade80">'+rd(conc,2)+' mg/mL</strong>';
-    // v3.1.11: detectar mudança de lote ANTES de salvar a nova
+    // Detecta divergência entre frasco cadastrado e atual (paciente trocou de frasco)
     if(typeof detectarMudancaLote === 'function') detectarMudancaLote();
-    // Salvar última concentração para reaproveitar
-    try{
-      var fa = el('calcFarm').value;
-      if(fa) localStorage.setItem('sanova_lastManip_'+fa, JSON.stringify({mg:mgFrasco, ml:mlFrasco, ts:Date.now()}));
-    }catch(e){}
   } else {
     concEl.style.display='none';
     var alerta_ = el('calcLoteAlerta'); if(alerta_) alerta_.style.display='none';
@@ -9753,7 +9642,7 @@ function calcDil(){
     +'<div class="calc-warn" style="margin-top:10px">⚠️ Unidades = (dose ÷ concentração) × 100 &nbsp;|&nbsp; Sempre confirme com seu médico antes da aplicação.</div>';
   el('calcRes').innerHTML=html;
   // Salvar último cálculo
-  S.ultimaCalc={farm:f,apresIdx:ai,mg:mgFrasco,ml:mlFrasco,dose:dose,uni:uni,conc:rd(conc,2),data:hoje()};
+  S.ultimaCalc={farm:f,mg:mgFrasco,ml:mlFrasco,dose:dose,uni:uni,conc:rd(conc,2),data:hoje()};
   salvar();
   // Mostrar botão de salvo (visível quando calc completo)
   atualizarCalcSalvoInfo();
@@ -14911,9 +14800,26 @@ function configurarEstoque(){
 }
 
 function salvarCaneta(){
+  // v3.3.0: tipo (caneta industrial vs frasco manipulado) é obrigatório
+  var tipo = window._tipoCanetaForm || (S.caneta && S.caneta.tipo) || '';
+  if(!tipo){alert('Escolha como você aplica: caneta industrial ou frasco manipulado.');return;}
   var f=el('cFarm').value;if(!f){alert('Selecione o fármaco.');return;}
+  S.caneta.tipo=tipo;
   S.caneta.farmaco=f;S.caneta.dose=el('cDose').value;S.caneta.freq=el('cFreq').value;S.caneta.inicio=el('cIni').value;S.caneta.ultima=el('cUlt').value;
   if(el('cHora')) S.caneta.horario=el('cHora').value || '08:00';S.caneta.diaSem=nv(el('cDia').value,1);S.caneta.obs=el('cObs').value;
+  // v3.3.0: apresentação (label da caneta industrial) — só relevante quando tipo='caneta'
+  if(tipo==='caneta'){
+    S.caneta.apresentacao = f + ' ' + (S.caneta.dose || '') + ' mg';
+    S.caneta.concentracaoMg = null;
+    S.caneta.concentracaoMl = null;
+  } else {
+    // tipo='frasco': captura concentração do frasco manipulado
+    var mgF = el('cConcMg') ? parseFloat((el('cConcMg').value||'').replace(',','.')) : null;
+    var mlF = el('cConcMl') ? parseFloat((el('cConcMl').value||'').replace(',','.')) : null;
+    S.caneta.concentracaoMg = (mgF && mgF>0) ? mgF : null;
+    S.caneta.concentracaoMl = (mlF && mlF>0) ? mlF : null;
+    S.caneta.apresentacao = '';
+  }
   // v3.1.67: capturar estoque
   var estVal = el('cEstoque') ? parseFloat((el('cEstoque').value||'').replace(',','.')) : null;
   S.caneta.estoqueAtual = (estVal && estVal > 0) ? estVal : null;
@@ -14926,6 +14832,7 @@ function salvarCaneta(){
     if(typeof buildPKChart==='function') buildPKChart();
     if(typeof renderGaugeSaciedade==='function') renderGaugeSaciedade();
     if(typeof renderManualCaneta==='function') renderManualCaneta();
+    if(typeof renderCalc==='function') renderCalc();
   },100);
   toast('Tratamento salvo! 💉');
 }
@@ -17871,11 +17778,6 @@ function avancarLocalInjecao(){var n=parseInt(localStorage.getItem('sanova_inj_r
    no init pra não deixar lixo de versões antigas).
    ════════════════════════════════════════════════════════════════════════ */
 
-// Compat: chamadas antigas a frascoModoManual viram no-op (form já é único)
-function frascoModoManual(){
-  // No-op — calcFormWrap já é o caminho único e está visível por padrão
-}
-
 // Reset do form manual + bloco de confirmação
 function frascoReiniciar(){
   var fc=el('frascoConfirmWrap');if(fc) fc.style.display='none';
@@ -17901,8 +17803,9 @@ function verificarCheckboxes(){
 }
 
 // Helper: lê os dados do form manual e devolve normalizado
+// v3.3.0: farmaco vem do cadastro (S.caneta), não há mais seletor duplicado na calculadora
 function _lerFormFrascoManual(){
-  var farm=(el('calcFarm')&&el('calcFarm').value)||'';
+  var farm=(S.caneta && S.caneta.farmaco)||'';
   var mg=parseFloat((el('calcMg')&&el('calcMg').value||'').replace(',','.'));
   var ml=parseFloat((el('calcMl')&&el('calcMl').value||'').replace(',','.'));
   var dose=parseFloat((el('calcDose')&&el('calcDose').value||'').replace(',','.'));
@@ -17911,8 +17814,8 @@ function _lerFormFrascoManual(){
 
 function registrarAplicacaoFrasco(){
   var dados=_lerFormFrascoManual();
-  if(!dados.farmaco){toast('Selecione o fármaco antes de registrar.',3000);return;}
-  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita antes de registrar.',3000);return;}
+  if(!dados.farmaco){toast('Configure seu fármaco no cadastro acima.',3000);return;}
+  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita.',3000);return;}
 
   var hoje2=hoje();
   var agora=new Date().toISOString();
@@ -17924,6 +17827,9 @@ function registrarAplicacaoFrasco(){
   S.caneta.farmaco=dados.farmaco;
   S.caneta.freq=dados.farmaco==='Liraglutida'?'diaria':'semanal';
   S.caneta.dose=dados.dose;
+  // v3.3.0: se paciente trocou de frasco e editou mg/mL na calculadora, salva a nova concentração no cadastro
+  if(dados.mgTotal) S.caneta.concentracaoMg = dados.mgTotal;
+  if(dados.mlTotal) S.caneta.concentracaoMl = dados.mlTotal;
 
   // Popular form da caneta (aba "Tratamento atual" usa cFarm/cDose/cFreq/cUlt/cIni)
   if(el('cFarm')){
@@ -17962,12 +17868,15 @@ function fecharFluxoFrasco(){
 
 function registrarSemAplicar(){
   var dados=_lerFormFrascoManual();
-  if(!dados.farmaco){toast('Selecione o fármaco antes de registrar.',3000);return;}
-  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita antes de registrar.',3000);return;}
+  if(!dados.farmaco){toast('Configure seu fármaco no cadastro acima.',3000);return;}
+  if(!dados.dose||dados.dose<=0){toast('Informe a dose prescrita.',3000);return;}
 
   S.caneta.farmaco=dados.farmaco;
   S.caneta.freq=dados.farmaco==='Liraglutida'?'diaria':'semanal';
   S.caneta.dose=dados.dose;
+  // v3.3.0: salva concentração atualizada se editada
+  if(dados.mgTotal) S.caneta.concentracaoMg = dados.mgTotal;
+  if(dados.mlTotal) S.caneta.concentracaoMl = dados.mlTotal;
 
   if(el('cFarm')){
     el('cFarm').value=S.caneta.farmaco;
@@ -18095,40 +18004,29 @@ function popularPerfil(){
   if(el('ativ')) el('ativ').value=S.profile.activityLevel||'Moderada';
   if(el('dtIni')) el('dtIni').value=S.profile.startDate||'';
 }
+// v3.3.0: banner "Último cálculo" só aparece em modo frasco (dentro de #calcFrasco)
 function atualizarCalcSalvoInfo(){
   var infoEl=el('calcSalvoInfo');
   var txtEl=el('calcSalvoTxt');
-  var formEl=el('calcFormWrap');
-  // Banner só aparece quando o form manual está aberto
-  if(!formEl||formEl.style.display==='none') return;
-  if(S.ultimaCalc&&S.ultimaCalc.uni){
+  if(!infoEl) return;
+  if(S.caneta && S.caneta.tipo==='frasco' && S.ultimaCalc && S.ultimaCalc.uni){
     var uc2=S.ultimaCalc;
     var apNome=uc2.farm+' · '+uc2.dose+'mg → '+uc2.uni+' UI na seringa';
     if(txtEl) txtEl.textContent=apNome+(uc2.data?' ('+new Date(uc2.data+'T12:00:00').toLocaleDateString('pt-BR')+')':'');
-    if(infoEl) infoEl.style.display='flex';
-  }
-}
-function reajustarCalc(){
-  var infoEl=el('calcSalvoInfo');
-  var formEl=el('calcFormWrap');
-  if(infoEl) infoEl.style.display='none';
-  if(formEl) formEl.style.display='block';
-  // Preencher com últimos valores sem recalcular (evita fechar o form)
-  if(S.ultimaCalc){
-    var uc=S.ultimaCalc;
-    if(el('calcFarm')&&uc.farm){el('calcFarm').value=uc.farm;updateCalcApres();}
-    setTimeout(function(){
-      if(el('calcApres')&&uc.apresIdx!==undefined) el('calcApres').value=uc.apresIdx;
-      if(el('calcMg')&&uc.mg) el('calcMg').value=uc.mg;
-      if(el('calcMl')&&uc.ml) el('calcMl').value=uc.ml;
-      if(el('calcDose')&&uc.dose) el('calcDose').value=uc.dose;
-      if(el('calcAmpolaWrap')) el('calcAmpolaWrap').style.display='block';
-      // Não chamar calcDil() aqui — deixa usuário editar primeiro
-    },150);
+    infoEl.style.display='flex';
+  } else {
+    infoEl.style.display='none';
   }
 }
 function popularCaneta(){
   var cf=el('cFarm');if(!cf) return;
+  // v3.3.0: restaurar tipo (caneta/frasco) e concentração do frasco
+  if(S.caneta.tipo){
+    window._tipoCanetaForm = S.caneta.tipo;
+    setTipoCaneta(S.caneta.tipo);
+  }
+  if(el('cConcMg')) el('cConcMg').value = (S.caneta.concentracaoMg!=null) ? String(S.caneta.concentracaoMg).replace('.',',') : '';
+  if(el('cConcMl')) el('cConcMl').value = (S.caneta.concentracaoMl!=null) ? String(S.caneta.concentracaoMl).replace('.',',') : '';
   if(S.caneta.farmaco){
     cf.value=S.caneta.farmaco;
     if(typeof updateDoses==='function') updateDoses();
@@ -18142,6 +18040,8 @@ function popularCaneta(){
   // v3.1.67: estoque
   if(el('cEstoque')) el('cEstoque').value = (S.caneta.estoqueAtual!=null) ? String(S.caneta.estoqueAtual) : '';
   if(el('cEstoqueUnidade')) el('cEstoqueUnidade').value = S.caneta.estoqueUnidade || 'mg';
+  // v3.3.0: renderizar a calculadora condicional baseada no tipo
+  if(typeof renderCalc === 'function') renderCalc();
   // Listeners pra previsão dinâmica (idempotente)
   ['cEstoque','cEstoqueUnidade','cDose','cFarm','cFreq'].forEach(function(id){
     var e = el(id);
