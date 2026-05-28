@@ -4780,6 +4780,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <div class="calc-hero">
     <div class="calc-tag" id="calcMainTag">💉 APLICAR DOSE</div>
     <div class="calc-title" id="calcMainTitle">Registre sua aplicação</div>
+
+    <!-- v3.4.3: badge de data retroativa — restaura registro de dose em outro dia -->
+    <div id="calcDataRegWrap" style="display:none;margin:6px 0 14px;text-align:center">
+      <button id="dataReg-dose" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação"
+        style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.75);font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer;line-height:1">📅 Hoje ▼</button>
+    </div>
     <div style="margin-bottom:14px;padding:8px 12px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:10px;font-size:11px;color:rgba(253,230,138,.7);line-height:1.5">
       ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
     </div>
@@ -4866,8 +4872,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           </label>
         </div>
 
-        <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s">
+        <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s;margin-bottom:8px">
           ✅ Apliquei agora — registrar dose
+        </button>
+        <!-- v3.4.3: paciente pode usar a calculadora só pra consultar UI, sem registrar -->
+        <button onclick="frascoReiniciar();toast('Cálculo conferido. Nenhuma dose registrada.',2500)" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.5);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
+          📋 Só estava calculando — não registrar
         </button>
       </div>
     </div>
@@ -5634,7 +5644,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.4.2';
+var SANOVA_VERSION = '3.4.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9576,16 +9586,22 @@ function renderCalc(){
   var tipo = S.caneta && S.caneta.tipo;
   var elSem = el('calcSemConfig'), elCan = el('calcCaneta'), elFra = el('calcFrasco');
   var elTag = el('calcMainTag'), elTitle = el('calcMainTitle');
+  var elDataReg = el('calcDataRegWrap');
   if(!elSem || !elCan || !elFra) return;
 
   if(!tipo || !S.caneta.farmaco){
     if(elTag)   elTag.textContent   = '💉 APLICAR DOSE';
     if(elTitle) elTitle.textContent = 'Registre sua aplicação';
+    if(elDataReg) elDataReg.style.display = 'none';
     elSem.style.display = 'block';
     elCan.style.display = 'none';
     elFra.style.display = 'none';
     return;
   }
+
+  // v3.4.3: mostra badge de data retroativa quando tipo+fármaco configurados
+  if(elDataReg) elDataReg.style.display = 'block';
+  if(typeof _renderBadgeData === 'function') _renderBadgeData('dose');
 
   if(tipo === 'caneta'){
     if(elTag)   elTag.textContent   = '🖊️ REGISTRAR APLICAÇÃO';
@@ -17814,38 +17830,58 @@ function verificarCheckboxes(){
 }
 
 // v3.4.0: tudo vem de S.caneta — não há mais inputs editáveis na calculadora
+// v3.4.3: respeita _getDataReg('dose') pra registrar dose em outro dia (retroativa)
 function registrarAplicacaoFrasco(){
   if(!S.caneta || !S.caneta.farmaco){toast('Configure sua medicação primeiro.',3000);return;}
   var dose = parseFloat(String(S.caneta.dose||'').replace(',','.'));
   if(!dose||dose<=0){toast('Defina a dose prescrita no cadastro.',3000);return;}
 
-  var hoje2=hoje();
-  var agora=new Date().toISOString();
+  // Data retroativa (default = hoje). Mesma lógica de registrarAplicacaoHoje.
+  var dataAplicacao = (typeof _getDataReg === 'function') ? _getDataReg('dose') : hoje();
+  var hojeStr = hoje();
+  var retroativo = dataAplicacao !== hojeStr;
+  if(retroativo){
+    var d1 = parseLocalDate(dataAplicacao);
+    var d2 = parseLocalDate(hojeStr);
+    var diasAtras = Math.round((d2 - d1) / 86400000);
+    if(diasAtras > 2){
+      var farm = S.caneta.farmaco || 'medicação';
+      if(!confirm('⚠️ Confirme: você aplicou '+farm+' '+dose+' mg há '+diasAtras+' dias ('+_formatarDataReg(dataAplicacao)+')?\n\nIsso altera o cronograma da próxima dose.')) return;
+    }
+  }
 
-  S.caneta.ultima=hoje2;
-  S.caneta.ultimaISO=agora;
-  if(!S.caneta.inicio) S.caneta.inicio=hoje2;
+  var nowIso = nowISO ? nowISO() : new Date().toISOString();
+  if(!retroativo){
+    S.caneta.ultima = dataAplicacao;
+    S.caneta.ultimaISO = nowIso;
+  } else {
+    var ultimaAtual = S.caneta.ultima;
+    if(!ultimaAtual || dataAplicacao > ultimaAtual){
+      S.caneta.ultima = dataAplicacao;
+      S.caneta.ultimaISO = dataAplicacao + 'T12:00:00';
+    }
+  }
+  if(!S.caneta.inicio) S.caneta.inicio = dataAplicacao;
 
-  // v3.4.0: registra no histórico (consistente com registrarAplicacaoHoje)
   if(!S.applications) S.applications = [];
   S.applications.push({
     id: (typeof uuid === 'function') ? uuid() : String(Date.now()),
     farmaco: S.caneta.farmaco,
     dose: dose,
-    date: hoje2,
-    appliedAt: agora,
-    createdAt: agora,
-    retroativo: false
+    date: dataAplicacao,
+    appliedAt: retroativo ? (dataAplicacao + 'T12:00:00') : nowIso,
+    createdAt: nowIso,
+    retroativo: retroativo
   });
 
-  // Decrementa estoque
   if(typeof aplicarDecrementoEstoque === 'function') aplicarDecrementoEstoque();
+  if(typeof _setDataReg === 'function') _setDataReg('dose', hojeStr);  // reseta pra hoje após registrar
   salvar();
   if(typeof avancarLocalInjecao === 'function') avancarLocalInjecao();
   render();
 
   var proximaTxt = S.caneta.farmaco==='Liraglutida' ? 'amanhã' : 'em 7 dias';
-  toast('✅ Dose registrada! Próxima: '+proximaTxt);
+  toast('✅ Dose registrada' + (retroativo ? ' em '+_formatarDataReg(dataAplicacao) : '') + '! Próxima: '+proximaTxt);
   frascoReiniciar();
   setTimeout(function(){
     go('dashboard');
