@@ -4759,8 +4759,8 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
        Caneta industrial → card simples de registro (sem cálculo de UI).
        Frasco manipulado → calculadora mg→UI completa. -->
   <div class="calc-hero">
-    <div class="calc-tag">💉 APLICAR DOSE</div>
-    <div class="calc-title">Registre sua aplicação</div>
+    <div class="calc-tag" id="calcMainTag">💉 APLICAR DOSE</div>
+    <div class="calc-title" id="calcMainTitle">Registre sua aplicação</div>
     <div style="margin-bottom:14px;padding:8px 12px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:10px;font-size:11px;color:rgba(253,230,138,.7);line-height:1.5">
       ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
     </div>
@@ -5650,7 +5650,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.3.0';
+var SANOVA_VERSION = '3.3.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',estoqueAtual:null,estoqueUnidade:null,tipo:'',apresentacao:'',concentracaoMg:null,concentracaoMl:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9549,9 +9549,12 @@ function setTipoCaneta(t){
 function renderCalc(){
   var tipo = S.caneta && S.caneta.tipo;
   var elSem = el('calcSemConfig'), elCan = el('calcCaneta'), elFra = el('calcFrasco');
+  var elTag = el('calcMainTag'), elTitle = el('calcMainTitle');
   if(!elSem || !elCan || !elFra) return;
 
   if(!tipo || !S.caneta.farmaco){
+    if(elTag)   elTag.textContent   = '💉 APLICAR DOSE';
+    if(elTitle) elTitle.textContent = 'Registre sua aplicação';
     elSem.style.display = 'block';
     elCan.style.display = 'none';
     elFra.style.display = 'none';
@@ -9559,6 +9562,8 @@ function renderCalc(){
   }
 
   if(tipo === 'caneta'){
+    if(elTag)   elTag.textContent   = '🖊️ REGISTRAR APLICAÇÃO';
+    if(elTitle) elTitle.textContent = 'Registre sua aplicação';
     elSem.style.display = 'none';
     elFra.style.display = 'none';
     elCan.style.display = 'block';
@@ -9570,6 +9575,8 @@ function renderCalc(){
   }
 
   // tipo === 'frasco'
+  if(elTag)   elTag.textContent   = '🧪 CÁLCULO DE DOSE';
+  if(elTitle) elTitle.textContent = 'Calculadora de dose em seringa de insulina';
   elSem.style.display = 'none';
   elCan.style.display = 'none';
   elFra.style.display = 'block';
@@ -9602,7 +9609,9 @@ function calcDil(){
   // v3.3.0: calculadora só roda em modo frasco; tipo+fármaco vêm do cadastro
   if(!S.caneta || S.caneta.tipo !== 'frasco' || !S.caneta.farmaco) return;
   var f = S.caneta.farmaco;
-  var mgFrasco=nv(el('calcMg').value),mlFrasco=nv(el('calcMl').value),dose=nv(el('calcDose').value);
+  // v3.3.1: normaliza vírgula → ponto antes de parseFloat (BR usa vírgula como decimal)
+  var _norm = function(v){ return (v||'').toString().replace(',','.'); };
+  var mgFrasco=nv(_norm(el('calcMg').value)),mlFrasco=nv(_norm(el('calcMl').value)),dose=nv(_norm(el('calcDose').value));
   // Mostrar concentração calculada em tempo real
   var concEl=el('calcConcResult');
   if(mgFrasco>0&&mlFrasco>0){
