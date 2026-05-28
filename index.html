@@ -5634,7 +5634,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.4.0';
+var SANOVA_VERSION = '3.4.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9673,11 +9673,12 @@ function calcDil(){
     // Aviso de dose alta
     var fa=el('frascoAvisoAlta');
     if(fa) fa.style.display=(uni>100)?'block':'none';
-    // Local de injeção (rodízio)
+    // Local de injeção (rodízio) — v3.4.1: nota da bula sobre alternância obrigatória
     var li=el('frascoLocalInjecao');
     if(li){
       var loc=getLocalInjecao();
-      li.innerHTML='<strong>'+loc.local+'</strong><br>'+loc.desc;
+      li.innerHTML='<strong>'+loc.local+'</strong><br>'+loc.desc+
+        '<div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
     }
   }
 }
@@ -17762,11 +17763,14 @@ document.addEventListener('DOMContentLoaded',function(){
     });
   }
 });
-/* ══ MEDICAÇÃO — RODÍZIO DE LOCAIS DE INJEÇÃO ══ */
+/* ══ MEDICAÇÃO — RODÍZIO DE LOCAIS DE INJEÇÃO ══
+   v3.4.1: copy alinhado à bula brasileira do Mounjaro (Eli Lilly, ANVISA reg.
+   1.1260.0202): locais aprovados são abdome, coxa e parte superior do braço
+   (este último só por outra pessoa). Alterne o local a cada dose. */
 var _LOCAIS_INJECAO=[
-  {local:'Abdômen',desc:'Região ao redor do umbigo (afaste 5cm). Pele limpa e seca.'},
-  {local:'Coxa',desc:'Parte externa da coxa, região superior. Ideal se estiver sozinho.'},
-  {local:'Braço',desc:'Parte posterior do braço (tríceps). Peça ajuda se necessário.'}
+  {local:'Abdômen',desc:'Preferencial. Região ao redor do umbigo, afaste 5 cm. Pele limpa e seca.'},
+  {local:'Coxa',desc:'Alternativa de rodízio. Parte externa da coxa, terço superior. Pele limpa e seca.'},
+  {local:'Braço (com ajuda)',desc:'Parte superior do braço — segundo a bula, deve ser aplicado por outra pessoa.'}
 ];
 function getLocalInjecao(){var n=parseInt(localStorage.getItem('sanova_inj_rot')||'0',10);return _LOCAIS_INJECAO[n%3];}
 function avancarLocalInjecao(){var n=parseInt(localStorage.getItem('sanova_inj_rot')||'0',10);localStorage.setItem('sanova_inj_rot',String((n+1)%3));}
