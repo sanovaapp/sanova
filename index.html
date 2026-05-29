@@ -6223,8 +6223,12 @@ function abrirBulaOficial(slug){
    ══════════════════════════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════════════════
    v3.1.36 — MODO DESENVOLVEDOR (gesto secreto + senha)
+   v3.6.0 — Senha agora validada via hash SHA-256 (não mais texto plano).
    Padrão: 7 toques rápidos no logo Sanova (em <3s) → pede senha → desbloqueia
-   Senha: sanova2026
+   Senha real: NÃO está no código. Só o hash. Guardada no gerenciador do
+   Bruno (Google Password Manager / Chrome saved passwords).
+   Pra rotacionar: gera nova senha → calcula SHA-256 → substitui DEV_HASH
+   abaixo. Senha original cai junto.
    Sessão: persiste apenas durante a sessão atual (não fica salvo)
    Ferramentas escondidas: Inspetor, Zerar dia
    ══════════════════════════════════════════════════════════════════════════ */
@@ -6260,6 +6264,26 @@ function logoClicked(){
   }
 }
 
+// SHA-256 da senha do modo dev. NUNCA coloque a senha em texto aqui.
+// Pra trocar: ver "v3.1.36 — MODO DESENVOLVEDOR" no cabeçalho desta seção.
+var DEV_HASH = '__DEV_PASSWORD_HASH_PLACEHOLDER__';
+
+function _devHashCheck(senha){
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha))
+    .then(function(buf){
+      var bytes = new Uint8Array(buf);
+      var hex = '';
+      for(var i = 0; i < bytes.length; i++){
+        hex += bytes[i].toString(16).padStart(2, '0');
+      }
+      return hex === DEV_HASH;
+    })
+    .catch(function(e){
+      console.warn('[Dev] hash check falhou:', e);
+      return false;
+    });
+}
+
 function pedirSenhaDev(){
   if(_modoDev){
     if(typeof toast === 'function') toast('🔓 Modo desenvolvedor já ativo', 2000);
@@ -6270,13 +6294,15 @@ function pedirSenhaDev(){
   var senha = prompt('🔧 Modo Desenvolvedor\n\nDigite a senha:');
   if(senha === null) return; // cancelou
 
-  if(senha === 'sanova2026'){
-    _modoDev = true;
-    mostrarSecaoDiagnostico();
-    if(typeof toast === 'function') toast('🔓 Modo desenvolvedor ativado · vá em Mais', 3500);
-  } else {
-    if(typeof toast === 'function') toast('❌ Senha incorreta', 2000);
-  }
+  _devHashCheck(senha).then(function(ok){
+    if(ok){
+      _modoDev = true;
+      mostrarSecaoDiagnostico();
+      if(typeof toast === 'function') toast('🔓 Modo desenvolvedor ativado · vá em Mais', 3500);
+    }else{
+      if(typeof toast === 'function') toast('❌ Senha incorreta', 2000);
+    }
+  });
 }
 
 function mostrarSecaoDiagnostico(){
@@ -6539,7 +6565,15 @@ function abrirTermosUso(){
       '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">1. Natureza do serviço</div>' +
       '<p style="margin:0 0 14px 0">O Sanova é um <strong style="color:#fff">aplicativo educativo de auto-acompanhamento</strong> para pacientes em tratamento com GLP-1. <strong style="color:#fff">Não é dispositivo médico</strong> regulamentado pela ANVISA, não é serviço de saúde, não é telemedicina. Para informações oficiais sobre cada medicamento, oferecemos acesso direto às bulas no Bulário Eletrônico ANVISA (em "Aprender → Bulas Oficiais").</p>' +
 
-      '<div style="font-weight:800;color:#fca5a5;margin-bottom:6px;font-size:13.5px">2. O que o app NÃO faz</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">2. Idade mínima e responsabilidade legal</div>' +
+      '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Maiores de 18 anos:</strong> uso livre, sob responsabilidade própria, com a recomendação inalienável de acompanhamento médico durante o tratamento com GLP-1.</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Adolescentes de 16 e 17 anos:</strong> uso permitido somente <strong style="color:#fff">mediante prescrição médica formal</strong> do GLP-1 e <strong style="color:#fff">supervisão de responsável legal</strong>, que deve aceitar estes Termos em nome do menor.</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Menores de 16 anos:</strong> uso <strong style="color:#fff">não autorizado</strong>. O cadastro será cancelado se identificado.</li>' +
+        '<li style="margin-bottom:3px">Dados de adolescentes são tratados como <strong style="color:#fff">dados pessoais sensíveis</strong> conforme LGPD Art. 14, com proteções adicionais.</li>' +
+      '</ul>' +
+
+      '<div style="font-weight:800;color:#fca5a5;margin-bottom:6px;font-size:13.5px">3. O que o app NÃO faz</div>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px">Não prescreve, ajusta nem recomenda medicamentos ou doses</li>' +
         '<li style="margin-bottom:3px">Não substitui consulta médica, nutricional ou farmacêutica</li>' +
@@ -6548,7 +6582,7 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px">Não atende pacientes com condições complexas (diabetes descompensada, doença renal/hepática, gestação, transtornos alimentares ativos)</li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">3. Sua responsabilidade</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">4. Sua responsabilidade</div>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px">Manter acompanhamento médico regular durante o tratamento</li>' +
         '<li style="margin-bottom:3px">Informar dados verdadeiros (estimativas dependem disso)</li>' +
@@ -6557,13 +6591,13 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px">Confirmar com seu médico qualquer informação relevante</li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">4. Limitação de responsabilidade</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">5. Limitação de responsabilidade</div>' +
       '<p style="margin:0 0 14px 0">As informações educativas do Sanova são baseadas em bulas oficiais e literatura científica, mas <strong style="color:#fff">podem conter imprecisões, ficar desatualizadas ou não se aplicar à sua situação específica</strong>. O desenvolvedor do Sanova não se responsabiliza por decisões clínicas tomadas com base apenas no app, nem por consequências de uso indevido (alteração de dose sem orientação médica, etc.).</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">5. Propriedade intelectual</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">6. Propriedade intelectual</div>' +
       '<p style="margin:0 0 14px 0">O código, design, conteúdo educativo e marca do Sanova são protegidos por direito autoral (Lei 9.610/98). É <strong style="color:#fff">vedada a reprodução, modificação, distribuição ou uso comercial</strong> sem autorização expressa do desenvolvedor.</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">6. Assinatura e pagamento</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">7. Assinatura e pagamento</div>' +
       '<p style="margin:0 0 8px 0">O Sanova oferece um <strong style="color:#fff">período gratuito de 7 dias</strong> com acesso completo, sem necessidade de cadastro de cartão. Após o período, o uso de funcionalidades pagas (IA de prato, calculadora de UI de insulina, relatório PDF para o médico) requer assinatura.</p>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px"><strong style="color:#fff">Valor:</strong> R$ 19,90/mês ou R$ 199/ano (sujeito a reajuste anual conforme inflação, com aviso prévio de 30 dias)</li>' +
@@ -6572,7 +6606,7 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px"><strong style="color:#fff">Processamento:</strong> os pagamentos são processados pelo Mercado Pago (parceiro certificado PCI-DSS). O Sanova <strong style="color:#fff">não armazena dados do seu cartão</strong></li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">7. Cancelamento, reembolso e arrependimento</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">8. Cancelamento, reembolso e arrependimento</div>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px"><strong style="color:#fff">Cancelamento a qualquer momento:</strong> em <strong style="color:#fff">Mais → Perfil → Gerenciar assinatura</strong>. Você mantém acesso pago até o fim do ciclo já pago</li>' +
         '<li style="margin-bottom:3px"><strong style="color:#fff">Direito de arrependimento (Art. 49 CDC):</strong> até 7 dias após a contratação, com reembolso integral, mesmo após uso. Solicite por email</li>' +
@@ -6580,7 +6614,7 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px"><strong style="color:#fff">Falha técnica:</strong> em caso de indisponibilidade prolongada do app (mais de 72 horas consecutivas), entre em contato — avaliamos reembolso parcial caso a caso</li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">8. Dados de pagamento (LGPD)</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">9. Dados de pagamento (LGPD)</div>' +
       '<p style="margin:0 0 8px 0">O processamento de pagamentos é feito integralmente pelo <strong style="color:#fff">Mercado Pago Representações LTDA</strong> (operador), nos termos da política de privacidade dele. O Sanova (controlador) recebe apenas:</p>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px">Status da assinatura (ativa, expirada, cancelada)</li>' +
@@ -6589,13 +6623,13 @@ function abrirTermosUso(){
       '</ul>' +
       '<p style="margin:0 0 14px 0">Número de cartão, CVV, validade e demais dados financeiros <strong style="color:#fff">nunca tocam servidores do Sanova</strong>. Você pode exercer seus direitos LGPD a qualquer momento (acesso, correção, exclusão, portabilidade) escrevendo ao desenvolvedor pelo email de contato.</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">9. Modificações nos Termos</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">10. Modificações nos Termos</div>' +
       '<p style="margin:0 0 14px 0">Estes Termos podem ser atualizados a qualquer momento. Mudanças relevantes serão comunicadas no app. Continuar usando após uma atualização significa aceitação dos novos Termos. Reajustes de preço terão aviso prévio de pelo menos 30 dias.</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">10. Encerramento de uso</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">11. Encerramento de uso</div>' +
       '<p style="margin:0 0 14px 0">Você pode parar de usar o Sanova a qualquer momento. Para apagar seus dados: <strong style="color:#fff">Mais → Perfil → Apagar todos os dados</strong>. Após apagados, os dados são perdidos definitivamente (não há cópia em servidor). Cancelar assinatura paga não apaga dados — só interrompe cobrança e acesso pago.</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">11. Foro</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">12. Foro</div>' +
       '<p style="margin:0 0 14px 0">Eventuais disputas serão resolvidas no foro do domicílio do desenvolvedor, no Brasil, conforme legislação brasileira aplicável (CDC, LGPD, Marco Civil da Internet).</p>' +
 
     '</div>' +
@@ -19818,15 +19852,15 @@ window.addEventListener('beforeunload',function(){
           '<div style="font-size:17px;color:#fff;font-weight:800;margin-top:2px">R$ 19,90</div>' +
         '</div>' +
         '<div style="flex:1;padding:11px;border-radius:11px;border:1.5px solid #bbf7d0;background:rgba(187,247,208,.16);text-align:center;position:relative">' +
-          '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;letter-spacing:.04em">ECONOMIZA</div>' +
-          '<div style="font-size:10.5px;color:rgba(255,255,255,.65);font-weight:700">Anual</div>' +
+          '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;letter-spacing:.04em;white-space:nowrap">ECONOMIZA R$ 39,80 (2 meses gratis)</div>' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.65);font-weight:700;margin-top:4px">Anual</div>' +
           '<div style="font-size:17px;color:#fff;font-weight:800;margin-top:2px">R$ 199</div>' +
         '</div>' +
       '</div>' +
 
       '<button onclick="window.SanovaPaywall.iniciarAssinatura()" style="width:100%;padding:13px;border-radius:11px;border:0;background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;font-family:var(--ss,system-ui);font-size:14px;font-weight:800;cursor:pointer;margin-bottom:7px;box-shadow:0 4px 12px rgba(34,197,94,.3)">Assinar agora 🌿</button>' +
 
-      '<button onclick="window.SanovaPaywall.fecharModal()" style="width:100%;padding:11px;border-radius:11px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.75);font-family:var(--ss,system-ui);font-size:13px;font-weight:600;cursor:pointer">Continuar com o basico</button>' +
+      '<button onclick="window.SanovaPaywall.fecharModal()" style="width:100%;padding:11px;border-radius:11px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.75);font-family:var(--ss,system-ui);font-size:13px;font-weight:600;cursor:pointer">Continuar usando o gratuito</button>' +
 
       '<div style="font-size:10.5px;color:rgba(255,255,255,.45);text-align:center;margin-top:10px;line-height:1.45">Cobranca via Mercado Pago. Cancele quando quiser nas configuracoes. Direito de arrependimento de 7 dias (CDC Art. 49).</div>' +
     '</div>';
