@@ -5666,7 +5666,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.4.5';
+var SANOVA_VERSION = '3.5.0';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -19446,6 +19446,7 @@ window.addEventListener('beforeunload',function(){
       }
     }catch(e){ console.warn('[Cloud] pull falhou, seguindo com local', e); }
     esconderGate();
+    try{ window.dispatchEvent(new CustomEvent('sanova:logado', {detail:{userId: usuarioAtual && usuarioAtual.id}})); }catch(e){}
     // Reinicia o boot do app pra renderizar com os dados certos
     try{ bootApp(); }catch(e){ location.reload(); }
     // v3.2.1: reforço — garante que o destino final é o Painel, não o registro.
@@ -19519,6 +19520,10 @@ window.addEventListener('beforeunload',function(){
     location.reload();
   };
 
+  // Ponte pra camadas externas (ex: SanovaAssinatura) usarem o mesmo cliente+sessao
+  window.SanovaSB = function(){ return sb; };
+  window.SanovaUser = function(){ return usuarioAtual; };
+
   // ══ INICIALIZAÇÃO ══
   // Roda DEPOIS que o app carregou (load garante que salvar/carregar existem)
   window.addEventListener('load', function(){
@@ -19533,6 +19538,7 @@ window.addEventListener('beforeunload',function(){
           if(sessao && sessao.user){
             usuarioAtual = sessao.user;
             esconderGate();
+            try{ window.dispatchEvent(new CustomEvent('sanova:logado', {detail:{userId: usuarioAtual.id}})); }catch(e){}
             // app já bootou sozinho pelo DOMContentLoaded; só garante sync ligado
           }else{
             mostrarGate();
@@ -19545,6 +19551,129 @@ window.addEventListener('beforeunload',function(){
         console.warn('[Cloud] SDK não carregou — modo offline');
       }
     })();
+  });
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Sanova — Camada de Assinatura (v3.5.0)
+   Le subscriptions do Supabase e expoe estado consultavel pelo app.
+   NAO mexe em login, sync, ou qualquer outra camada.
+   Camadas externas escutam o evento 'sanova:assinatura' pra reagir.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  var DEV_KEY = 'sanova_dev_assinatura';
+  var estado = {
+    status: 'free',
+    diasRestantes: 0,
+    trialEndsAt: null,
+    assinaturaTermina: null,
+    carregado: false,
+    fonte: 'inicial'
+  };
+
+  function aplicarOverrideDev(s){
+    try{
+      var ov = localStorage.getItem(DEV_KEY);
+      if(!ov) return s;
+      if(['trial','active','expired','canceled','free'].indexOf(ov) === -1) return s;
+      s.status = ov;
+      s.fonte  = 'dev-override';
+      if(ov === 'trial' && !s.trialEndsAt){
+        s.trialEndsAt = new Date(Date.now() + 7*86400000).toISOString();
+        s.diasRestantes = 7;
+      }
+    }catch(e){}
+    return s;
+  }
+
+  function disparar(){
+    try{
+      window.dispatchEvent(new CustomEvent('sanova:assinatura', {detail: get()}));
+    }catch(e){}
+  }
+
+  async function carregar(){
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    var user = (typeof window.SanovaUser === 'function') ? window.SanovaUser() : null;
+    if(!sb || !user || !user.id){
+      estado = aplicarOverrideDev({
+        status:'free', diasRestantes:0, trialEndsAt:null,
+        assinaturaTermina:null, carregado:true, fonte:'sem-sessao'
+      });
+      disparar();
+      return get();
+    }
+    try{
+      var res = await sb.from('subscriptions')
+        .select('status, trial_ends_at, subscription_ends_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if(res.error || !res.data){
+        estado = {status:'free', diasRestantes:0, trialEndsAt:null,
+                  assinaturaTermina:null, carregado:true, fonte:'sem-row'};
+      }else{
+        var d = res.data;
+        var agora = Date.now();
+        var trialFim = d.trial_ends_at ? new Date(d.trial_ends_at).getTime() : 0;
+        var assFim   = d.subscription_ends_at ? new Date(d.subscription_ends_at).getTime() : 0;
+        var s = 'expired';
+        if(d.status === 'active' && assFim > agora) s = 'active';
+        else if(d.status === 'trial' && trialFim > agora) s = 'trial';
+        else if(d.status === 'canceled') s = 'canceled';
+        estado = {
+          status: s,
+          diasRestantes: s === 'trial' ? Math.ceil((trialFim - agora)/86400000) : 0,
+          trialEndsAt: d.trial_ends_at || null,
+          assinaturaTermina: d.subscription_ends_at || null,
+          carregado: true,
+          fonte: 'supabase'
+        };
+      }
+    }catch(e){
+      console.warn('[Assinatura] erro ao ler subscriptions:', e);
+      estado = {status:'free', diasRestantes:0, trialEndsAt:null,
+                assinaturaTermina:null, carregado:true, fonte:'erro'};
+    }
+    estado = aplicarOverrideDev(estado);
+    disparar();
+    return get();
+  }
+
+  function get(){ return Object.assign({}, estado); }
+
+  function temAcesso(){
+    return estado.status === 'trial' || estado.status === 'active';
+  }
+
+  // API dev: forca um status sem mexer no banco (so localStorage).
+  // Limpa com forcarStatus(null).
+  function forcarStatus(novo){
+    try{
+      if(!novo) localStorage.removeItem(DEV_KEY);
+      else localStorage.setItem(DEV_KEY, novo);
+    }catch(e){}
+    return carregar();
+  }
+
+  window.SanovaAssinatura = {
+    carregar: carregar,
+    get: get,
+    temAcesso: temAcesso,
+    forcarStatus: forcarStatus
+  };
+
+  // Carrega assim que o login resolve
+  window.addEventListener('sanova:logado', function(){ carregar(); });
+
+  // Backup: se a pagina ja abriu logada, tenta carregar uma vez depois do load
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      if(!estado.carregado && typeof window.SanovaUser === 'function' && window.SanovaUser()){
+        carregar();
+      }
+    }, 2000);
   });
 })();
 </script>
