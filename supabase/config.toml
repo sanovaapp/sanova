@@ -1,0 +1,6 @@
+# Sanova — Supabase project config
+# Para uso com Supabase GitHub Integration.
+# Mudancas em supabase/migrations sao aplicadas ao banco de producao
+# quando esta config eh detectada apos merge na branch main.
+
+project_id = "yjycpcydqfuvojfzwfvy"
