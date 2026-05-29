@@ -1,0 +1,17 @@
+{
+  "name": "sanova-api",
+  "version": "1.0.0",
+  "description": "Backend do Sanova: análise de prato (Gemini) e webhook Mercado Pago.",
+  "private": true,
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret:gemini": "echo $GEMINI_API_KEY | wrangler secret put GEMINI_API_KEY",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
