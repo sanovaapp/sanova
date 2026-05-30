@@ -5766,7 +5766,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.2';
+var SANOVA_VERSION = '3.8.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7233,7 +7233,36 @@ var ANA = (function(){
   return {step:0,data:{},totalSteps:10};
 })();
 function _anaSalvar(){
+  // v3.8.3: persiste em sessionStorage (progresso) + migra dados parciais
+  // pra S.profile/S.caneta + salvar() em localStorage.
+  // Critico: paciente que fecha o app no meio da anamnese NAO perde dados —
+  // proximo open recupera onde parou OU mostra o Perfil com o que ja tem.
   try{ sessionStorage.setItem('sanova_ana_progress', JSON.stringify(ANA)); }catch(e){}
+  if(!window.S || !S.profile){ return; }
+  var d = ANA.data || {};
+  if(d.nome)      S.profile.nome = d.nome;
+  if(d.sex)       S.profile.sex = d.sex;
+  if(d.age)       S.profile.age = d.age;
+  if(d.heightCm)  S.profile.heightCm = d.heightCm;
+  if(d.pesoAtual){
+    S.profile.weightKg = d.pesoAtual;
+    var jah = (typeof hoje === 'function') ? hoje() : new Date().toISOString().slice(0,10);
+    if(S.weights && !S.weights.find(function(w){return w.date===jah;})){
+      S.weights.push({date:jah, weight:d.pesoAtual});
+    }
+  }
+  if(d.pesoInicio) S.profile.weightStartKg = d.pesoInicio;
+  if(d.pesoMeta)   S.profile.weightGoalKg = d.pesoMeta;
+  if(d.activ)      S.profile.activityLevel = d.activ;
+  if(d.farmaco && S.caneta){
+    S.caneta.farmaco = d.farmaco;
+    S.caneta.freq = d.farmaco === 'Liraglutida' ? 'diaria' : 'semanal';
+    if(!S.caneta.tipo) S.caneta.tipo = 'caneta';
+  }
+  if(d.dose && S.caneta)   S.caneta.dose = parseFloat(d.dose);
+  if(d.inicio && S.caneta){ S.caneta.inicio = d.inicio; S.profile.startDate = d.inicio; }
+  if(d.ultima && S.caneta) S.caneta.ultima = d.ultima;
+  if(typeof salvar === 'function') salvar();
 }
 function _anaLimpar(){
   try{ sessionStorage.removeItem('sanova_ana_progress'); }catch(e){}
@@ -7262,7 +7291,7 @@ function anaStep0(){
   setTimeout(function(){
     anaMsg('bot','Primeiro — qual é o seu <strong>nome</strong>?');
     anaTextInput('Seu nome...', function(nome){
-      ANA.data.nome=nome;
+      ANA.data.nome=nome; _anaSalvar();
       anaMsg('usr',nome);
       anaMsg('bot','Prazer, <strong>'+nome+'</strong>!',null,function(){
         // v3.1.16: perguntar sexo antes do speech para concordância de gênero
@@ -7640,7 +7669,7 @@ function anaStep4A(){
   setTimeout(function(){
     anaMsg('bot','Preciso dos seus dados para calcular suas metas personalizadas. <strong>Sexo biológico:</strong>');
     anaOpts([{ic:'👨',lb:'Masculino',v:'M'},{ic:'👩',lb:'Feminino',v:'F'}],function(v){
-      ANA.data.sex=v;anaMsg('usr',v==='M'?'Masculino':'Feminino');setTimeout(function(){anaStep5A();},200);
+      ANA.data.sex=v; _anaSalvar(); anaMsg('usr',v==='M'?'Masculino':'Feminino');setTimeout(function(){anaStep5A();},200);
     });
   },400);
 }
@@ -7651,6 +7680,7 @@ function anaStep5A(){
     anaMsg('bot','<strong>Idade, altura e peso atual:</strong>');
     anaNums4(function(age,h,wi,w,meta){
       ANA.data.age=age;ANA.data.heightCm=h;ANA.data.pesoInicio=wi;ANA.data.pesoAtual=w;ANA.data.pesoMeta=meta;
+      _anaSalvar();
       anaMsg('usr',age+' anos · '+h+' cm · '+w+' kg · meta: '+meta+' kg');
 
       // v3.1.29 FIX 2: bloqueio IMC <19 (faixa onde GLP-1 não é indicado)
@@ -7840,7 +7870,7 @@ function anaStep3B(){
     };
     var opts=doses[ANA.data.farmaco]||[];
     anaOpts(opts.map(function(d){return {ic:'💊',lb:d.lb,v:d.v};}),function(v){
-      ANA.data.dose=v;
+      ANA.data.dose=v; _anaSalvar();
       var doseLabel=doses[ANA.data.farmaco].find(function(d){return d.v===v;});
       anaMsg('usr',(doseLabel?doseLabel.lb:v));
       setTimeout(function(){anaStep4B();},200);
@@ -7999,6 +8029,7 @@ function anaStep9B(){
       anaNums4(function(age,h,wi,w,meta){
         ANA.data.age=age;ANA.data.heightCm=h;ANA.data.pesoInicio=wi;ANA.data.pesoAtual=w;
         ANA.data.pesoMeta=meta;
+        _anaSalvar();
         anaMsg('usr',age+' anos · '+h+' cm · '+w+' kg · meta: '+meta+' kg');
 
         // v3.1.29 FIX 2: bloqueio IMC <19 também na versão B
@@ -8023,7 +8054,7 @@ function anaStep10B(){
       {ic:'🏃',lb:'Moderada',sub:'Exercício regular 3–5x/semana',v:'Moderada'},
       {ic:'🏋️',lb:'Alta',sub:'Treino intenso 6–7x/semana',v:'Alta'}
     ],function(v){
-      ANA.data.activ=v;anaMsg('usr',v);
+      ANA.data.activ=v; _anaSalvar(); anaMsg('usr',v);
       var M=calcMetricsAna();
       if(!M){anaDone();return;}
       var pm=Math.round(M.pm);
