@@ -2074,13 +2074,14 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 /* v3.1.76 — Badge de seleção de data (registro retroativo)
    v3.4.4: maior, mais legível, com variante pra fundo claro (tela de refeição) */
 .data-reg-badge{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:10px 18px;border-radius:99px;
+  display:inline-flex;align-items:center;gap:10px;
+  padding:14px 24px;border-radius:99px;
   border:1.5px solid rgba(255,255,255,.22);
   background:rgba(255,255,255,.06);
   color:rgba(255,255,255,.92);
-  font-family:var(--ss);font-size:14px;font-weight:700;
+  font-family:var(--ss);font-size:16px;font-weight:700;
   cursor:pointer;line-height:1;
+  min-height:44px; /* v3.6.1: target minimo de toque mobile */
   transition:all .15s;
 }
 .data-reg-badge:hover{
@@ -4771,16 +4772,19 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         </div>
         <div id="lembretesStatus" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic"></div>
       </div>
-      <div style="margin-top:16px">
-        <div style="font-size:11.5px;font-weight:800;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Como está a saciedade?</div>
+      <!-- v3.6.1: removido o card "Como está a saciedade?" desta tela.
+           Avaliacao de saciedade vive no Check-in (gauge e cards). Aqui
+           gerava poluicao sem acao. Funcoes setFase/fbOk/fbWarn/fbDanger
+           ficam preservadas no JS caso outra tela referencie. -->
+      <div id="medSaciedadeAntigo" style="display:none">
         <div class="fase-opts">
-          <div class="fase-opt" id="foOk" onclick="setFase('ok')"><div class="fase-dot" style="background:var(--g500)"></div><div><div class="fase-ttl">Saciedade boa — manter dose</div><div class="fase-sub">Sinto saciedade e perco peso consistentemente.</div></div></div>
-          <div class="fase-opt" id="foComp" onclick="setFase('comp')"><div class="fase-dot" style="background:var(--warn)"></div><div><div class="fase-ttl">Saciedade comprometida</div><div class="fase-sub">Ainda tenho, mas está diminuindo ou inconsistente.</div></div></div>
-          <div class="fase-opt" id="foSem" onclick="setFase('sem')"><div class="fase-dot" style="background:var(--red)"></div><div><div class="fase-ttl">Sem saciedade + peso estagnado</div><div class="fase-sub">Não sinto efeito. O peso não cai.</div></div></div>
+          <div class="fase-opt" id="foOk" onclick="setFase('ok')"></div>
+          <div class="fase-opt" id="foComp" onclick="setFase('comp')"></div>
+          <div class="fase-opt" id="foSem" onclick="setFase('sem')"></div>
         </div>
-        <div class="fase-fb fb-ok" id="fbOk">✅ <strong>Ótimo.</strong> A dose mínima eficaz é sempre a melhor escolha.</div>
-        <div class="fase-fb fb-warn" id="fbComp">⚠️ <strong>Atenção.</strong> Converse com seu médico. Revise proteína e hidratação primeiro.</div>
-        <div class="fase-fb fb-danger" id="fbSem">🚨 <strong>Requer avaliação médica.</strong> Não ajuste a dose por conta própria.</div>
+        <div class="fase-fb fb-ok" id="fbOk"></div>
+        <div class="fase-fb fb-warn" id="fbComp"></div>
+        <div class="fase-fb fb-danger" id="fbSem"></div>
       </div>
       <div style="margin-top:14px">
         <div class="fi"><label>Observações</label><textarea id="cObs" rows="2" placeholder="Ex: náusea leve nos 3 primeiros dias, depois passou…" aria-label="Observações sobre o tratamento"></textarea></div>
@@ -5666,7 +5670,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.6.0';
+var SANOVA_VERSION = '3.6.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -8075,6 +8079,12 @@ function anaAbrir(){
   if(ANA.data.farmaco){
     S.caneta.farmaco=ANA.data.farmaco;
     S.caneta.freq=ANA.data.farmaco==='Liraglutida'?'diaria':'semanal';
+    // v3.6.1: anamnese assume caneta industrial por default (caso mais comum
+    // no Brasil — Mounjaro, Wegovy, Ozempic, Saxenda sao todas em caneta).
+    // Quem usa frasco manipulado configura manualmente em Medicacao depois.
+    // Sem isso, o card "Aplicar dose" mostrava "Configure sua medicacao..."
+    // mesmo apos a anamnese estar completa.
+    if(!S.caneta.tipo) S.caneta.tipo = 'caneta';
   }
   if(ANA.data.dose)   S.caneta.dose=parseFloat(ANA.data.dose);
   if(ANA.data.inicio){S.caneta.inicio=ANA.data.inicio;S.profile.startDate=ANA.data.inicio;}
@@ -8129,6 +8139,13 @@ function anaAbrir(){
   }
 
   go('dashboard');
+  // v3.6.1: reforço de roteamento — alguns dispositivos viam o destino
+  // mudar pra perfil/outra tela depois do go('dashboard') sincrono.
+  // Setamos múltiplos timeouts redundantes pra garantir que dashboard
+  // é o destino final independente de qualquer redirect tardio.
+  setTimeout(function(){ try{ go('dashboard'); }catch(e){} }, 80);
+  setTimeout(function(){ try{ go('dashboard'); }catch(e){} }, 350);
+  setTimeout(function(){ try{ go('dashboard'); }catch(e){} }, 900);
 }
 
 /* ══ UI Helpers Anamnese ══ */
@@ -8289,19 +8306,11 @@ function mkNumInp(ph,ph2,mn,mx,stp){
 }
 
 function addVoice(c,opts,cb){
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR) return;
-  var b=document.createElement('button');b.className='ana-voice';b.innerHTML='🎤 Falar resposta';
-  b.onclick=function(){
-    var r=new SR();r.lang='pt-BR';
-    r.onstart=function(){b.classList.add('listening');b.innerHTML='🔴 Ouvindo…';};
-    r.onresult=function(e){
-      var t=e.results[0][0].transcript.toLowerCase();b.classList.remove('listening');
-      opts.forEach(function(o){if(t.indexOf(o.lb.toLowerCase())>=0||t.indexOf(o.v.toLowerCase())>=0){c.innerHTML='';anaMsg('usr',o.lb);cb(o.v);}});
-      b.innerHTML='🎤 Falar resposta';
-    };
-    r.onerror=function(){b.classList.remove('listening');b.innerHTML='🎤 Falar resposta';};
-    r.start();
-  };c.appendChild(b);
+  // v3.6.1: removido botao "Falar resposta" da anamnese.
+  // Estava bugado (reconhecimento inconsistente) e gerava confusao com
+  // o microfone de refeicao (que e o realmente util).
+  // Mantida a funcao vazia pra nao quebrar callsites.
+  return;
 }
 
 function calcMetricsAna(){
@@ -8310,7 +8319,7 @@ function calcMetricsAna(){
   var tmb=calcTMB(sex,age,h,w);var tdee=tmb*(AF[act]||1.35);
   var protCalc=calcProteinaMeta(w,h,sex,age,act);
   var pm=protCalc?protCalc.gramas:Math.round(w*1.6);
-  return{tmb:tmb,get:tdee,meta:Math.round((tdee-500)/100)*100,pm:pm,protCalc:protCalc,agua:w*35+(WBX[act]||200)};
+  return{tmb:tmb,get:tdee,tdee:tdee,meta:Math.round((tdee-500)/100)*100,pm:pm,protCalc:protCalc,agua:w*35+(WBX[act]||200)};
 }
 function anaProgresso(p){el('anaFill').style.width=p+'%';}
 </script>
