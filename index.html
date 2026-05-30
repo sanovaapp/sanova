@@ -200,6 +200,8 @@ window.addEventListener('appinstalled', function(){
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- v3.6.4: jsPDF pra geração do relatório PDF do médico -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 /* ==========================================================================
    SANOVA v2.0 — Design System
@@ -3439,6 +3441,18 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       </div>
     </div>
 
+    <!-- v3.6.4: Seção Relatórios — PDF pro médico (feature paga) -->
+    <div class="mais-section">
+      <div class="mais-section-tag">Relatórios</div>
+      <div class="mais-grid">
+        <button class="mais-btn" id="btnPdfRelatorio" onclick="gerarPDFRelatorio()" aria-label="Relatório PDF pro médico" style="grid-column:1/-1">
+          <span class="mais-ic" aria-hidden="true">📄</span>
+          <div class="mais-lbl">PDF pro médico</div>
+          <div class="mais-sub">Resumo do mês pra levar na consulta</div>
+        </button>
+      </div>
+    </div>
+
     <div class="mais-section">
       <div class="mais-section-tag">Conta</div>
       <div class="mais-grid">
@@ -5670,7 +5684,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.6.3';
+var SANOVA_VERSION = '3.6.4';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -19970,6 +19984,204 @@ window.addEventListener('beforeunload',function(){
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════
+   Sanova — Gerador de Relatório PDF pro médico (v3.6.4)
+   Feature paga (gated). Compila um resumo do mês a partir do estado
+   local S e gera PDF via jsPDF (CDN no head).
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  function fmtData(d){
+    if(!d) return '—';
+    var x = typeof d === 'string' ? new Date(d + 'T12:00:00') : new Date(d);
+    var p = String(x.getDate()).padStart(2,'0') + '/' +
+            String(x.getMonth()+1).padStart(2,'0') + '/' + x.getFullYear();
+    return p;
+  }
+  function diasAtras(n){
+    var d = new Date(); d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0,10);
+  }
+
+  function coletarDados(){
+    var S = window.S || {};
+    var p = S.profile || {};
+    var c = S.caneta || {};
+    var corte = diasAtras(30);
+
+    var pesagens = (S.weights || [])
+      .filter(function(w){ return w.date >= corte; })
+      .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+
+    var aplicacoes = (S.applications || [])
+      .filter(function(a){
+        var d = (a.date || (a.ts && new Date(a.ts).toISOString().slice(0,10))) || '';
+        return d >= corte;
+      });
+
+    var diary = (S.daily || [])
+      .filter(function(d){ return d.date >= corte; })
+      .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+
+    return { p: p, c: c, pesagens: pesagens, aplicacoes: aplicacoes, diary: diary };
+  }
+
+  function tendenciaPeso(pesagens){
+    if(pesagens.length < 2) return null;
+    var primeiro = pesagens[0].weight;
+    var ultimo = pesagens[pesagens.length-1].weight;
+    return { delta: ultimo - primeiro, primeiro: primeiro, ultimo: ultimo };
+  }
+
+  function contarSaciedade(diary){
+    var bom = 0, normal = 0, fome = 0;
+    diary.forEach(function(d){
+      var s = (d.satiety || '').toLowerCase();
+      if(s.indexOf('saci') >= 0 || s.indexOf('bom') >= 0) bom++;
+      else if(s.indexOf('fome') >= 0) fome++;
+      else if(s) normal++;
+    });
+    return { bom: bom, normal: normal, fome: fome, total: diary.length };
+  }
+
+  window.gerarPDFRelatorio = function(){
+    try{
+      if(typeof window.jspdf === 'undefined'){
+        if(typeof toast === 'function') toast('⏳ Carregando gerador... tenta de novo em 3s.', 3000);
+        return;
+      }
+      if(typeof fecharMais === 'function') fecharMais();
+
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      var W = doc.internal.pageSize.getWidth();
+      var MARG_L = 50, MARG_R = 50, MARG_T = 60;
+      var y = MARG_T;
+
+      var dados = coletarDados();
+      var nome = (dados.p.nome || 'Paciente').trim();
+      var hojeStr = fmtData(new Date());
+
+      // ─── Cabeçalho
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(15, 79, 36); // verde escuro
+      doc.text('Sanova — Relatório do mês', MARG_L, y);
+      y += 8;
+      doc.setDrawColor(34, 197, 94);
+      doc.setLineWidth(1.5);
+      doc.line(MARG_L, y, W - MARG_R, y);
+      y += 22;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(60, 60, 60);
+      doc.text('Paciente: ' + nome, MARG_L, y); y += 14;
+      doc.text('Período: últimos 30 dias', MARG_L, y); y += 14;
+      doc.text('Gerado em: ' + hojeStr, MARG_L, y); y += 22;
+
+      // ─── Medicação
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 79, 36);
+      doc.text('💊 Medicação em uso', MARG_L, y); y += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Fármaco: ' + (dados.c.farmaco || '—') + (dados.c.dose ? ' — ' + dados.c.dose + ' mg' : ''), MARG_L, y); y += 14;
+      doc.text('Frequência: ' + ((dados.c.freq === 'diaria' || dados.c.freq === 'diária') ? 'Diária' : 'Semanal'), MARG_L, y); y += 14;
+      if(dados.c.inicio) { doc.text('Início do tratamento: ' + fmtData(dados.c.inicio), MARG_L, y); y += 14; }
+      if(dados.c.ultima) { doc.text('Última aplicação registrada: ' + fmtData(dados.c.ultima), MARG_L, y); y += 14; }
+      y += 8;
+
+      // ─── Peso
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 79, 36);
+      doc.text('⚖️ Evolução do peso', MARG_L, y); y += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      if(dados.p.weightStartKg) { doc.text('Peso no início do tratamento: ' + dados.p.weightStartKg + ' kg', MARG_L, y); y += 14; }
+      if(dados.p.weightKg)      { doc.text('Peso atual: ' + dados.p.weightKg + ' kg', MARG_L, y); y += 14; }
+      if(dados.p.weightGoalKg)  { doc.text('Peso meta: ' + dados.p.weightGoalKg + ' kg', MARG_L, y); y += 14; }
+      if(dados.p.weightStartKg && dados.p.weightKg){
+        var perd = +(dados.p.weightStartKg - dados.p.weightKg).toFixed(1);
+        if(perd > 0) doc.text('Total perdido desde o início: −' + perd + ' kg', MARG_L, y);
+        else if(perd < 0) doc.text('Variação desde o início: +' + Math.abs(perd) + ' kg', MARG_L, y);
+        else doc.text('Sem variação desde o início', MARG_L, y);
+        y += 14;
+      }
+      var tend = tendenciaPeso(dados.pesagens);
+      if(tend){
+        var sinal = tend.delta < 0 ? '−' : (tend.delta > 0 ? '+' : '');
+        doc.text('Variação nos últimos 30 dias: ' + sinal + Math.abs(tend.delta).toFixed(1) + ' kg ' +
+                 '(' + tend.primeiro + ' → ' + tend.ultimo + ' kg)', MARG_L, y);
+        y += 14;
+      }
+      y += 8;
+
+      // ─── Aplicações
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 79, 36);
+      doc.text('💉 Aplicações nos últimos 30 dias', MARG_L, y); y += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Total de aplicações registradas: ' + dados.aplicacoes.length, MARG_L, y); y += 14;
+      y += 8;
+
+      // ─── Padrão de saciedade
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 79, 36);
+      doc.text('🍽️ Padrão de saciedade', MARG_L, y); y += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      var sac = contarSaciedade(dados.diary);
+      doc.text('Dias com check-in: ' + sac.total + ' nos últimos 30 dias', MARG_L, y); y += 14;
+      if(sac.total > 0){
+        doc.text('• Saciedade boa: ' + sac.bom + ' dia(s)', MARG_L, y); y += 13;
+        doc.text('• Sensação neutra: ' + sac.normal + ' dia(s)', MARG_L, y); y += 13;
+        doc.text('• Com fome aumentada: ' + sac.fome + ' dia(s)', MARG_L, y); y += 13;
+      }
+      y += 16;
+
+      // ─── Footer
+      if(y > 740) { doc.addPage(); y = MARG_T; }
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.5);
+      doc.line(MARG_L, y, W - MARG_R, y); y += 14;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(110, 110, 110);
+      doc.text('Este relatório é gerado automaticamente pelo Sanova com base nos dados',
+               MARG_L, y); y += 11;
+      doc.text('registrados pelo paciente. É informativo e não substitui consulta médica.',
+               MARG_L, y); y += 14;
+      doc.text('Sanova v' + (typeof SANOVA_VERSION !== 'undefined' ? SANOVA_VERSION : '') +
+               ' · sanovaapp.github.io/sanova', MARG_L, y);
+
+      // ─── Save
+      var nomeArq = 'Sanova-' + nome.replace(/[^a-zA-Z0-9]/g, '') + '-' +
+                    hojeStr.replace(/\//g, '-') + '.pdf';
+      doc.save(nomeArq);
+
+      if(typeof toast === 'function') toast('📄 PDF gerado!', 2200);
+    }catch(err){
+      console.error('[PDF] erro:', err);
+      if(typeof toast === 'function') toast('❌ Erro ao gerar PDF: ' + (err.message || err), 4000);
+    }
+  };
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
    Sanova — Camada de Gates Visuais (v3.6.3)
    Aplica overlay de cadeado sobre features pagas quando o paciente
    nao tem acesso (free/expired/canceled). Ao tocar no overlay, abre
@@ -19981,13 +20193,14 @@ window.addEventListener('beforeunload',function(){
   var OVERLAY_ATTR = 'data-sanova-gate-overlay';
   var GATED_ATTR = 'data-sanova-gated';
 
-  // Mapeamento dos seletores das features pagas. Adicionar mais conforme
-  // a UI evoluir (ex: botao de PDF pro medico quando existir).
+  // Mapeamento dos seletores das features pagas.
   var GATES = [
     { selector: '#sec-prato .card', motivo: 'ia_prato',
       label: 'IA de prato — Sanova Completo' },
     { selector: '#calcFrasco', motivo: 'conv_insulina',
-      label: 'Conversor UI insulina — Sanova Completo' }
+      label: 'Conversor UI insulina — Sanova Completo' },
+    { selector: '#btnPdfRelatorio', motivo: 'pdf_medico',
+      label: 'PDF pro médico — Sanova Completo' }
   ];
 
   function injetarCSS(){
