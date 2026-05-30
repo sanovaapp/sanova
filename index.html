@@ -5258,6 +5258,21 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <button class="btn bdanger" onclick="abrirReset()">🗑️ Apagar todos os dados</button>
   </div>
 
+  <!-- v3.8.4: Card de OBJETIVO — decide multiplicadores de proteína e calorias.
+       Adaptacao pra paciente que ja passou da fase de emagrecimento (sarcopenia,
+       reconstrucao muscular, manutencao). -->
+  <div class="card" id="cardObjetivo" style="margin-top:14px">
+    <div class="ct">🎯 Seu objetivo agora</div>
+    <div class="cs" style="margin-bottom:12px">Define as metas de proteína e calorias. Pode trocar quando mudar de fase.</div>
+    <div id="objetivosWrap" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="ibox ibox-g" style="margin-top:12px;font-size:12px">
+      💡 <strong>Como decidir:</strong> está perdendo peso? <em>Emagrecer</em>.
+      Já está magro/sarcopênico e quer ganhar músculo? <em>Reconstruir</em>.
+      Já chegou no peso meta e quer manter? <em>Manter</em>.
+      Sempre converse com seu médico antes de mudar.
+    </div>
+  </div>
+
   <!-- v3.1.7: Card de ciclo menstrual no perfil (visível só p/ mulheres) -->
   <div id="perfilCicloCard" class="card" style="display:none">
     <div class="ct">Ciclo menstrual</div>
@@ -5766,7 +5781,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.3';
+var SANOVA_VERSION = '3.8.4';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7079,6 +7094,22 @@ function fecharCardDia3(){
 
 var AF={Sedentário:1.20,Leve:1.35,Moderada:1.50,Alta:1.70};
 var WBX={Sedentário:0,Leve:200,Moderada:400,Alta:700};
+/* v3.8.4: Objetivos do paciente — define multiplicadores de proteína e calorias.
+   Decisão clínica do Bruno: paciente que está perdendo peso usa padrão (1.6g/kg, meta=GET).
+   Paciente sarcopênico em reconstrução muscular (Lucas Judice — Tirzepa 1 ano + musculação 4x/sem)
+   precisa de 2.0g/kg + superávit leve. Paciente em manutenção pós-meta usa intermediário. */
+var OBJETIVOS = {
+  emagrecer:   { protMin: 1.6, calMult: 1.00, icon: '🔥', label: 'Emagrecer',
+                 desc: 'Perder gordura mantendo músculo', detail: '1,6 g/kg proteína · meta = GET' },
+  reconstruir: { protMin: 2.0, calMult: 1.05, icon: '💪', label: 'Reconstruir músculo',
+                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g/kg proteína · meta = GET + 5%' },
+  manter:      { protMin: 1.8, calMult: 1.00, icon: '⚖️', label: 'Manter peso',
+                 desc: 'Manutenção pós-meta', detail: '1,8 g/kg proteína · meta = GET' }
+};
+function getObjetivoAtual(){
+  var k = (window.S && S.profile && S.profile.objetivo) || 'emagrecer';
+  return OBJETIVOS[k] ? k : 'emagrecer';
+}
 
 var DOSES={
   Tirzepatida:[
@@ -8978,6 +9009,13 @@ function calcProteinaMeta(weightKg, heightCm, sex, age, activityLevel){
   if(coef < 1.4) coef = 1.4;
   if(coef > 2.4) coef = 2.4;
 
+  // v3.8.4: Piso por objetivo (sobrescreve só se for maior — segurança)
+  var objKey = (typeof getObjetivoAtual === 'function') ? getObjetivoAtual() : 'emagrecer';
+  var objCfg = OBJETIVOS[objKey] || OBJETIVOS.emagrecer;
+  if(objCfg && objCfg.protMin && coef < objCfg.protMin){
+    coef = objCfg.protMin;
+  }
+
   // Cálculo principal e piso de segurança
   var calcPrincipal = lbm * coef;
   var piso = pesoIdeal * 1.0; // 1.0g/kg do peso ideal
@@ -9058,7 +9096,11 @@ function calcMetrics(){
   // META = GET DINÂMICO (decisão Bruno: meta única, não há mais "GET - 500")
   // Piso fisiológico mantido pra segurança (anti-anorexia)
   var pisoMin = (S.profile.sex === 'M') ? 1500 : 1200;
-  var meta = Math.max(getDinamico, pisoMin);
+  // v3.8.4: ajusta meta pelo objetivo (reconstruir = +5% pra superávit)
+  var objKey = (typeof getObjetivoAtual === 'function') ? getObjetivoAtual() : 'emagrecer';
+  var objCfg = OBJETIVOS[objKey] || OBJETIVOS.emagrecer;
+  var calMult = (objCfg && objCfg.calMult) || 1.00;
+  var meta = Math.max(getDinamico * calMult, pisoMin);
   meta = Math.round(meta);
 
   // v3.1.5: Nova fórmula proteica
@@ -18389,6 +18431,51 @@ function popularPerfil(){
   if(el('pesoMeta')) el('pesoMeta').value=S.profile.weightGoalKg||'';
   if(el('ativ')) el('ativ').value=S.profile.activityLevel||'Moderada';
   if(el('dtIni')) el('dtIni').value=S.profile.startDate||'';
+  if(typeof renderObjetivos === 'function') renderObjetivos();
+}
+
+// v3.8.4: renderiza os 3 cards de objetivo no Perfil com estado selecionado.
+function renderObjetivos(){
+  var wrap = el('objetivosWrap');
+  if(!wrap) return;
+  var atual = getObjetivoAtual();
+  var html = '';
+  ['emagrecer','reconstruir','manter'].forEach(function(key){
+    var o = OBJETIVOS[key];
+    var sel = (key === atual);
+    var border = sel ? '2px solid #4ade80' : '1.5px solid rgba(255,255,255,.12)';
+    var bg = sel ? 'rgba(74,222,128,.10)' : 'rgba(255,255,255,.03)';
+    var check = sel ? '<span style="position:absolute;top:10px;right:12px;font-size:18px;color:#4ade80">✓</span>' : '';
+    html += '<div onclick="setObjetivo(\''+key+'\')" style="position:relative;padding:12px 14px;border:'+border+';border-radius:12px;background:'+bg+';cursor:pointer;transition:all .15s">' +
+      check +
+      '<div style="display:flex;gap:10px;align-items:flex-start">' +
+        '<div style="font-size:22px;line-height:1;flex-shrink:0">'+o.icon+'</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:2px">'+o.label+'</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.4;margin-bottom:3px">'+o.desc+'</div>' +
+          '<div style="font-size:11px;color:#bbf7d0;font-family:monospace">'+o.detail+'</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+// v3.8.4: troca o objetivo do paciente, re-renderiza tudo que depende.
+function setObjetivo(key){
+  if(!OBJETIVOS[key]) return;
+  if(!S.profile) S.profile = {};
+  if(S.profile.objetivo === key){
+    if(typeof toast === 'function') toast('Já está em ' + OBJETIVOS[key].label, 1800);
+    return;
+  }
+  S.profile.objetivo = key;
+  if(typeof salvar === 'function') salvar();
+  if(typeof renderObjetivos === 'function') renderObjetivos();
+  if(typeof render === 'function'){ try{ render(); }catch(e){} }
+  if(typeof renderMetaDia === 'function'){ try{ renderMetaDia(); }catch(e){} }
+  if(typeof renderQuatroGauges === 'function'){ try{ renderQuatroGauges(); }catch(e){} }
+  if(typeof toast === 'function') toast(OBJETIVOS[key].icon + ' Metas atualizadas pra ' + OBJETIVOS[key].label.toLowerCase(), 2800);
 }
 function popularCaneta(){
   var cf=el('cFarm');if(!cf) return;
