@@ -5766,7 +5766,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.1';
+var SANOVA_VERSION = '3.8.2';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -20209,9 +20209,13 @@ window.addEventListener('beforeunload',function(){
    local S e gera PDF via jsPDF (CDN no head).
    ═══════════════════════════════════════════════════════════════════ */
 (function(){
+  // ────────────────────────────────────────────────────────────────
+  // Helpers de data / formatação
+  // ────────────────────────────────────────────────────────────────
   function fmtData(d){
     if(!d) return '—';
     var x = typeof d === 'string' ? new Date(d + 'T12:00:00') : new Date(d);
+    if(isNaN(x.getTime())) return '—';
     var p = String(x.getDate()).padStart(2,'0') + '/' +
             String(x.getMonth()+1).padStart(2,'0') + '/' + x.getFullYear();
     return p;
@@ -20220,48 +20224,306 @@ window.addEventListener('beforeunload',function(){
     var d = new Date(); d.setDate(d.getDate() - n);
     return d.toISOString().slice(0,10);
   }
+  function pct(num, den){ if(!den) return 0; return Math.round((num/den)*100); }
+  function rd1(n){ return Math.round((n||0)*10)/10; }
+  function rdInt(n){ return Math.round(n||0); }
+  function vir(n){ return String(n).replace('.', ','); }
 
-  function coletarDados(){
+  // ────────────────────────────────────────────────────────────────
+  // Coleta de dados do estado S
+  // ────────────────────────────────────────────────────────────────
+  function coletarDados(diasJanela){
+    diasJanela = diasJanela || 30;
     var S = window.S || {};
     var p = S.profile || {};
     var c = S.caneta || {};
-    var corte = diasAtras(30);
+    var corte = diasAtras(diasJanela);
 
     var pesagens = (S.weights || [])
       .filter(function(w){ return w.date >= corte; })
       .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
 
+    // Histórico completo de pesagens (não só janela) — pra gráfico longo prazo
+    var pesagensCompletas = (S.weights || []).slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+
     var aplicacoes = (S.applications || [])
       .filter(function(a){
         var d = (a.date || (a.ts && new Date(a.ts).toISOString().slice(0,10))) || '';
         return d >= corte;
+      })
+      .sort(function(a,b){
+        var da = a.date || (a.ts && new Date(a.ts).toISOString().slice(0,10)) || '';
+        var db = b.date || (b.ts && new Date(b.ts).toISOString().slice(0,10)) || '';
+        return da < db ? -1 : 1;
       });
 
     var diary = (S.daily || [])
       .filter(function(d){ return d.date >= corte; })
       .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
 
-    return { p: p, c: c, pesagens: pesagens, aplicacoes: aplicacoes, diary: diary };
+    return {
+      profile: p, caneta: c,
+      pesagens: pesagens,
+      pesagensCompletas: pesagensCompletas,
+      aplicacoes: aplicacoes,
+      diary: diary,
+      janelaDias: diasJanela,
+      corteData: corte
+    };
   }
 
-  function tendenciaPeso(pesagens){
-    if(pesagens.length < 2) return null;
-    var primeiro = pesagens[0].weight;
-    var ultimo = pesagens[pesagens.length-1].weight;
-    return { delta: ultimo - primeiro, primeiro: primeiro, ultimo: ultimo };
-  }
+  // ────────────────────────────────────────────────────────────────
+  // Cálculo de KPIs (adesões em %)
+  // ────────────────────────────────────────────────────────────────
+  function calcKPIs(dados){
+    var M = null;
+    try{ if(typeof calcMetrics === 'function') M = calcMetrics(); }catch(e){}
 
-  function contarSaciedade(diary){
-    var bom = 0, normal = 0, fome = 0;
-    diary.forEach(function(d){
-      var s = (d.satiety || '').toLowerCase();
-      if(s.indexOf('saci') >= 0 || s.indexOf('bom') >= 0) bom++;
-      else if(s.indexOf('fome') >= 0) fome++;
-      else if(s) normal++;
+    var totalDias = dados.janelaDias;
+    var diasComCheckin = dados.diary.length;
+    var aderCheckin = pct(diasComCheckin, totalDias);
+
+    var metaProt = M && M.pm ? M.pm : 0;
+    var metaAgua = M && M.agua ? M.agua : 0;
+
+    var diasBatProt = 0, diasBatAgua = 0;
+    var protSum = 0, aguaSum = 0, kcalSum = 0, carbSum = 0, gordSum = 0;
+    var diasComProt = 0, diasComAgua = 0, diasComKcal = 0;
+
+    dados.diary.forEach(function(d){
+      if(d.proteinG){ protSum += d.proteinG; diasComProt++; if(metaProt && d.proteinG >= metaProt*0.85) diasBatProt++; }
+      if(d.waterMl){  aguaSum += d.waterMl;  diasComAgua++; if(metaAgua && d.waterMl  >= metaAgua*0.85) diasBatAgua++; }
+      if(d.kcalConsumed){ kcalSum += d.kcalConsumed; diasComKcal++; }
+      if(d.refeicoes && d.refeicoes.length){
+        d.refeicoes.forEach(function(r){
+          if(r.carbo)   carbSum   += r.carbo;
+          if(r.gordura) gordSum   += r.gordura;
+        });
+      }
     });
-    return { bom: bom, normal: normal, fome: fome, total: diary.length };
+
+    var aderProt = pct(diasBatProt, totalDias);
+    var aderAgua = pct(diasBatAgua, totalDias);
+
+    var pesoInicio = (dados.profile.weightStartKg) || (dados.pesagensCompletas[0] && dados.pesagensCompletas[0].weight) || null;
+    var pesoAtual  = (dados.profile.weightKg)     || (dados.pesagens.length ? dados.pesagens[dados.pesagens.length-1].weight : null);
+    var pesoMeta   = dados.profile.weightGoalKg || null;
+    var perdaTotal = (pesoInicio && pesoAtual) ? rd1(pesoInicio - pesoAtual) : null;
+    var perdaJanela = null;
+    if(dados.pesagens.length >= 2){
+      perdaJanela = rd1(dados.pesagens[0].weight - dados.pesagens[dados.pesagens.length-1].weight);
+    }
+
+    return {
+      M: M,
+      pesoInicio: pesoInicio, pesoAtual: pesoAtual, pesoMeta: pesoMeta,
+      perdaTotal: perdaTotal, perdaJanela: perdaJanela,
+      aplicacoes: dados.aplicacoes.length,
+      diasComCheckin: diasComCheckin, aderCheckin: aderCheckin,
+      aderProt: aderProt, aderAgua: aderAgua,
+      protMed: diasComProt ? rdInt(protSum/diasComProt) : 0,
+      aguaMed: diasComAgua ? rdInt(aguaSum/diasComAgua) : 0,
+      kcalMed: diasComKcal ? rdInt(kcalSum/diasComKcal) : 0,
+      carbMed: diasComKcal ? rdInt(carbSum/diasComKcal) : 0,
+      gordMed: diasComKcal ? rdInt(gordSum/diasComKcal) : 0,
+      metaProt: metaProt, metaAgua: metaAgua,
+      metaKcal: M && M.meta ? Math.round(M.meta) : 0
+    };
   }
 
+  // ────────────────────────────────────────────────────────────────
+  // Análises de saciedade, sintomas, alcool, exercicio, foodNoise
+  // ────────────────────────────────────────────────────────────────
+  function analisarDiario(dados){
+    var contSac = { saciado:0, normal:0, fome:0, semSaciedade:0, foodNoise:0, alcool:0 };
+    var sintomasMap = {};
+    var exercicioMap = {};
+    var alcoolDoses = 0, diasAlcool = 0;
+    var notas = [];
+
+    dados.diary.forEach(function(d){
+      var s = String(d.saciedade || '').toLowerCase();
+      if(s.indexOf('sacio') >= 0 || s === 'saciado') contSac.saciado++;
+      else if(s.indexOf('fome') >= 0) contSac.fome++;
+      else if(s.indexOf('comer') >= 0 || s.indexOf('extrema') >= 0) contSac.semSaciedade++;
+      else if(s) contSac.normal++;
+
+      if(d.foodNoiseHoje && d.foodNoiseHoje !== false && d.foodNoiseHoje !== 'nao') contSac.foodNoise++;
+      if(d.alcoolHoje && d.alcoolHoje !== false && d.alcoolHoje !== 'nao'){
+        contSac.alcool++;
+        diasAlcool++;
+        if(d.alcoolDoses) alcoolDoses += d.alcoolDoses;
+      }
+
+      if(Array.isArray(d.symptoms)){
+        d.symptoms.forEach(function(s){
+          var k = String(s).trim();
+          if(k) sintomasMap[k] = (sintomasMap[k]||0)+1;
+        });
+      }
+      if(d.customSymptom){
+        var k = String(d.customSymptom).trim();
+        if(k) sintomasMap[k] = (sintomasMap[k]||0)+1;
+      }
+
+      if(d.exercicio && d.exercicio !== 'nao'){
+        exercicioMap[d.exercicio] = (exercicioMap[d.exercicio]||0)+1;
+      }
+
+      if(d.notes && String(d.notes).trim().length > 4){
+        notas.push({date:d.date, txt:String(d.notes).trim()});
+      }
+    });
+
+    var sintomasArr = Object.keys(sintomasMap).map(function(k){
+      return {nome:k, count:sintomasMap[k]};
+    }).sort(function(a,b){ return b.count - a.count; });
+
+    var exercTotal = 0;
+    Object.keys(exercicioMap).forEach(function(k){ exercTotal += exercicioMap[k]; });
+
+    return {
+      sac: contSac, sintomas: sintomasArr, exercicio: exercicioMap,
+      exercDias: exercTotal, alcoolDias: diasAlcool, alcoolDoses: alcoolDoses,
+      notas: notas
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Gráfico de peso via Canvas → dataURL pra embeddar no PDF
+  // ────────────────────────────────────────────────────────────────
+  function gerarGraficoPesoBase64(pesagens, larguraPx, alturaPx){
+    if(!pesagens || pesagens.length < 2) return null;
+    larguraPx = larguraPx || 800;
+    alturaPx = alturaPx || 350;
+    var c = document.createElement('canvas');
+    c.width = larguraPx; c.height = alturaPx;
+    var ctx = c.getContext('2d');
+
+    // Fundo branco
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, larguraPx, alturaPx);
+
+    var pad = { top:30, right:30, bottom:50, left:60 };
+    var w = larguraPx - pad.left - pad.right;
+    var h = alturaPx - pad.top - pad.bottom;
+
+    var minP = Math.min.apply(null, pesagens.map(function(p){ return p.weight; }));
+    var maxP = Math.max.apply(null, pesagens.map(function(p){ return p.weight; }));
+    var range = maxP - minP || 1;
+    minP = Math.floor(minP - range*0.1);
+    maxP = Math.ceil(maxP + range*0.1);
+    range = maxP - minP;
+
+    // Eixos
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, pad.top + h);
+    ctx.lineTo(pad.left + w, pad.top + h);
+    ctx.stroke();
+
+    // Grid horizontal
+    ctx.strokeStyle = '#eeeeee';
+    ctx.fillStyle = '#666666';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    for(var i = 0; i <= 5; i++){
+      var y = pad.top + (h * i / 5);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + w, y);
+      ctx.stroke();
+      var val = maxP - (range * i / 5);
+      ctx.fillText(rd1(val) + ' kg', pad.left - 6, y + 3);
+    }
+
+    // Pontos de data no eixo X (até 6)
+    var numLabels = Math.min(6, pesagens.length);
+    ctx.textAlign = 'center';
+    for(var k = 0; k < numLabels; k++){
+      var idx = Math.round((pesagens.length - 1) * k / (numLabels - 1));
+      var px = pad.left + (w * idx / (pesagens.length - 1));
+      var pp = pesagens[idx];
+      var dStr = pp.date.split('-');
+      ctx.fillText(dStr[2] + '/' + dStr[1], px, pad.top + h + 18);
+    }
+
+    // Linha do peso
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    pesagens.forEach(function(p, idx){
+      var px = pad.left + (w * idx / (pesagens.length - 1));
+      var py = pad.top + h - ((p.weight - minP) / range) * h;
+      if(idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Pontos
+    ctx.fillStyle = '#15803d';
+    pesagens.forEach(function(p, idx){
+      var px = pad.left + (w * idx / (pesagens.length - 1));
+      var py = pad.top + h - ((p.weight - minP) / range) * h;
+      ctx.beginPath();
+      ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Título
+    ctx.fillStyle = '#0f4f24';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Evolução do peso (' + pesagens.length + ' registros)', pad.left, 18);
+
+    return c.toDataURL('image/png');
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Renderizadores PDF helpers
+  // ────────────────────────────────────────────────────────────────
+  function ensurePage(doc, y, limite, MARG_T){
+    if(y > limite){ doc.addPage(); return MARG_T; }
+    return y;
+  }
+  function tituloSecao(doc, txt, y, MARG_L){
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(15, 79, 36);
+    doc.text(txt, MARG_L, y);
+    return y + 16;
+  }
+  function par(doc, txt, y, MARG_L){
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10.5);
+    doc.setTextColor(50, 50, 50);
+    doc.text(txt, MARG_L, y);
+    return y + 13;
+  }
+  function kpiCard(doc, x, y, w, label, value, sub){
+    doc.setDrawColor(200, 220, 200);
+    doc.setLineWidth(0.6);
+    doc.roundedRect(x, y, w, 50, 4, 4);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(110, 110, 110);
+    doc.text(label.toUpperCase(), x + 7, y + 12);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 79, 36);
+    doc.text(String(value), x + 7, y + 30);
+    if(sub){
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(sub, x + 7, y + 42);
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // GERADOR PRINCIPAL — Relatório clínico completo (v3.8.2)
+  // ────────────────────────────────────────────────────────────────
   window.gerarPDFRelatorio = function(){
     try{
       if(typeof window.jspdf === 'undefined'){
@@ -20273,128 +20535,267 @@ window.addEventListener('beforeunload',function(){
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF({ unit: 'pt', format: 'a4' });
       var W = doc.internal.pageSize.getWidth();
-      var MARG_L = 50, MARG_R = 50, MARG_T = 60;
+      var H = doc.internal.pageSize.getHeight();
+      var MARG_L = 45, MARG_R = 45, MARG_T = 50, MARG_B = 50;
+      var CONTENT_W = W - MARG_L - MARG_R;
+      var LIMITE_Y = H - MARG_B;
       var y = MARG_T;
 
-      var dados = coletarDados();
-      var nome = (dados.p.nome || 'Paciente').trim();
+      var dados = coletarDados(30);
+      var kpis = calcKPIs(dados);
+      var diario = analisarDiario(dados);
+      var nome = String((dados.profile.nome || 'Paciente')).trim();
       var hojeStr = fmtData(new Date());
 
-      // ─── Cabeçalho
-      doc.setFont('helvetica', 'bold');
+      // ─── PÁGINA 1 ─── Cabeçalho + KPIs
+      doc.setFont('helvetica','bold');
       doc.setFontSize(20);
-      doc.setTextColor(15, 79, 36); // verde escuro
-      doc.text('Sanova — Relatório do mês', MARG_L, y);
+      doc.setTextColor(15, 79, 36);
+      doc.text('Sanova — Relatório Clínico', MARG_L, y);
       y += 8;
       doc.setDrawColor(34, 197, 94);
       doc.setLineWidth(1.5);
       doc.line(MARG_L, y, W - MARG_R, y);
+      y += 18;
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(60, 60, 60);
+      doc.text('Paciente: ' + nome, MARG_L, y);
+      doc.text('Emitido em: ' + hojeStr, W - MARG_R, y, { align: 'right' });
+      y += 14;
+      doc.text('Período analisado: últimos 30 dias  ·  Histórico completo no gráfico', MARG_L, y);
       y += 22;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(60, 60, 60);
-      doc.text('Paciente: ' + nome, MARG_L, y); y += 14;
-      doc.text('Período: últimos 30 dias', MARG_L, y); y += 14;
-      doc.text('Gerado em: ' + hojeStr, MARG_L, y); y += 22;
+      // 5 KPIs em destaque
+      y = tituloSecao(doc, 'Resumo do mês', y, MARG_L);
+      var cardW = (CONTENT_W - 4*8) / 5;
+      var pesoTxt = kpis.pesoAtual ? rd1(kpis.pesoAtual) + ' kg' : '—';
+      var pesoSub = (kpis.perdaTotal && kpis.perdaTotal > 0) ? ('−' + kpis.perdaTotal + ' kg desde início') :
+                    (kpis.perdaJanela && kpis.perdaJanela > 0 ? ('−' + kpis.perdaJanela + ' kg no mês') : '—');
+      kpiCard(doc, MARG_L + (cardW+8)*0, y, cardW, 'Peso atual', pesoTxt, pesoSub);
+      kpiCard(doc, MARG_L + (cardW+8)*1, y, cardW, 'Aplicações', kpis.aplicacoes, 'no mês');
+      kpiCard(doc, MARG_L + (cardW+8)*2, y, cardW, 'Check-ins', kpis.aderCheckin + '%', kpis.diasComCheckin + ' de 30 dias');
+      kpiCard(doc, MARG_L + (cardW+8)*3, y, cardW, 'Adesão proteína', kpis.aderProt + '%', kpis.metaProt ? ('meta ' + kpis.metaProt + 'g') : '—');
+      kpiCard(doc, MARG_L + (cardW+8)*4, y, cardW, 'Adesão água', kpis.aderAgua + '%', kpis.metaAgua ? ('meta ' + rd1(kpis.metaAgua/1000) + 'L') : '—');
+      y += 60;
 
-      // ─── Medicação
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
+      // ─── Medicação ───
+      y = ensurePage(doc, y, LIMITE_Y - 100, MARG_T);
+      y = tituloSecao(doc, 'Medicação em uso', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(0,0,0);
+      var farm = (dados.caneta.farmaco || '—') + (dados.caneta.dose ? ' — ' + vir(dados.caneta.dose) + ' mg' : '');
+      doc.text('Fármaco: ' + farm, MARG_L, y); y += 13;
+      doc.text('Frequência: ' + ((dados.caneta.freq === 'diaria' || dados.caneta.freq === 'diária') ? 'Diária' : 'Semanal'), MARG_L, y); y += 13;
+      if(dados.caneta.inicio){ doc.text('Início do tratamento: ' + fmtData(dados.caneta.inicio), MARG_L, y); y += 13; }
+      if(dados.caneta.tipo){ doc.text('Apresentação: ' + (dados.caneta.tipo === 'frasco' ? 'Frasco manipulado + seringa' : 'Caneta industrial'), MARG_L, y); y += 13; }
+      y += 6;
+
+      // Lista cronológica de aplicações
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10.5);
       doc.setTextColor(15, 79, 36);
-      doc.text('💊 Medicação em uso', MARG_L, y); y += 16;
+      doc.text('Aplicações registradas no mês: ' + dados.aplicacoes.length, MARG_L, y);
+      y += 13;
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(9.5);
+      if(dados.aplicacoes.length === 0){
+        doc.text('— sem aplicações no período', MARG_L + 10, y); y += 12;
+      } else {
+        dados.aplicacoes.slice(0, 12).forEach(function(a){
+          y = ensurePage(doc, y, LIMITE_Y, MARG_T);
+          var d = a.date || (a.ts ? new Date(a.ts).toISOString().slice(0,10) : '');
+          var local = a.local || a.injecaoLocal || '';
+          var unid = (a.uni || a.unidades) ? ' · ' + (a.uni || a.unidades) + ' UI' : '';
+          doc.text('• ' + fmtData(d) + (local ? ' · ' + local : '') + unid, MARG_L + 10, y);
+          y += 11;
+        });
+        if(dados.aplicacoes.length > 12){
+          doc.setTextColor(120,120,120);
+          doc.text('… e mais ' + (dados.aplicacoes.length - 12) + ' aplicação(ões)', MARG_L + 10, y);
+          y += 11;
+        }
+      }
+      y += 14;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      // ─── PÁGINA 2 ─── Gráfico de peso
+      y = ensurePage(doc, y, LIMITE_Y - 230, MARG_T);
+      y = tituloSecao(doc, 'Evolução do peso (histórico completo)', y, MARG_L);
+
+      var grafBase64 = gerarGraficoPesoBase64(dados.pesagensCompletas, 1000, 380);
+      if(grafBase64){
+        var imgW = CONTENT_W;
+        var imgH = imgW * (380/1000);
+        doc.addImage(grafBase64, 'PNG', MARG_L, y, imgW, imgH);
+        y += imgH + 12;
+      } else {
+        doc.setFont('helvetica','italic');
+        doc.setFontSize(10);
+        doc.setTextColor(110, 110, 110);
+        doc.text('— sem dados suficientes pra gerar gráfico (mínimo 2 pesagens)', MARG_L, y);
+        y += 18;
+      }
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50);
+      if(kpis.pesoInicio) { doc.text('Peso no início do tratamento: ' + vir(kpis.pesoInicio) + ' kg', MARG_L, y); y += 12; }
+      if(kpis.pesoAtual)  { doc.text('Peso atual: ' + vir(rd1(kpis.pesoAtual)) + ' kg', MARG_L, y); y += 12; }
+      if(kpis.pesoMeta)   { doc.text('Peso meta: ' + vir(kpis.pesoMeta) + ' kg', MARG_L, y); y += 12; }
+      if(kpis.perdaTotal && kpis.perdaTotal > 0){
+        doc.text('Total perdido desde o início: −' + kpis.perdaTotal + ' kg', MARG_L, y); y += 12;
+      }
+      if(kpis.perdaJanela !== null){
+        var sinal = kpis.perdaJanela > 0 ? '−' : (kpis.perdaJanela < 0 ? '+' : '');
+        doc.text('Variação nos últimos 30 dias: ' + sinal + Math.abs(kpis.perdaJanela) + ' kg', MARG_L, y); y += 12;
+      }
+      y += 14;
+
+      // ─── Macros e alimentação ───
+      y = ensurePage(doc, y, LIMITE_Y - 120, MARG_T);
+      y = tituloSecao(doc, 'Alimentação e macronutrientes', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50);
+      doc.text('Médias diárias dos dias com check-in alimentar (' + dados.diary.filter(function(d){return d.kcalConsumed;}).length + ' dias):', MARG_L, y);
+      y += 14;
+
+      doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
-      doc.text('Fármaco: ' + (dados.c.farmaco || '—') + (dados.c.dose ? ' — ' + dados.c.dose + ' mg' : ''), MARG_L, y); y += 14;
-      doc.text('Frequência: ' + ((dados.c.freq === 'diaria' || dados.c.freq === 'diária') ? 'Diária' : 'Semanal'), MARG_L, y); y += 14;
-      if(dados.c.inicio) { doc.text('Início do tratamento: ' + fmtData(dados.c.inicio), MARG_L, y); y += 14; }
-      if(dados.c.ultima) { doc.text('Última aplicação registrada: ' + fmtData(dados.c.ultima), MARG_L, y); y += 14; }
+      var linhas = [
+        ['Calorias (kcal)', kpis.kcalMed, kpis.metaKcal ? (kpis.metaKcal + ' kcal') : '—'],
+        ['Proteína (g)', kpis.protMed, kpis.metaProt ? (kpis.metaProt + ' g') : '—'],
+        ['Carboidratos (g)', kpis.carbMed, '—'],
+        ['Gorduras (g)', kpis.gordMed, '—']
+      ];
+      doc.setFont('helvetica','bold');
+      doc.setTextColor(15, 79, 36);
+      doc.text('Macronutriente', MARG_L, y);
+      doc.text('Média', MARG_L + 220, y);
+      doc.text('Meta', MARG_L + 320, y);
+      y += 4;
+      doc.setDrawColor(200,200,200);
+      doc.line(MARG_L, y, W - MARG_R, y);
+      y += 12;
+
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(50, 50, 50);
+      linhas.forEach(function(l){
+        y = ensurePage(doc, y, LIMITE_Y, MARG_T);
+        doc.text(String(l[0]), MARG_L, y);
+        doc.text(String(l[1]) + (String(l[0]).indexOf('kcal') >= 0 ? '' : ''), MARG_L + 220, y);
+        doc.text(String(l[2]), MARG_L + 320, y);
+        y += 13;
+      });
       y += 8;
 
-      // ─── Peso
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(15, 79, 36);
-      doc.text('⚖️ Evolução do peso', MARG_L, y); y += 16;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      // ─── Hidratação ───
+      y = ensurePage(doc, y, LIMITE_Y - 60, MARG_T);
+      y = tituloSecao(doc, 'Hidratação', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
-      if(dados.p.weightStartKg) { doc.text('Peso no início do tratamento: ' + dados.p.weightStartKg + ' kg', MARG_L, y); y += 14; }
-      if(dados.p.weightKg)      { doc.text('Peso atual: ' + dados.p.weightKg + ' kg', MARG_L, y); y += 14; }
-      if(dados.p.weightGoalKg)  { doc.text('Peso meta: ' + dados.p.weightGoalKg + ' kg', MARG_L, y); y += 14; }
-      if(dados.p.weightStartKg && dados.p.weightKg){
-        var perd = +(dados.p.weightStartKg - dados.p.weightKg).toFixed(1);
-        if(perd > 0) doc.text('Total perdido desde o início: −' + perd + ' kg', MARG_L, y);
-        else if(perd < 0) doc.text('Variação desde o início: +' + Math.abs(perd) + ' kg', MARG_L, y);
-        else doc.text('Sem variação desde o início', MARG_L, y);
-        y += 14;
+      doc.text('Consumo médio: ' + kpis.aguaMed + ' mL/dia (~' + rd1(kpis.aguaMed/1000) + ' L)', MARG_L, y); y += 13;
+      if(kpis.metaAgua){ doc.text('Meta: ' + kpis.metaAgua + ' mL/dia (~' + rd1(kpis.metaAgua/1000) + ' L)', MARG_L, y); y += 13; }
+      doc.text('Adesão à meta (≥85%): ' + kpis.aderAgua + '% dos dias', MARG_L, y); y += 16;
+
+      // ─── Saciedade ───
+      y = ensurePage(doc, y, LIMITE_Y - 100, MARG_T);
+      y = tituloSecao(doc, 'Saciedade e padrão alimentar', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(0, 0, 0);
+      doc.text('• Saciado / satisfeito: ' + diario.sac.saciado + ' dia(s)', MARG_L, y); y += 12;
+      doc.text('• Sensação normal: ' + diario.sac.normal + ' dia(s)', MARG_L, y); y += 12;
+      doc.text('• Com fome aumentada: ' + diario.sac.fome + ' dia(s)', MARG_L, y); y += 12;
+      doc.text('• Sem saciedade (saciedade extrema reduzida): ' + diario.sac.semSaciedade + ' dia(s)', MARG_L, y); y += 12;
+      doc.text('• Pensamento intrusivo sobre comida (food noise): ' + diario.sac.foodNoise + ' dia(s)', MARG_L, y); y += 16;
+
+      // ─── Sintomas ───
+      y = ensurePage(doc, y, LIMITE_Y - 80, MARG_T);
+      y = tituloSecao(doc, 'Sintomas relatados', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.setTextColor(50, 50, 50);
+      if(diario.sintomas.length === 0){
+        doc.text('— sem sintomas registrados no período', MARG_L, y); y += 14;
+      } else {
+        diario.sintomas.slice(0, 12).forEach(function(s){
+          y = ensurePage(doc, y, LIMITE_Y, MARG_T);
+          doc.text('• ' + s.nome + ' — ' + s.count + ' dia(s)', MARG_L, y);
+          y += 12;
+        });
+        if(diario.sintomas.length > 12){
+          doc.setTextColor(120, 120, 120);
+          doc.text('… e mais ' + (diario.sintomas.length - 12) + ' sintoma(s)', MARG_L, y);
+          y += 12;
+        }
       }
-      var tend = tendenciaPeso(dados.pesagens);
-      if(tend){
-        var sinal = tend.delta < 0 ? '−' : (tend.delta > 0 ? '+' : '');
-        doc.text('Variação nos últimos 30 dias: ' + sinal + Math.abs(tend.delta).toFixed(1) + ' kg ' +
-                 '(' + tend.primeiro + ' → ' + tend.ultimo + ' kg)', MARG_L, y);
-        y += 14;
+      y += 6;
+
+      // ─── Álcool e exercício ───
+      y = ensurePage(doc, y, LIMITE_Y - 50, MARG_T);
+      y = tituloSecao(doc, 'Álcool e exercício', y, MARG_L);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Álcool: ' + diario.alcoolDias + ' dia(s) com consumo' + (diario.alcoolDoses ? (' · ' + diario.alcoolDoses + ' dose(s) totais') : ''), MARG_L, y);
+      y += 13;
+      doc.text('Exercício: ' + diario.exercDias + ' dia(s) com atividade no período', MARG_L, y);
+      y += 13;
+      if(Object.keys(diario.exercicio).length){
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        var exs = Object.keys(diario.exercicio).map(function(k){ return k + ' (' + diario.exercicio[k] + 'x)'; }).join(', ');
+        doc.text('Modalidades: ' + exs, MARG_L, y);
+        y += 12;
       }
       y += 8;
 
-      // ─── Aplicações
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(15, 79, 36);
-      doc.text('💉 Aplicações nos últimos 30 dias', MARG_L, y); y += 16;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text('Total de aplicações registradas: ' + dados.aplicacoes.length, MARG_L, y); y += 14;
-      y += 8;
-
-      // ─── Padrão de saciedade
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(15, 79, 36);
-      doc.text('🍽️ Padrão de saciedade', MARG_L, y); y += 16;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      var sac = contarSaciedade(dados.diary);
-      doc.text('Dias com check-in: ' + sac.total + ' nos últimos 30 dias', MARG_L, y); y += 14;
-      if(sac.total > 0){
-        doc.text('• Saciedade boa: ' + sac.bom + ' dia(s)', MARG_L, y); y += 13;
-        doc.text('• Sensação neutra: ' + sac.normal + ' dia(s)', MARG_L, y); y += 13;
-        doc.text('• Com fome aumentada: ' + sac.fome + ' dia(s)', MARG_L, y); y += 13;
+      // ─── Observações do paciente ───
+      if(diario.notas.length){
+        y = ensurePage(doc, y, LIMITE_Y - 60, MARG_T);
+        y = tituloSecao(doc, 'Observações do paciente', y, MARG_L);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(50, 50, 50);
+        diario.notas.slice(0, 8).forEach(function(n){
+          y = ensurePage(doc, y, LIMITE_Y, MARG_T);
+          var linha = '[' + fmtData(n.date) + '] ' + n.txt;
+          var split = doc.splitTextToSize(linha, CONTENT_W);
+          doc.text(split, MARG_L, y);
+          y += split.length * 11 + 4;
+        });
       }
-      y += 16;
 
-      // ─── Footer
-      if(y > 740) { doc.addPage(); y = MARG_T; }
-      doc.setDrawColor(180, 180, 180);
-      doc.setLineWidth(0.5);
-      doc.line(MARG_L, y, W - MARG_R, y); y += 14;
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
-      doc.setTextColor(110, 110, 110);
-      doc.text('Este relatório é gerado automaticamente pelo Sanova com base nos dados',
-               MARG_L, y); y += 11;
-      doc.text('registrados pelo paciente. É informativo e não substitui consulta médica.',
-               MARG_L, y); y += 14;
-      doc.text('Sanova v' + (typeof SANOVA_VERSION !== 'undefined' ? SANOVA_VERSION : '') +
-               ' · sanovaapp.github.io/sanova', MARG_L, y);
+      // ─── Footer (em todas as páginas) ───
+      var totalPaginas = doc.internal.getNumberOfPages();
+      for(var p = 1; p <= totalPaginas; p++){
+        doc.setPage(p);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.4);
+        doc.line(MARG_L, H - 35, W - MARG_R, H - 35);
+        doc.setFont('helvetica','italic');
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text('Este relatório é gerado automaticamente pelo Sanova a partir dos dados', MARG_L, H - 24);
+        doc.text('registrados pelo paciente. É informativo e não substitui consulta médica.', MARG_L, H - 14);
+        doc.text('Sanova v' + (typeof SANOVA_VERSION !== 'undefined' ? SANOVA_VERSION : '') + ' · sanovaapp.github.io/sanova', W - MARG_R, H - 14, { align: 'right' });
+        doc.text('Página ' + p + ' de ' + totalPaginas, W - MARG_R, H - 24, { align: 'right' });
+      }
 
-      // ─── Save
-      var nomeArq = 'Sanova-' + nome.replace(/[^a-zA-Z0-9]/g, '') + '-' +
+      // ─── Salvar ───
+      var nomeArq = 'Sanova-Relatorio-' + nome.replace(/[^a-zA-Z0-9]/g, '') + '-' +
                     hojeStr.replace(/\//g, '-') + '.pdf';
       doc.save(nomeArq);
 
-      if(typeof toast === 'function') toast('📄 PDF gerado!', 2200);
-    }catch(err){
+      if(typeof toast === 'function') toast('📄 Relatório gerado!', 2500);
+    } catch(err){
       console.error('[PDF] erro:', err);
-      if(typeof toast === 'function') toast('❌ Erro ao gerar PDF: ' + (err.message || err), 4000);
+      if(typeof toast === 'function') toast('❌ Erro ao gerar PDF: ' + (err.message || err), 4500);
     }
   };
 })();
