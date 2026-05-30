@@ -8092,6 +8092,27 @@ function anaStep9B(){
   },400);
 }
 
+// v3.8.7: step de objetivo na anamnese (Lucas Judice — paciente sarcopênico
+// queria opção de "reconstruir musculo"). Mostra os 3 objetivos como opções
+// e seta ANA.data.objetivo + persiste antes de calcular meta calorica/proteica.
+function anaStepObjetivo(cb){
+  anaProgresso(94);
+  setTimeout(function(){
+    anaMsg('bot','🎯 <strong>Qual seu objetivo agora?</strong><br><br>Isso ajusta sua meta de proteína e calorias. Pode trocar depois no Perfil quando mudar de fase.');
+    anaOpts([
+      {ic:'🔥',lb:'Emagrecer',sub:'Perder gordura mantendo músculo (1,6 g/kg)',v:'emagrecer'},
+      {ic:'💪',lb:'Reconstruir músculo',sub:'Já está magro/sarcopênico — ganhar massa (2,0 g/kg)',v:'reconstruir'},
+      {ic:'⚖️',lb:'Manter peso',sub:'Já chegou na meta — manutenção (1,8 g/kg)',v:'manter'}
+    ],function(v){
+      ANA.data.objetivo = v;
+      if(typeof _anaSalvar === 'function') _anaSalvar();
+      var label = (typeof OBJETIVOS !== 'undefined' && OBJETIVOS[v]) ? OBJETIVOS[v].label : v;
+      anaMsg('usr', label);
+      setTimeout(cb, 300);
+    });
+  },400);
+}
+
 function anaStep10B(){
   anaProgresso(88);
   setTimeout(function(){

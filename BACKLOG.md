@@ -37,6 +37,17 @@
 - **Glassmorphism sutil** (mobile com pouca GPU = laggy se exagerar).
 - **Lucas pode ser teste-piloto** das próximas versões (Bruno cravou aceitar).
 
+### Referências visuais do Lucas (30/05/2026, áudio + 4 prints)
+
+Lucas mandou 4 estilos de inspiração:
+
+1. **Liquid Glass** (@letsavee) — pílulas brancas com blur Apple Vision Pro-style
+2. **Glassmorphism** (@mitkow_1, foto do capacete) — card translúcido sobre imagem natural
+3. **Dashboard tech + gradiente** (@abduly_haidary, "Management Dashboard") — gauge circular + cards de KPI
+4. **Dashboard minimalista** (@orbixdashboard, "Donezo") — números grandes (24/10/12/2), paleta verde, cards limpos
+
+**Leitura Claude:** mistura de #4 (estrutura) + #3 (gauge) + #1 sutil (apenas em cards de destaque). Liquid Glass cheio = performance ruim em Android mid-range + atrapalha leitura clínica. Manter foco em hierarquia visual e KPIs grandes.
+
 ---
 
 ## 🚀 Infraestrutura
