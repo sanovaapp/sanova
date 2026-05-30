@@ -19752,9 +19752,9 @@ window.addEventListener('beforeunload',function(){
 
   // Features dentro do pacote pago (refletem decisao pos-revisao 29/05)
   var FEATURES_PAGAS = [
-    { icon: '🧠', nome: 'IA de prato', desc: 'Foto, voz ou texto reconhecidos com macros' },
-    { icon: '💉', nome: 'Conversor UI insulina', desc: 'Calculo mg → UI pra frasco manipulado' },
-    { icon: '📄', nome: 'Relatorio PDF pro medico', desc: 'Resumo do mes pra levar na consulta' }
+    { icon: '🧠', nome: 'IA de prato', desc: 'Aponta a câmera, fala ou escreve. A IA reconhece a refeição e estima macros em segundos. Esquece caderninho e app gringo que não pega comida brasileira.' },
+    { icon: '💉', nome: 'Conversor UI insulina', desc: 'Quem usa frasco manipulado sabe: errar a UI é fácil e perigoso. O Sanova calcula mg → UI no instante. Você só confirma e aplica.' },
+    { icon: '📄', nome: 'Relatório PDF pro médico', desc: 'Chega na consulta com um resumo do mês: peso, doses, padrão de saciedade. Médico lê em 1 minuto. Você poupa a conversa de tentar lembrar.' }
   ];
   var FEATURES_LIVRES = [
     'Registro de dose', 'Dashboard e graficos', 'Potencia da medicacao',
@@ -19818,15 +19818,11 @@ window.addEventListener('beforeunload',function(){
     }
 
     var featuresPagas = FEATURES_PAGAS.map(function(f){
-      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(187,247,208,.08)">' +
-        '<div style="font-size:20px;line-height:1">'+f.icon+'</div>' +
-        '<div style="flex:1"><div style="font-weight:700;color:#fff;font-size:13.5px">'+f.nome+'</div>' +
-        '<div style="font-size:11.5px;color:rgba(255,255,255,.6);margin-top:1px">'+f.desc+'</div></div>' +
+      return '<div style="display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid rgba(187,247,208,.08)">' +
+        '<div style="font-size:22px;line-height:1;flex-shrink:0">'+f.icon+'</div>' +
+        '<div style="flex:1"><div style="font-weight:800;color:#fff;font-size:14px;margin-bottom:2px">'+f.nome+'</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.75);line-height:1.5">'+f.desc+'</div></div>' +
       '</div>';
-    }).join('');
-
-    var featuresLivres = FEATURES_LIVRES.map(function(n){
-      return '<li style="margin-bottom:2px">'+n+'</li>';
     }).join('');
 
     return '<div style="max-width:460px;width:100%;max-height:92vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
@@ -19836,25 +19832,23 @@ window.addEventListener('beforeunload',function(){
         '<div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:4px;line-height:1.45">'+subtitulo+'</div>' +
       '</div>' +
 
-      '<div style="margin-bottom:14px">' +
+      '<div style="margin-bottom:18px">' +
         '<div style="font-size:11px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Inclui no Completo</div>' +
         featuresPagas +
       '</div>' +
 
-      '<div style="background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.15);border-radius:12px;padding:12px;margin-bottom:14px">' +
-        '<div style="font-size:11px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Continua livre pra todo mundo</div>' +
-        '<ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,.8);line-height:1.55">'+featuresLivres+'</ul>' +
-      '</div>' +
-
-      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-        '<div style="flex:1;padding:11px;border-radius:11px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.08);text-align:center">' +
-          '<div style="font-size:10.5px;color:rgba(255,255,255,.65);font-weight:700">Mensal</div>' +
-          '<div style="font-size:17px;color:#fff;font-weight:800;margin-top:2px">R$ 19,90</div>' +
+      '<div style="display:flex;gap:10px;margin-bottom:14px;align-items:stretch">' +
+        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.06);text-align:center;display:flex;flex-direction:column;justify-content:center">' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Mensal</div>' +
+          '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:5px;line-height:1">R$ 19,90</div>' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-top:3px">por mês</div>' +
         '</div>' +
-        '<div style="flex:1;padding:11px;border-radius:11px;border:1.5px solid #bbf7d0;background:rgba(187,247,208,.16);text-align:center;position:relative">' +
-          '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;letter-spacing:.04em;white-space:nowrap">ECONOMIZA R$ 39,80 (2 meses gratis)</div>' +
-          '<div style="font-size:10.5px;color:rgba(255,255,255,.65);font-weight:700;margin-top:4px">Anual</div>' +
-          '<div style="font-size:17px;color:#fff;font-weight:800;margin-top:2px">R$ 199</div>' +
+        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid #bbf7d0;background:linear-gradient(160deg,rgba(34,197,94,.18),rgba(187,247,208,.10));text-align:center;position:relative;display:flex;flex-direction:column;justify-content:center;box-shadow:0 6px 18px rgba(34,197,94,.18)">' +
+          '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9.5px;font-weight:900;padding:3px 9px;border-radius:99px;letter-spacing:.05em;white-space:nowrap;text-transform:uppercase">Mais escolhido</div>' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Anual</div>' +
+          '<div style="font-size:11.5px;color:rgba(255,255,255,.5);text-decoration:line-through;margin-top:3px;line-height:1">R$ 238,80</div>' +
+          '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:2px;line-height:1">R$ 199</div>' +
+          '<div style="font-size:10.5px;color:#bbf7d0;margin-top:3px;font-weight:700">2 meses grátis</div>' +
         '</div>' +
       '</div>' +
 
