@@ -5666,7 +5666,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.5.0';
+var SANOVA_VERSION = '3.6.0';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -6223,8 +6223,12 @@ function abrirBulaOficial(slug){
    ══════════════════════════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════════════════
    v3.1.36 — MODO DESENVOLVEDOR (gesto secreto + senha)
+   v3.6.0 — Senha agora validada via hash SHA-256 (não mais texto plano).
    Padrão: 7 toques rápidos no logo Sanova (em <3s) → pede senha → desbloqueia
-   Senha: sanova2026
+   Senha real: NÃO está no código. Só o hash. Guardada no gerenciador do
+   Bruno (Google Password Manager / Chrome saved passwords).
+   Pra rotacionar: gera nova senha → calcula SHA-256 → substitui DEV_HASH
+   abaixo. Senha original cai junto.
    Sessão: persiste apenas durante a sessão atual (não fica salvo)
    Ferramentas escondidas: Inspetor, Zerar dia
    ══════════════════════════════════════════════════════════════════════════ */
@@ -6260,6 +6264,26 @@ function logoClicked(){
   }
 }
 
+// SHA-256 da senha do modo dev. NUNCA coloque a senha em texto aqui.
+// Pra trocar: ver "v3.1.36 — MODO DESENVOLVEDOR" no cabeçalho desta seção.
+var DEV_HASH = '6528283c8b786c5c527c513a82d0c75fc2d991edeb0ad26b5ed71ebd899e62a7';
+
+function _devHashCheck(senha){
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha))
+    .then(function(buf){
+      var bytes = new Uint8Array(buf);
+      var hex = '';
+      for(var i = 0; i < bytes.length; i++){
+        hex += bytes[i].toString(16).padStart(2, '0');
+      }
+      return hex === DEV_HASH;
+    })
+    .catch(function(e){
+      console.warn('[Dev] hash check falhou:', e);
+      return false;
+    });
+}
+
 function pedirSenhaDev(){
   if(_modoDev){
     if(typeof toast === 'function') toast('🔓 Modo desenvolvedor já ativo', 2000);
@@ -6270,13 +6294,15 @@ function pedirSenhaDev(){
   var senha = prompt('🔧 Modo Desenvolvedor\n\nDigite a senha:');
   if(senha === null) return; // cancelou
 
-  if(senha === 'sanova2026'){
-    _modoDev = true;
-    mostrarSecaoDiagnostico();
-    if(typeof toast === 'function') toast('🔓 Modo desenvolvedor ativado · vá em Mais', 3500);
-  } else {
-    if(typeof toast === 'function') toast('❌ Senha incorreta', 2000);
-  }
+  _devHashCheck(senha).then(function(ok){
+    if(ok){
+      _modoDev = true;
+      mostrarSecaoDiagnostico();
+      if(typeof toast === 'function') toast('🔓 Modo desenvolvedor ativado · vá em Mais', 3500);
+    }else{
+      if(typeof toast === 'function') toast('❌ Senha incorreta', 2000);
+    }
+  });
 }
 
 function mostrarSecaoDiagnostico(){
@@ -6449,7 +6475,7 @@ function abrirPoliticaPrivacidade(){
     '<div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(187,247,208,.15)">' +
       '<div style="font-size:30px;margin-bottom:4px">🔒</div>' +
       '<div style="font-size:18px;font-weight:700;color:#fff;font-family:var(--fd);letter-spacing:-.02em">Política de Privacidade</div>' +
-      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 01/05/2026 · Versão 1.0</div>' +
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 29/05/2026 · Versão 1.1</div>' +
     '</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,.92);line-height:1.65">' +
 
@@ -6528,7 +6554,7 @@ function abrirTermosUso(){
     '<div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(187,247,208,.15)">' +
       '<div style="font-size:30px;margin-bottom:4px">📋</div>' +
       '<div style="font-size:18px;font-weight:700;color:#fff;font-family:var(--fd);letter-spacing:-.02em">Termos de Uso</div>' +
-      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 01/05/2026 · Versão 1.0</div>' +
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 29/05/2026 · Versão 1.1</div>' +
     '</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,.92);line-height:1.65">' +
 
@@ -6539,7 +6565,15 @@ function abrirTermosUso(){
       '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">1. Natureza do serviço</div>' +
       '<p style="margin:0 0 14px 0">O Sanova é um <strong style="color:#fff">aplicativo educativo de auto-acompanhamento</strong> para pacientes em tratamento com GLP-1. <strong style="color:#fff">Não é dispositivo médico</strong> regulamentado pela ANVISA, não é serviço de saúde, não é telemedicina. Para informações oficiais sobre cada medicamento, oferecemos acesso direto às bulas no Bulário Eletrônico ANVISA (em "Aprender → Bulas Oficiais").</p>' +
 
-      '<div style="font-weight:800;color:#fca5a5;margin-bottom:6px;font-size:13.5px">2. O que o app NÃO faz</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">2. Idade mínima e responsabilidade legal</div>' +
+      '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Maiores de 18 anos:</strong> uso livre, sob responsabilidade própria, com a recomendação inalienável de acompanhamento médico durante o tratamento com GLP-1.</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Adolescentes de 16 e 17 anos:</strong> uso permitido somente <strong style="color:#fff">mediante prescrição médica formal</strong> do GLP-1 e <strong style="color:#fff">supervisão de responsável legal</strong>, que deve aceitar estes Termos em nome do menor.</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Menores de 16 anos:</strong> uso <strong style="color:#fff">não autorizado</strong>. O cadastro será cancelado se identificado.</li>' +
+        '<li style="margin-bottom:3px">Dados de adolescentes são tratados como <strong style="color:#fff">dados pessoais sensíveis</strong> conforme LGPD Art. 14, com proteções adicionais.</li>' +
+      '</ul>' +
+
+      '<div style="font-weight:800;color:#fca5a5;margin-bottom:6px;font-size:13.5px">3. O que o app NÃO faz</div>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px">Não prescreve, ajusta nem recomenda medicamentos ou doses</li>' +
         '<li style="margin-bottom:3px">Não substitui consulta médica, nutricional ou farmacêutica</li>' +
@@ -6548,7 +6582,7 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px">Não atende pacientes com condições complexas (diabetes descompensada, doença renal/hepática, gestação, transtornos alimentares ativos)</li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">3. Sua responsabilidade</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">4. Sua responsabilidade</div>' +
       '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
         '<li style="margin-bottom:3px">Manter acompanhamento médico regular durante o tratamento</li>' +
         '<li style="margin-bottom:3px">Informar dados verdadeiros (estimativas dependem disso)</li>' +
@@ -6557,20 +6591,46 @@ function abrirTermosUso(){
         '<li style="margin-bottom:3px">Confirmar com seu médico qualquer informação relevante</li>' +
       '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">4. Limitação de responsabilidade</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">5. Limitação de responsabilidade</div>' +
       '<p style="margin:0 0 14px 0">As informações educativas do Sanova são baseadas em bulas oficiais e literatura científica, mas <strong style="color:#fff">podem conter imprecisões, ficar desatualizadas ou não se aplicar à sua situação específica</strong>. O desenvolvedor do Sanova não se responsabiliza por decisões clínicas tomadas com base apenas no app, nem por consequências de uso indevido (alteração de dose sem orientação médica, etc.).</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">5. Propriedade intelectual</div>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">6. Propriedade intelectual</div>' +
       '<p style="margin:0 0 14px 0">O código, design, conteúdo educativo e marca do Sanova são protegidos por direito autoral (Lei 9.610/98). É <strong style="color:#fff">vedada a reprodução, modificação, distribuição ou uso comercial</strong> sem autorização expressa do desenvolvedor.</p>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">6. Modificações nos Termos</div>' +
-      '<p style="margin:0 0 14px 0">Estes Termos podem ser atualizados a qualquer momento. Mudanças relevantes serão comunicadas no app. Continuar usando após uma atualização significa aceitação dos novos Termos.</p>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">7. Assinatura e pagamento</div>' +
+      '<p style="margin:0 0 8px 0">O Sanova oferece um <strong style="color:#fff">período gratuito de 7 dias</strong> com acesso completo, sem necessidade de cadastro de cartão. Após o período, o uso de funcionalidades pagas (IA de prato, calculadora de UI de insulina, relatório PDF para o médico) requer assinatura.</p>' +
+      '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Valor:</strong> R$ 19,90/mês ou R$ 199/ano (sujeito a reajuste anual conforme inflação, com aviso prévio de 30 dias)</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Renovação automática:</strong> a assinatura renova ao fim de cada ciclo, exceto se você cancelar antes do vencimento</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Funcionalidades gratuitas continuam:</strong> registro de dose, dashboard, estoque, lembretes, sync nuvem e potência da medicação permanecem livres mesmo sem assinatura</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Processamento:</strong> os pagamentos são processados pelo Mercado Pago (parceiro certificado PCI-DSS). O Sanova <strong style="color:#fff">não armazena dados do seu cartão</strong></li>' +
+      '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">7. Encerramento de uso</div>' +
-      '<p style="margin:0 0 14px 0">Você pode parar de usar o Sanova a qualquer momento. Para apagar seus dados: <strong style="color:#fff">Mais → Perfil → Apagar todos os dados</strong>. Após apagados, os dados são perdidos definitivamente (não há cópia em servidor).</p>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">8. Cancelamento, reembolso e arrependimento</div>' +
+      '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Cancelamento a qualquer momento:</strong> em <strong style="color:#fff">Mais → Perfil → Gerenciar assinatura</strong>. Você mantém acesso pago até o fim do ciclo já pago</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Direito de arrependimento (Art. 49 CDC):</strong> até 7 dias após a contratação, com reembolso integral, mesmo após uso. Solicite por email</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Reembolso pró-rata:</strong> não há reembolso proporcional após o prazo de arrependimento. O acesso permanece ativo até o fim do ciclo pago</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Falha técnica:</strong> em caso de indisponibilidade prolongada do app (mais de 72 horas consecutivas), entre em contato — avaliamos reembolso parcial caso a caso</li>' +
+      '</ul>' +
 
-      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">8. Foro</div>' +
-      '<p style="margin:0 0 14px 0">Eventuais disputas serão resolvidas no foro do domicílio do desenvolvedor, no Brasil, conforme legislação brasileira aplicável.</p>' +
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">9. Dados de pagamento (LGPD)</div>' +
+      '<p style="margin:0 0 8px 0">O processamento de pagamentos é feito integralmente pelo <strong style="color:#fff">Mercado Pago Representações LTDA</strong> (operador), nos termos da política de privacidade dele. O Sanova (controlador) recebe apenas:</p>' +
+      '<ul style="margin:0 0 14px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px">Status da assinatura (ativa, expirada, cancelada)</li>' +
+        '<li style="margin-bottom:3px">Data da próxima cobrança</li>' +
+        '<li style="margin-bottom:3px">Identificadores opacos da transação (para auditoria)</li>' +
+      '</ul>' +
+      '<p style="margin:0 0 14px 0">Número de cartão, CVV, validade e demais dados financeiros <strong style="color:#fff">nunca tocam servidores do Sanova</strong>. Você pode exercer seus direitos LGPD a qualquer momento (acesso, correção, exclusão, portabilidade) escrevendo ao desenvolvedor pelo email de contato.</p>' +
+
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">10. Modificações nos Termos</div>' +
+      '<p style="margin:0 0 14px 0">Estes Termos podem ser atualizados a qualquer momento. Mudanças relevantes serão comunicadas no app. Continuar usando após uma atualização significa aceitação dos novos Termos. Reajustes de preço terão aviso prévio de pelo menos 30 dias.</p>' +
+
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">11. Encerramento de uso</div>' +
+      '<p style="margin:0 0 14px 0">Você pode parar de usar o Sanova a qualquer momento. Para apagar seus dados: <strong style="color:#fff">Mais → Perfil → Apagar todos os dados</strong>. Após apagados, os dados são perdidos definitivamente (não há cópia em servidor). Cancelar assinatura paga não apaga dados — só interrompe cobrança e acesso pago.</p>' +
+
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">12. Foro</div>' +
+      '<p style="margin:0 0 14px 0">Eventuais disputas serão resolvidas no foro do domicílio do desenvolvedor, no Brasil, conforme legislação brasileira aplicável (CDC, LGPD, Marco Civil da Internet).</p>' +
 
     '</div>' +
     '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:12px;border-radius:11px;border:1.5px solid rgba(187,247,208,.4);background:rgba(187,247,208,.08);color:#bbf7d0;font-family:var(--ss);font-size:14px;font-weight:700;cursor:pointer;margin-top:6px">Entendi</button>' +
@@ -19675,6 +19735,198 @@ window.addEventListener('beforeunload',function(){
       }
     }, 2000);
   });
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Sanova — Camada de Paywall (v3.6.0)
+   UI do estado de assinatura: banner de trial, modal de fim de trial,
+   botoes de assinar (stub ate Mercado Pago entrar em PR proximo),
+   e helpers dev pra forcar estado.
+   Reage a evento 'sanova:assinatura' disparado pela camada SanovaAssinatura.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  var MODAL_VISTO_KEY = 'sanova_modal_paywall_visto_v1';
+  var BANNER_FECHADO_KEY = 'sanova_banner_trial_fechado_v1';
+
+  // Features dentro do pacote pago (refletem decisao pos-revisao 29/05)
+  var FEATURES_PAGAS = [
+    { icon: '🧠', nome: 'IA de prato', desc: 'Aponta a câmera, fala ou escreve. A IA reconhece a refeição e estima macros em segundos. Esquece caderninho e app gringo que não pega comida brasileira.' },
+    { icon: '💉', nome: 'Conversor UI insulina', desc: 'Quem usa frasco manipulado sabe: errar a UI é fácil e perigoso. O Sanova calcula mg → UI no instante. Você só confirma e aplica.' },
+    { icon: '📄', nome: 'Relatório PDF pro médico', desc: 'Chega na consulta com um resumo do mês: peso, doses, padrão de saciedade. Médico lê em 1 minuto. Você poupa a conversa de tentar lembrar.' }
+  ];
+  var FEATURES_LIVRES = [
+    'Registro de dose', 'Dashboard e graficos', 'Potencia da medicacao',
+    'Estoque com reposicao', 'Lembretes', 'Sync na nuvem'
+  ];
+
+  // ─── BANNER DE TRIAL ─────────────────────────────────────
+  function bannerHTML(dias){
+    return '' +
+      '<div id="sanova-banner-trial-inner" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-size:14px">🎁</span>' +
+        '<span style="flex:1;min-width:140px"><b>Sanova Completo</b> liberado · restam <b><span id="sanova-banner-dias">'+dias+'</span> dia'+(dias===1?'':'s')+'</b></span>' +
+        '<button onclick="window.SanovaPaywall.abrirModal(\'banner\')" style="padding:5px 11px;border-radius:99px;border:1px solid rgba(187,247,208,.5);background:rgba(187,247,208,.12);color:#bbf7d0;font-family:var(--ss,system-ui);font-size:11.5px;font-weight:700;cursor:pointer">Assinar</button>' +
+        '<button aria-label="Fechar" onclick="window.SanovaPaywall.fecharBanner()" style="background:transparent;border:0;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;padding:0 4px;line-height:1">×</button>' +
+      '</div>';
+  }
+
+  function renderBanner(estado){
+    var existente = document.getElementById('sanova-banner-trial');
+    var deveMostrar = estado.status === 'trial' && estado.diasRestantes > 0;
+    if(!deveMostrar){
+      if(existente) existente.remove();
+      return;
+    }
+    var fechadoNessaSessao = false;
+    try{ fechadoNessaSessao = sessionStorage.getItem(BANNER_FECHADO_KEY) === '1'; }catch(e){}
+    if(fechadoNessaSessao){
+      if(existente) existente.remove();
+      return;
+    }
+    if(existente){
+      var spanD = existente.querySelector('#sanova-banner-dias');
+      if(spanD) spanD.textContent = estado.diasRestantes;
+      return;
+    }
+    var el = document.createElement('div');
+    el.id = 'sanova-banner-trial';
+    el.style.cssText = 'position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:1500;padding:10px 14px;background:linear-gradient(90deg,#0a3a20,#15803d 60%,#0a3a20);color:#fff;font-family:var(--ss,system-ui);font-size:12.5px;line-height:1.4;border-bottom:1px solid rgba(187,247,208,.25);box-shadow:0 4px 12px rgba(0,0,0,.25)';
+    el.innerHTML = bannerHTML(estado.diasRestantes);
+    document.body.appendChild(el);
+  }
+
+  function fecharBanner(){
+    try{ sessionStorage.setItem(BANNER_FECHADO_KEY, '1'); }catch(e){}
+    var el = document.getElementById('sanova-banner-trial');
+    if(el) el.remove();
+  }
+
+  // ─── MODAL DE PAYWALL ────────────────────────────────────
+  function modalHTML(motivo, estado){
+    var titulo, subtitulo;
+    if(motivo === 'expirou'){
+      titulo = 'Seus 7 dias acabaram 🌿';
+      subtitulo = 'Continua usando o basico de graca ou libera o pacote completo.';
+    }else if(motivo === 'banner'){
+      titulo = 'Sanova Completo';
+      subtitulo = 'Voce ainda esta no periodo gratuito. Quer garantir o acesso completo?';
+    }else{
+      titulo = 'Sanova Completo';
+      subtitulo = 'Essa funcionalidade faz parte do pacote pago.';
+    }
+
+    var featuresPagas = FEATURES_PAGAS.map(function(f){
+      return '<div style="display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid rgba(187,247,208,.08)">' +
+        '<div style="font-size:22px;line-height:1;flex-shrink:0">'+f.icon+'</div>' +
+        '<div style="flex:1"><div style="font-weight:800;color:#fff;font-size:14px;margin-bottom:2px">'+f.nome+'</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.75);line-height:1.5">'+f.desc+'</div></div>' +
+      '</div>';
+    }).join('');
+
+    return '<div style="max-width:460px;width:100%;max-height:92vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
+      '<div style="text-align:center;margin-bottom:14px">' +
+        '<div style="font-size:34px;margin-bottom:4px">🌿</div>' +
+        '<div style="font-size:18px;font-weight:800;color:#fff;font-family:var(--fd,system-ui);letter-spacing:-.02em">'+titulo+'</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:4px;line-height:1.45">'+subtitulo+'</div>' +
+      '</div>' +
+
+      '<div style="margin-bottom:18px">' +
+        '<div style="font-size:11px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Inclui no Completo</div>' +
+        featuresPagas +
+      '</div>' +
+
+      '<div style="display:flex;gap:10px;margin-bottom:14px;align-items:stretch">' +
+        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.06);text-align:center;display:flex;flex-direction:column;justify-content:center">' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Mensal</div>' +
+          '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:5px;line-height:1">R$ 19,90</div>' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-top:3px">por mês</div>' +
+        '</div>' +
+        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid #bbf7d0;background:linear-gradient(160deg,rgba(34,197,94,.18),rgba(187,247,208,.10));text-align:center;position:relative;display:flex;flex-direction:column;justify-content:center;box-shadow:0 6px 18px rgba(34,197,94,.18)">' +
+          '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9.5px;font-weight:900;padding:3px 9px;border-radius:99px;letter-spacing:.05em;white-space:nowrap;text-transform:uppercase">Mais escolhido</div>' +
+          '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Anual</div>' +
+          '<div style="font-size:11.5px;color:rgba(255,255,255,.5);text-decoration:line-through;margin-top:3px;line-height:1">R$ 238,80</div>' +
+          '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:2px;line-height:1">R$ 199</div>' +
+          '<div style="font-size:10.5px;color:#bbf7d0;margin-top:3px;font-weight:700">2 meses grátis</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<button onclick="window.SanovaPaywall.iniciarAssinatura()" style="width:100%;padding:13px;border-radius:11px;border:0;background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;font-family:var(--ss,system-ui);font-size:14px;font-weight:800;cursor:pointer;margin-bottom:7px;box-shadow:0 4px 12px rgba(34,197,94,.3)">Assinar agora 🌿</button>' +
+
+      '<button onclick="window.SanovaPaywall.fecharModal()" style="width:100%;padding:11px;border-radius:11px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.75);font-family:var(--ss,system-ui);font-size:13px;font-weight:600;cursor:pointer">Continuar usando o gratuito</button>' +
+
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.45);text-align:center;margin-top:10px;line-height:1.45">Cobranca via Mercado Pago. Cancele quando quiser nas configuracoes. Direito de arrependimento de 7 dias (CDC Art. 49).</div>' +
+    '</div>';
+  }
+
+  function abrirModal(motivo){
+    fecharModal();
+    var estado = window.SanovaAssinatura ? window.SanovaAssinatura.get() : {};
+    var ov = document.createElement('div');
+    ov.id = 'sanova-modal-paywall';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9998;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)';
+    ov.onclick = function(e){ if(e.target === ov) fecharModal(); };
+    ov.innerHTML = modalHTML(motivo, estado);
+    document.body.appendChild(ov);
+  }
+
+  function fecharModal(){
+    var ov = document.getElementById('sanova-modal-paywall');
+    if(ov) ov.remove();
+  }
+
+  function iniciarAssinatura(){
+    // Stub ate o PR do Mercado Pago entrar (proxima sessao)
+    alert('🌿 Cobranca real entra no ar na proxima atualizacao do app. Se voce quiser ser avisado(a) primeiro, manda mensagem pro contato@sanova ou aguarda o proximo update.');
+  }
+
+  function maybeMostrarModalExpirado(estado){
+    if(estado.status !== 'expired' && estado.status !== 'canceled') return;
+    var jaViu = false;
+    try{ jaViu = localStorage.getItem(MODAL_VISTO_KEY) === '1'; }catch(e){}
+    if(jaViu) return;
+    setTimeout(function(){ abrirModal('expirou'); }, 400);
+    try{ localStorage.setItem(MODAL_VISTO_KEY, '1'); }catch(e){}
+  }
+
+  // ─── PAINEL DEV (forcar status) ──────────────────────────
+  function forcarStatusDev(status){
+    if(!window.SanovaAssinatura){
+      console.warn('[Paywall] SanovaAssinatura nao carregou');
+      return;
+    }
+    try{ sessionStorage.removeItem(BANNER_FECHADO_KEY); }catch(e){}
+    try{ localStorage.removeItem(MODAL_VISTO_KEY); }catch(e){}
+    return window.SanovaAssinatura.forcarStatus(status);
+  }
+
+  // API publica
+  window.SanovaPaywall = {
+    abrirModal: abrirModal,
+    fecharModal: fecharModal,
+    fecharBanner: fecharBanner,
+    iniciarAssinatura: iniciarAssinatura,
+    forcarStatusDev: forcarStatusDev
+  };
+
+  // ─── REACAO AO EVENTO DA CAMADA DE ASSINATURA ────────────
+  window.addEventListener('sanova:assinatura', function(ev){
+    var estado = ev.detail || {};
+    renderBanner(estado);
+    maybeMostrarModalExpirado(estado);
+  });
+
+  // Tenta carregar uma vez na inicializacao caso ja exista estado
+  setTimeout(function(){
+    if(window.SanovaAssinatura){
+      var e = window.SanovaAssinatura.get();
+      if(e.carregado){
+        renderBanner(e);
+        maybeMostrarModalExpirado(e);
+      }
+    }
+  }, 1500);
 })();
 </script>
 
