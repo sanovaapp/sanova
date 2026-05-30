@@ -3881,32 +3881,32 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(243,168,138,.7)">🔥 CALORIAS DO DIA</div>
       <div id="calBarStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(74,222,128,.15);color:#4ade80">Zona ideal</div>
     </div>
-    <!-- Barra de zonas -->
+    <!-- Barra de zonas (v3.8.8: dinâmica por objetivo) -->
     <div style="position:relative;height:28px;border-radius:10px;overflow:hidden;margin-bottom:8px">
       <!-- Faixas de cor -->
       <div style="position:absolute;inset:0;display:flex">
-        <div style="width:26.7%;background:rgba(243,168,138,.3)"></div>
-        <div style="width:33.3%;background:rgba(74,222,128,.35)"></div>
-        <div style="width:13.3%;background:rgba(232,200,120,.35)"></div>
-        <div style="width:26.7%;background:rgba(243,168,138,.3)"></div>
+        <div id="calBarFaixa0" style="width:26.7%;background:rgba(243,168,138,.3)"></div>
+        <div id="calBarFaixa1" style="width:33.3%;background:rgba(74,222,128,.35)"></div>
+        <div id="calBarFaixa2" style="width:13.3%;background:rgba(232,200,120,.35)"></div>
+        <div id="calBarFaixa3" style="width:26.7%;background:rgba(243,168,138,.3)"></div>
       </div>
       <!-- Labels das zonas -->
       <div style="position:absolute;inset:0;display:flex;align-items:center">
-        <div style="width:26.7%;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.5)">Baixo</div>
-        <div style="width:33.3%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.9)">✅ Emagrecimento</div>
-        <div style="width:13.3%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.8)">Mant.</div>
-        <div style="width:26.7%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.8)">Ganho</div>
+        <div id="calBarLbl0" style="width:26.7%;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.5)">Baixo</div>
+        <div id="calBarLbl1" style="width:33.3%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.9)">✅ Emagrecimento</div>
+        <div id="calBarLbl2" style="width:13.3%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.8)">Mant.</div>
+        <div id="calBarLbl3" style="width:26.7%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.8)">Ganho</div>
       </div>
       <!-- Marcador atual -->
       <div id="calBarMarker" style="position:absolute;top:-3px;bottom:-3px;width:5px;background:#fff;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 12px rgba(255,255,255,1);transition:left .5s ease;left:0%"></div>
     </div>
     <!-- Valores -->
     <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <div style="font-size:10px;color:rgba(255,255,255,.35)">0</div>
-      <div style="font-size:10px;color:rgba(239,68,68,.6)">800</div>
-      <div style="font-size:10px;color:rgba(74,222,128,.7)" id="calBarMetaLbl">1.800</div>
-      <div style="font-size:10px;color:rgba(232,200,120,.6)" id="calBarMantLbl">2.200</div>
-      <div style="font-size:10px;color:rgba(255,255,255,.35)">3.000</div>
+      <div id="calBarEscala0" style="font-size:10px;color:rgba(255,255,255,.35)">0</div>
+      <div id="calBarEscala1" style="font-size:10px;color:rgba(239,68,68,.6)">800</div>
+      <div id="calBarMetaLbl" style="font-size:10px;color:rgba(74,222,128,.7)">1.800</div>
+      <div id="calBarMantLbl" style="font-size:10px;color:rgba(232,200,120,.6)">2.200</div>
+      <div id="calBarEscala4" style="font-size:10px;color:rgba(255,255,255,.35)">3.000</div>
     </div>
     <div style="text-align:center">
       <span id="calBarConsumed" style="font-size:22px;font-weight:900;color:#f3a88a">0</span>
@@ -5793,7 +5793,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.7';
+var SANOVA_VERSION = '3.8.8';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -12565,40 +12565,127 @@ function renderQuatroGauges(){
   // v3.1.10: renderizar também os pilares hierárquicos (visualização nova)
   if(typeof renderPilares === 'function') renderPilares();
 
-  // Atualizar barra de calorias
+  // v3.8.8: barra dinâmica por objetivo (emagrecer/reconstruir/manter)
+  var cfg = _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant);
+  _aplicarCalBarConfig(cfg, kcalHoje);
+}
+
+// v3.8.8: Configura faixas/labels/textos da barra de calorias baseado no objetivo ativo.
+function _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant){
+  var objKey = (typeof getObjetivoAtual === 'function') ? getObjetivoAtual() : 'emagrecer';
+  var GET = M && M.tdee ? Math.round(M.tdee) : kcalMeta;
+  var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
+
+  if(objKey === 'reconstruir'){
+    var deficit  = GET;                       // abaixo disso = déficit (ruim)
+    var idealMax = Math.round(GET * 1.10);    // ideal pra ganho
+    var excesso  = Math.round(GET * 1.20);    // excesso (engorda)
+    var escalaMax= Math.round(GET * 1.30);
+    var st;
+    if(kcalHoje === 0)            st = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição. Hoje você precisa de '+fmt(kcalMeta)+' kcal pra reconstruir.' };
+    else if(kcalHoje < deficit)   st = { txt:'⚠️ Déficit',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Faltam '+fmt(kcalMeta - kcalHoje)+' kcal. Déficit + treino = perda muscular. Aumente proteína e carbo.' };
+    else if(kcalHoje <= idealMax) st = { txt:'✅ Zona ideal',    bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Zona ideal pra ganho de massa. Mantém esse ritmo + treino resistido.' };
+    else if(kcalHoje <= excesso)  st = { txt:'⚠️ Excesso',       bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima do necessário. Excesso vira gordura, não músculo.' };
+    else                          st = { txt:'🔴 Muito alto',    bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(excesso)+' kcal — reduza pra evitar ganho de gordura.' };
+    return {
+      escalaMax: escalaMax,
+      pontos:  [0, deficit, idealMax, excesso, escalaMax],
+      labels:  ['Déficit', '✅ Ideal', 'Excesso', 'Muito alto'],
+      lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
+      faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
+      escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(74,222,128,.85)','rgba(232,200,120,.7)','rgba(255,255,255,.35)'],
+      status: st
+    };
+  }
+
+  if(objKey === 'manter'){
+    var baixo    = Math.round(GET * 0.90);
+    var manMax   = Math.round(GET * 1.05);
+    var acima    = Math.round(GET * 1.15);
+    var escalaMx = Math.round(GET * 1.30);
+    var stm;
+    if(kcalHoje === 0)            stm = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição do dia.' };
+    else if(kcalHoje < baixo)     stm = { txt:'⚠️ Abaixo',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Abaixo do necessário pra manter. Pode começar a emagrecer.' };
+    else if(kcalHoje <= manMax)   stm = { txt:'✅ Manutenção',   bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Zona ideal pra manter o peso atual.' };
+    else if(kcalHoje <= acima)    stm = { txt:'⚠️ Acima',        bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima da manutenção — pode ganhar peso.' };
+    else                          stm = { txt:'🔴 Ganho',        bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Muito acima — risco de ganhar peso.' };
+    return {
+      escalaMax: escalaMx,
+      pontos:  [0, baixo, manMax, acima, escalaMx],
+      labels:  ['Baixo', '✅ Manutenção', 'Acima', 'Ganho'],
+      lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
+      faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
+      escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(74,222,128,.85)','rgba(232,200,120,.7)','rgba(255,255,255,.35)'],
+      status: stm
+    };
+  }
+
+  // Default: emagrecer (mantém lógica atual)
+  var baixoE   = 800;
+  var escalaMxE= Math.max(Math.round(kcalMant * 1.20), kcalMant + 400);
+  var ste;
+  if(kcalHoje === 0)            ste = { txt:'Bom dia! 🌿',         bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição do dia.' };
+  else if(kcalHoje < baixoE)    ste = { txt:'⚠️ Déficit excessivo', bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Risco de perda muscular — aumente a ingestão.' };
+  else if(kcalHoje <= kcalMeta) ste = { txt:'✅ Zona ideal',         bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Você está na faixa de emagrecimento saudável.' };
+  else if(kcalHoje <= kcalMant) ste = { txt:'⚠️ Manutenção',         bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima da meta — pode não emagrecer hoje.' };
+  else                          ste = { txt:'🔴 Ganho de peso',      bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(kcalMant)+' kcal — risco de ganho.' };
+  return {
+    escalaMax: escalaMxE,
+    pontos:  [0, baixoE, kcalMeta, kcalMant, escalaMxE],
+    labels:  ['Baixo', '✅ Emagrecimento', 'Mant.', 'Ganho'],
+    lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
+    faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
+    escalaCor:['rgba(255,255,255,.35)','rgba(239,68,68,.6)','rgba(74,222,128,.7)','rgba(232,200,120,.6)','rgba(255,255,255,.35)'],
+    status: ste
+  };
+}
+
+// v3.8.8: aplica a config calculada na UI (larguras, cores, textos).
+function _aplicarCalBarConfig(cfg, kcalHoje){
+  var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
+  var escalaMax = cfg.escalaMax || 1;
+  // Larguras proporcionais das 4 faixas
+  for(var i = 0; i < 4; i++){
+    var faixa = el('calBarFaixa'+i);
+    var lbl   = el('calBarLbl'+i);
+    if(!faixa || !lbl) continue;
+    var pIni = cfg.pontos[i], pFim = cfg.pontos[i+1];
+    var w = Math.max(0, ((pFim - pIni) / escalaMax) * 100);
+    faixa.style.width = w + '%';
+    lbl.style.width = w + '%';
+    faixa.style.background = cfg.faixaCor[i];
+    lbl.style.color = cfg.lblCor[i];
+    lbl.style.fontWeight = (i === 1) ? '800' : '700';
+    lbl.textContent = cfg.labels[i];
+  }
+  // Labels da escala (5 pontos)
+  for(var k = 0; k < 5; k++){
+    var lblId = (k === 2) ? 'calBarMetaLbl' : (k === 3 ? 'calBarMantLbl' : 'calBarEscala'+k);
+    var elL = el(lblId);
+    if(elL){
+      elL.textContent = fmt(cfg.pontos[k]);
+      elL.style.color = cfg.escalaCor[k];
+    }
+  }
+  // Marcador
   var marker = el('calBarMarker');
-  var status = el('calBarStatus');
+  if(marker){
+    var pct = Math.min(98, Math.max(0, (kcalHoje / escalaMax) * 100));
+    marker.style.left = pct + '%';
+  }
+  // Consumed + meta + msg + status
   var consumed = el('calBarConsumed');
   var metaLbl = el('calBarMeta');
+  var status = el('calBarStatus');
   var msg = el('calBarMsg');
-  var metaLblBar = el('calBarMetaLbl');
-  var mantLblBar = el('calBarMantLbl');
-
-  if(marker) marker.style.left = Math.min(98, kcalPct) + '%';
   if(consumed) consumed.textContent = kcalHoje;
-  if(metaLbl) metaLbl.textContent = kcalMeta + ' kcal meta';
-  if(metaLblBar) metaLblBar.textContent = kcalMeta;
-  if(mantLblBar) mantLblBar.textContent = kcalMant;
-
-  var statusTxt, statusBg, statusColor, msgTxt;
-  if(kcalHoje === 0){
-    statusTxt='Bom dia! 🌿'; statusBg='rgba(74,222,128,.1)'; statusColor='rgba(74,222,128,.7)';
-    msgTxt='Registre sua primeira refeição do dia';
-  } else if(kcalHoje < 800){
-    statusTxt='⚠️ Déficit excessivo'; statusBg='rgba(232,168,138,.18)'; statusColor='#f3a88a';
-    msgTxt='Risco de perda muscular — aumente a ingestão';
-  } else if(kcalHoje <= kcalMeta){
-    statusTxt='✅ Zona ideal'; statusBg='rgba(74,222,128,.15)'; statusColor='#4ade80';
-    msgTxt='Você está na faixa de emagrecimento saudável';
-  } else if(kcalHoje <= kcalMant){
-    statusTxt='⚠️ Manutenção'; statusBg='rgba(232,200,120,.15)'; statusColor='#e8c878';
-    msgTxt='Acima da meta — pode não emagrecer hoje';
-  } else {
-    statusTxt='🔴 Ganho de peso'; statusBg='rgba(232,168,138,.18)'; statusColor='#f3a88a';
-    msgTxt='Acima de ' + kcalMant + ' kcal — risco de ganho de peso';
+  if(metaLbl) metaLbl.textContent = fmt(cfg.pontos[2]) + ' kcal meta';
+  if(status){
+    status.textContent = cfg.status.txt;
+    status.style.background = cfg.status.bg;
+    status.style.color = cfg.status.cor;
   }
-  if(status){ status.textContent=statusTxt; status.style.background=statusBg; status.style.color=statusColor; }
-  if(msg) msg.textContent = msgTxt;
+  if(msg) msg.textContent = cfg.status.msg;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
