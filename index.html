@@ -5670,7 +5670,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.6.1';
+var SANOVA_VERSION = '3.6.2';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7945,7 +7945,7 @@ function anaStep10B(){
           if(protJanta < 20){ protJanta = 20; protAlmoco = pm - protCafe - protJanta; }
           var gFrangoAlmoco = Math.round(protAlmoco / 0.31);
           var gCarneJanta = Math.round(protJanta / 0.26);
-          anaMsg('bot','🥩 <strong>Sua meta: '+pm+'g de proteína por dia.</strong><br><br>Em GLP-1 a fome diminui — então a meta parece grande. Mas dá pra distribuir em <strong>3 refeições normais</strong>, com porções menores que antes.<br><br><strong>📋 Exemplo de um dia comum:</strong><br><br>☀️ <strong>Café (~'+protCafe+'g):</strong><br>2 ovos mexidos + 1 pote de iogurte grego<br><br>🍽️ <strong>Almoço (~'+protAlmoco+'g):</strong><br>~'+gFrangoAlmoco+'g de peito de frango grelhado + salada + arroz<br><br>🌙 <strong>Jantar (~'+protJanta+'g):</strong><br>~'+gCarneJanta+'g de carne magra OU peixe + legumes<br><br><strong>= '+pm+'g ✓</strong>','clinical');
+          anaMsg('bot','🥩 <strong>Sua meta: '+pm+'g de proteína por dia.</strong><br><br>⚠️ <strong>Atenção — '+pm+'g de proteína NÃO é '+pm+'g de carne.</strong> É o quanto de proteína pura tem dentro dos alimentos. Densidade proteica das fontes mais comuns:<br><br>• <strong>Frango grelhado</strong> — ~31g em 100g<br>• <strong>Carne vermelha magra</strong> — ~26g em 100g<br>• <strong>Ovo</strong> — ~6g por unidade<br>• <strong>Iogurte grego natural</strong> — ~10g em 100g<br>• <strong>Whey protein</strong> — ~22g por scoop (30g de pó)<br>• <strong>Atum em água</strong> — ~26g por lata de 120g<br><br>Em GLP-1 a fome diminui — então a meta parece grande. Mas dá pra distribuir em <strong>3 refeições normais</strong>, com porções menores que antes. Veja como bater os '+pm+'g:<br><br><strong>📋 Exemplo de um dia:</strong><br><br>☀️ <strong>Café (~'+protCafe+'g):</strong><br>2 ovos mexidos + 1 pote de iogurte grego<br><br>🍽️ <strong>Almoço (~'+protAlmoco+'g):</strong><br>~'+gFrangoAlmoco+'g de peito de frango grelhado + salada + arroz<br><br>🌙 <strong>Jantar (~'+protJanta+'g):</strong><br>~'+gCarneJanta+'g de carne magra OU peixe + legumes<br><br><strong>= '+pm+'g ✓</strong>','clinical');
           setTimeout(function(){
             anaMsg('bot','💡 <strong>Não precisa ser exato.</strong> Em alguns dias o almoço fica forte e o jantar leve, ou vice-versa. <strong>O que importa é o total do dia.</strong><br><br>Se a saciedade está alta e você só consegue 2 refeições, pode <strong>concentrar mais proteína</strong> nelas — combine carne + ovo + iogurte, ou complete com whey.<br><br>🥛 Whey é um atalho útil: 1 scoop tem ~24g em pouco volume — fácil mesmo sem fome.','clinical');
             setTimeout(function(){
@@ -9780,12 +9780,26 @@ function calcDil(){
     // Aviso de dose alta
     var fa=el('frascoAvisoAlta');
     if(fa) fa.style.display=(uni>100)?'block':'none';
-    // Local de injeção (rodízio) — v3.4.1: nota da bula sobre alternância obrigatória
+    // Local de injeção — v3.6.2: mostra os 3 locais (rodízio explícito), com o
+    // local de HOJE em destaque + os outros visíveis. Paciente não fica achando
+    // que só pode aplicar num lugar.
     var li=el('frascoLocalInjecao');
     if(li){
       var loc=getLocalInjecao();
-      li.innerHTML='<strong>'+loc.local+'</strong><br>'+loc.desc+
-        '<div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
+      var idxAtual=_LOCAIS_INJECAO.indexOf(loc);
+      var outros=_LOCAIS_INJECAO.filter(function(l,i){return i!==idxAtual;});
+      li.innerHTML =
+        '<div style="font-size:10.5px;font-weight:800;color:#86efac;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">📍 Local de hoje</div>' +
+        '<strong style="color:#fff;font-size:15px">'+loc.local+'</strong>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.5">'+loc.desc+'</div>' +
+        '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+          '<div style="font-size:10.5px;font-weight:700;color:rgba(187,247,208,.7);margin-bottom:6px;letter-spacing:.04em">⟳ Próximas aplicações em rodízio</div>' +
+          outros.map(function(l){
+            return '<div style="font-size:12px;color:rgba(255,255,255,.62);margin-bottom:5px;line-height:1.5">' +
+              '<strong style="color:rgba(255,255,255,.88)">'+l.local+'</strong> — '+l.desc + '</div>';
+          }).join('') +
+        '</div>' +
+        '<div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
     }
   }
 }
@@ -14058,6 +14072,19 @@ function renderChartSemanal(){
       sorted.unshift({date: startStr, weight: sw, _isStart: true});
     }
   }
+
+  // v3.6.2: limita a janela do gráfico aos últimos 30 dias rolling.
+  // Visualização fica limpa e mostra tendência atual. Quando o paciente
+  // tiver 6 meses de dados, a curva inteira virou ruído num gráfico
+  // pequeno de celular. Histórico completo ainda fica acessível pela
+  // tela de Saúde / relatório PDF.
+  var d30 = new Date(); d30.setDate(d30.getDate() - 30);
+  var corte30 = d30.toISOString().slice(0,10);
+  var sorted30 = sorted.filter(function(w){ return w.date >= corte30; });
+  // Fallback: se ainda não tem 30 dias de histórico, mostra tudo desde o início
+  // (gráfico vazio ou com 1 ponto é pior que gráfico curto mas honesto).
+  if(sorted30.length >= 2) sorted = sorted30;
+
   if(!sorted.length){if(chartSemanal){chartSemanal.destroy();chartSemanal=null;}return;}
 
   // Labels: datas reais em DD/MM
@@ -16406,8 +16433,8 @@ function renderSaldoCard(){
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
   html += '<div style="font-size:10px;font-weight:800;letter-spacing:.7px;color:rgba(187,247,208,.6);text-transform:uppercase">📊 Balanço Energético</div>';
   html += '<div style="display:flex;gap:4px" id="saldoTabs">';
-  html += '<button onclick="setSaldoView(\'hoje\')" id="saldoTabHoje" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(187,247,208,.18);color:#bbf7d0;font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Hoje</button>';
-  html += '<button onclick="setSaldoView(\'semana\')" id="saldoTabSemana" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Semana</button>';
+  html += '<button onclick="setSaldoView(\'hoje\')" id="saldoTabHoje" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Hoje</button>';
+  html += '<button onclick="setSaldoView(\'semana\')" id="saldoTabSemana" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(187,247,208,.18);color:#bbf7d0;font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Semana</button>';
   html += '<button onclick="setSaldoView(\'quinzena\')" id="saldoTabQuinzena" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Quinzena</button>';
   html += '</div>';
   html += '</div>';
@@ -16417,8 +16444,10 @@ function renderSaldoCard(){
 
   card.innerHTML = html;
 
-  // Renderizar conteúdo conforme view atual
-  if(!window._saldoView) window._saldoView = 'hoje';
+  // v3.6.2: default = 'semana' (mais informativo que 'hoje' que pode estar vazio
+  // de manhã quando paciente ainda não registrou refeição). 'Hoje' continua
+  // acessível com 1 toque.
+  if(!window._saldoView) window._saldoView = 'semana';
   renderSaldoConteudo(window._saldoView);
 }
 
