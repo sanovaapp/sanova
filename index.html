@@ -4879,15 +4879,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <!-- ZONA 2: RESULTADO em destaque (UI na seringa) -->
       <div id="calcRes" style="margin-bottom:12px"><div class="calc-empty">Informe sua dose acima para ver as unidades.</div></div>
 
-      <!-- ZONA 3: Frasco em uso — modo compacto -->
+      <!-- ZONA 3: Concentração do frasco — modo compacto -->
       <div id="frascoCompacto" style="margin-top:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:14px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
           <div style="flex:1">
-            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🏷️ Seu frasco em uso</div>
-            <div style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.55">
-              <div><strong style="color:#bbf7d0">Concentração:</strong> <span id="frascoCompactoConc">—</span></div>
-              <div style="margin-top:2px"><strong style="color:#bbf7d0">Volume total:</strong> <span id="frascoCompactoVol">—</span></div>
-            </div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🏷️ Concentração do seu frasco</div>
+            <div id="frascoCompactoConc" style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.55">—</div>
           </div>
           <button type="button" onclick="toggleFrascoEdit(true)" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.78);font-family:var(--ss);font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0">
             ✏️ Editar
@@ -4895,51 +4892,65 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         </div>
       </div>
 
-      <!-- ZONA 3 expandida: editor do frasco (concentração + volume total SEPARADOS) -->
+      <!-- ZONA 3 expandida: editor da concentração -->
       <div id="frascoEditor" style="display:none;margin-top:14px;background:rgba(255,255,255,.04);border:1.5px solid rgba(187,247,208,.28);border-radius:14px;padding:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:11px;font-weight:800;color:#bbf7d0;text-transform:uppercase;letter-spacing:.5px">🏷️ Editando frasco</div>
+          <div style="font-size:11px;font-weight:800;color:#bbf7d0;text-transform:uppercase;letter-spacing:.5px">🏷️ Editando concentração</div>
           <button type="button" onclick="toggleFrascoEdit(false)" style="background:transparent;border:0;color:rgba(255,255,255,.55);font-size:18px;cursor:pointer;line-height:1;padding:0 4px">×</button>
         </div>
-
-        <!-- Sub-bloco A: Concentração (que aparece no rótulo) -->
-        <div style="margin-bottom:14px;padding:12px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:10px">
-          <div style="font-size:11px;font-weight:700;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Concentração</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:10px">Copie do rótulo: "X mg / Y mL". É a densidade da substância.</div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-              <input id="calcMg" type="text" inputmode="decimal" placeholder="mg" oninput="calcDil()"
-                style="width:100%;padding:11px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:18px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
-                onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-              <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mg</div>
-            </div>
-            <div style="font-size:26px;color:rgba(255,255,255,.3);font-weight:300;flex-shrink:0;padding-bottom:14px">em</div>
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-              <input id="calcMl" type="text" inputmode="decimal" placeholder="mL" oninput="calcDil()"
-                style="width:100%;padding:11px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:18px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
-                onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-              <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mL</div>
-            </div>
-          </div>
-          <div id="calcConcResult" style="display:none;margin-top:8px;text-align:center;font-size:13px;color:rgba(255,255,255,.7)"></div>
-          <div id="calcLoteAlerta" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.10);border:1px solid rgba(232,200,120,.32);border-radius:9px;font-size:11.5px;color:rgba(254,243,199,.92);line-height:1.5">
-            <strong>⚠️ Concentração diferente da última usada.</strong> Confira o rótulo do frasco atual antes de calcular.
-          </div>
-        </div>
-
-        <!-- Sub-bloco B: Volume total (mL totais do frasco) -->
-        <div style="margin-bottom:14px;padding:12px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:10px">
-          <div style="font-size:11px;font-weight:700;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Volume total do frasco</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:10px">Procure "X mL Solução" no rótulo ou multiplique doses × mL por dose. <strong style="color:#fde68a">É diferente da concentração</strong> — é o quanto o frasco contém de fato.</div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-            <input id="calcVolumeFrasco" type="text" inputmode="decimal" placeholder="mL" oninput="atualizarVolumeFrasco(this.value)"
+        <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:10px">Copie do rótulo: "X mg / Y mL". É a densidade da substância — quanto da medicação tem em cada mL.</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <input id="calcMg" type="text" inputmode="decimal" placeholder="mg" oninput="calcDil()"
               style="width:100%;padding:11px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:18px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
               onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
-            <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mL totais no frasco</div>
+            <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mg</div>
+          </div>
+          <div style="font-size:26px;color:rgba(255,255,255,.3);font-weight:300;flex-shrink:0;padding-bottom:14px">em</div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <input id="calcMl" type="text" inputmode="decimal" placeholder="mL" oninput="calcDil()"
+              style="width:100%;padding:11px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:18px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
+              onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
+            <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mL</div>
           </div>
         </div>
+        <div id="calcConcResult" style="display:none;margin-top:8px;text-align:center;font-size:13px;color:rgba(255,255,255,.7)"></div>
+        <div id="calcLoteAlerta" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.10);border:1px solid rgba(232,200,120,.32);border-radius:9px;font-size:11.5px;color:rgba(254,243,199,.92);line-height:1.5">
+          <strong>⚠️ Concentração diferente da última usada.</strong> Confira o rótulo do frasco atual antes de calcular.
+        </div>
+        <button type="button" onclick="toggleFrascoEdit(false)" style="width:100%;margin-top:14px;padding:11px;border-radius:10px;border:1.5px solid rgba(187,247,208,.45);background:rgba(187,247,208,.12);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:800;cursor:pointer">
+          ✓ Fechar editor
+        </button>
+      </div>
 
-        <button type="button" onclick="toggleFrascoEdit(false)" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(187,247,208,.45);background:rgba(187,247,208,.12);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:800;cursor:pointer">
+      <!-- ZONA 4: Estoque do frasco (bloco independente) -->
+      <div id="estoqueBloco" style="margin-top:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📦 Estoque do frasco</div>
+            <div id="estoqueBlocoInfo" style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.55">—</div>
+          </div>
+          <button type="button" onclick="toggleEstoqueEdit(true)" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.78);font-family:var(--ss);font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0">
+            ✏️ Editar
+          </button>
+        </div>
+      </div>
+
+      <!-- ZONA 4 expandida: editor de estoque -->
+      <div id="estoqueEditor" style="display:none;margin-top:14px;background:rgba(255,255,255,.04);border:1.5px solid rgba(187,247,208,.28);border-radius:14px;padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:800;color:#bbf7d0;text-transform:uppercase;letter-spacing:.5px">📦 Editando estoque</div>
+          <button type="button" onclick="toggleEstoqueEdit(false)" style="background:transparent;border:0;color:rgba(255,255,255,.55);font-size:18px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:10px">Procure "X mL Solução" no rótulo OU multiplique <em>número de doses × mL por dose</em>. Esse é o conteúdo total do frasco — diferente da concentração.</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <input id="calcVolumeFrasco" type="text" inputmode="decimal" placeholder="mL" oninput="atualizarVolumeFrasco(this.value);atualizarEstoqueBlocoView()"
+            style="width:100%;padding:11px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:var(--ss);font-size:18px;font-weight:700;outline:none;text-align:center;transition:border-color .18s"
+            onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='rgba(255,255,255,.15)'"/>
+          <div style="font-size:10.5px;color:rgba(255,255,255,.4)">mL totais no frasco</div>
+        </div>
+        <div id="estoqueEditorPreview" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(187,247,208,.08);border:1px solid rgba(187,247,208,.22);border-radius:9px;font-size:12.5px;color:rgba(255,255,255,.88);line-height:1.55"></div>
+        <button type="button" onclick="toggleEstoqueEdit(false)" style="width:100%;margin-top:14px;padding:11px;border-radius:10px;border:1.5px solid rgba(187,247,208,.45);background:rgba(187,247,208,.12);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:800;cursor:pointer">
           ✓ Fechar editor
         </button>
       </div>
@@ -5749,7 +5760,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.7.1';
+var SANOVA_VERSION = '3.8.0';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9820,13 +9831,68 @@ function atualizarVolumeFrasco(v){
   }
 }
 
-// v3.7.0: renderiza o estado compacto "Seu frasco em uso" com concentração e volume calculados.
-function atualizarFrascoCompactoView(){
-  if(!S.caneta) return;
-  var elConc = el('frascoCompactoConc'), elVol = el('frascoCompactoVol');
+// v3.8.0: toggle entre compacto e editor de Estoque (bloco independente do frasco).
+function toggleEstoqueEdit(show){
+  var c = el('estoqueBloco'), e = el('estoqueEditor');
+  if(!c || !e) return;
+  if(show){ c.style.display='none'; e.style.display='block'; atualizarEstoqueBlocoView(); }
+  else    { c.style.display='block'; e.style.display='none'; atualizarEstoqueBlocoView(); }
+}
+
+// v3.8.0: calcula doses restantes a partir do volume × concentração ÷ dose.
+function _calcDosesRestantes(){
+  if(!S.caneta) return null;
   var mg = parseFloat(S.caneta.concRotuloMg) || 0;
   var ml = parseFloat(S.caneta.concRotuloMl) || 0;
   var vol = parseFloat(S.caneta.volumeFrasco) || 0;
+  var dose = parseFloat(S.caneta.dose) || 0;
+  if(mg <= 0 || ml <= 0 || vol <= 0 || dose <= 0) return null;
+  var conc = mg/ml;
+  var mgTotaisFrasco = conc * vol;
+  var doses = Math.floor(mgTotaisFrasco / dose);
+  return { doses: doses, mgTotais: mgTotaisFrasco, conc: conc };
+}
+
+// v3.8.0: renderiza o estado compacto "Estoque do frasco" e o preview no editor.
+function atualizarEstoqueBlocoView(){
+  if(!S.caneta) return;
+  var elInfo = el('estoqueBlocoInfo');
+  var elPreview = el('estoqueEditorPreview');
+  var vol = parseFloat(S.caneta.volumeFrasco) || 0;
+  var dose = parseFloat(S.caneta.dose) || 0;
+  var calc = _calcDosesRestantes();
+
+  if(elInfo){
+    if(vol > 0){
+      var txt = '<div><strong style="color:#bbf7d0">Volume total:</strong> ' + vol.toString().replace('.',',') + ' mL</div>';
+      if(calc){
+        txt += '<div style="margin-top:2px"><strong style="color:#bbf7d0">Estimativa:</strong> <strong style="color:#fff">~' + calc.doses + ' dose' + (calc.doses === 1 ? '' : 's') + '</strong> de ' + dose.toString().replace('.',',') + ' mg no frasco cheio</div>';
+      } else if(vol > 0 && (!dose || dose <= 0)){
+        txt += '<div style="margin-top:2px;color:rgba(255,255,255,.5);font-style:italic">Informe a dose pra calcular doses restantes.</div>';
+      }
+      elInfo.innerHTML = txt;
+    } else {
+      elInfo.innerHTML = '<span style="color:rgba(255,255,255,.4)">— Toque em "Editar" pra cadastrar o volume total do frasco</span>';
+    }
+  }
+
+  if(elPreview){
+    if(calc){
+      elPreview.style.display = 'block';
+      elPreview.innerHTML = '✅ Esse frasco rende aproximadamente <strong style="color:#fff">' + calc.doses + ' dose' + (calc.doses === 1 ? '' : 's') + '</strong> de ' + dose.toString().replace('.',',') + ' mg' +
+        ' <span style="color:rgba(255,255,255,.6)">(' + (Math.round(calc.mgTotais*10)/10).toString().replace('.',',') + ' mg totais no frasco ÷ ' + dose.toString().replace('.',',') + ' mg por dose)</span>';
+    } else {
+      elPreview.style.display = 'none';
+    }
+  }
+}
+
+// v3.7.0 + v3.8.0: renderiza o estado compacto da Concentração (volume saiu pra Estoque).
+function atualizarFrascoCompactoView(){
+  if(!S.caneta) return;
+  var elConc = el('frascoCompactoConc');
+  var mg = parseFloat(S.caneta.concRotuloMg) || 0;
+  var ml = parseFloat(S.caneta.concRotuloMl) || 0;
   if(elConc){
     if(mg > 0 && ml > 0){
       var c = mg/ml;
@@ -9836,13 +9902,8 @@ function atualizarFrascoCompactoView(){
       elConc.innerHTML = '<span style="color:rgba(255,255,255,.4)">— Toque em "Editar" pra cadastrar</span>';
     }
   }
-  if(elVol){
-    if(vol > 0){
-      elVol.innerHTML = '<strong style="color:#fff">' + vol.toString().replace('.',',') + ' mL</strong>';
-    } else {
-      elVol.innerHTML = '<span style="color:rgba(255,255,255,.4)">— Não cadastrado</span>';
-    }
-  }
+  // v3.8.0: tambem atualiza o bloco de estoque (volume foi pra la)
+  if(typeof atualizarEstoqueBlocoView === 'function') atualizarEstoqueBlocoView();
 }
 
 
