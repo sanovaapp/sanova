@@ -3456,6 +3456,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div class="mais-section">
       <div class="mais-section-tag">Conta</div>
       <div class="mais-grid">
+        <!-- v3.8.1: botão de instalação do PWA. Aparece só se ainda não instalado. -->
+        <button class="mais-btn" id="btnInstalarPwa" onclick="fecharMais();if(window.SanovaInstall) SanovaInstall.instalar()" aria-label="Instalar Sanova como app" style="display:none;grid-column:1/-1;border-color:rgba(187,247,208,.32);background:rgba(74,222,128,.07)">
+          <span class="mais-ic" aria-hidden="true">📱</span>
+          <div class="mais-lbl">Instalar Sanova</div>
+          <div class="mais-sub">Ícone na tela inicial, abre como app</div>
+        </button>
         <button class="mais-btn" onclick="fecharMais();go('perfil')" aria-label="Perfil e configurações">
           <span class="mais-ic" aria-hidden="true">⚙️</span>
           <div class="mais-lbl">Perfil</div>
@@ -5760,7 +5766,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.0';
+var SANOVA_VERSION = '3.8.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -14307,17 +14313,11 @@ function renderChartSemanal(){
     }
   }
 
-  // v3.6.2: limita a janela do gráfico aos últimos 30 dias rolling.
-  // Visualização fica limpa e mostra tendência atual. Quando o paciente
-  // tiver 6 meses de dados, a curva inteira virou ruído num gráfico
-  // pequeno de celular. Histórico completo ainda fica acessível pela
-  // tela de Saúde / relatório PDF.
-  var d30 = new Date(); d30.setDate(d30.getDate() - 30);
-  var corte30 = d30.toISOString().slice(0,10);
-  var sorted30 = sorted.filter(function(w){ return w.date >= corte30; });
-  // Fallback: se ainda não tem 30 dias de histórico, mostra tudo desde o início
-  // (gráfico vazio ou com 1 ponto é pior que gráfico curto mas honesto).
-  if(sorted30.length >= 2) sorted = sorted30;
+  // v3.8.1: gráfico mostra TODO o histórico desde startDate (decisão Bruno
+  // 30/05/2026). Filtro de 30 dias rolling foi revertido — paciente em
+  // tratamento longo (1 ano+) precisa ver a jornada completa pra acompanhar.
+  // Se isso virar ruído quando paciente tiver 2+ anos, criamos toggle
+  // "Tudo | Últimos 6m | Últimos 30d" no futuro.
 
   if(!sorted.length){if(chartSemanal){chartSemanal.destroy();chartSemanal=null;}return;}
 
@@ -20507,6 +20507,152 @@ window.addEventListener('beforeunload',function(){
   }
 
   window.SanovaGates = { aplicar: aplicar };
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Sanova — Camada de Instalação PWA (v3.8.1)
+   Resolve o problema de paciente apagar o app e não conseguir baixar
+   de novo (Chrome esconde o prompt automático após desinstalação).
+   - Captura beforeinstallprompt (Android Chrome) e expõe via botão
+   - Detecta iOS Safari e mostra modal com passo-a-passo
+   - Esconde botão se já instalado (standalone display mode)
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  var deferredPrompt = null;
+  var jaInstaladoFlag = false;
+
+  function isIOS(){
+    return /iPad|iPhone|iPod/i.test(navigator.userAgent || '') && !window.MSStream;
+  }
+  function isSafariMobile(){
+    var ua = navigator.userAgent || '';
+    return isIOS() && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+  }
+  function isPWAStandalone(){
+    try{
+      if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    }catch(e){}
+    if(window.navigator && window.navigator.standalone === true) return true;
+    return false;
+  }
+
+  function podeInstalar(){
+    if(isPWAStandalone() || jaInstaladoFlag) return false;
+    if(deferredPrompt) return true;
+    if(isIOS()) return true; // iOS sempre pode instalar via "Adicionar à tela inicial"
+    return false;
+  }
+
+  function atualizarBotao(){
+    var btn = document.getElementById('btnInstalarPwa');
+    if(!btn) return;
+    btn.style.display = podeInstalar() ? '' : 'none';
+  }
+
+  // Captura o evento "beforeinstallprompt" pra disparar quando o paciente quiser
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    atualizarBotao();
+  });
+
+  // Detecta instalação concluída
+  window.addEventListener('appinstalled', function(){
+    jaInstaladoFlag = true;
+    deferredPrompt = null;
+    atualizarBotao();
+    if(typeof toast === 'function') toast('🌿 Sanova instalado!', 3000);
+  });
+
+  // Modal pra iOS Safari (sem prompt automático)
+  function abrirModalIOS(){
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)';
+    ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div style="max-width:420px;width:100%;max-height:92vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
+        '<div style="text-align:center;margin-bottom:14px">' +
+          '<div style="font-size:38px;margin-bottom:6px">🍎</div>' +
+          '<div style="font-size:18px;font-weight:800;color:#fff;font-family:var(--fd,system-ui);letter-spacing:-.02em">Instalar no iPhone</div>' +
+          '<div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:4px">Sem app store. 30 segundos.</div>' +
+        '</div>' +
+        '<div style="font-size:13px;color:rgba(255,255,255,.88);line-height:1.7">' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border-radius:10px">' +
+            '<div style="font-size:24px;font-weight:800;color:#86efac;line-height:1;flex-shrink:0">1</div>' +
+            '<div>Toca em <strong style="color:#fff">Compartilhar</strong> ⬆️ <span style="color:rgba(255,255,255,.55)">(quadrado com seta pra cima, na barra de baixo)</span></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border-radius:10px">' +
+            '<div style="font-size:24px;font-weight:800;color:#86efac;line-height:1;flex-shrink:0">2</div>' +
+            '<div>Rola e toca em <strong style="color:#fff">"Adicionar à Tela de Início"</strong></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border-radius:10px">' +
+            '<div style="font-size:24px;font-weight:800;color:#86efac;line-height:1;flex-shrink:0">3</div>' +
+            '<div>Confirma em <strong style="color:#fff">"Adicionar"</strong> (canto superior direito)</div>' +
+          '</div>' +
+          '<div style="padding:10px 12px;background:rgba(74,222,128,.10);border:1px solid rgba(74,222,128,.28);border-radius:9px;font-size:12.5px;color:#bbf7d0;text-align:center;font-weight:700">' +
+            '✅ Sanova vira ícone 🌿 na tela inicial. Abre como app, sem barra do navegador.' +
+          '</div>' +
+        '</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;margin-top:14px;padding:12px;border-radius:11px;border:1.5px solid rgba(187,247,208,.4);background:rgba(187,247,208,.08);color:#bbf7d0;font-family:var(--ss,system-ui);font-size:14px;font-weight:800;cursor:pointer">Entendi 🌿</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+  }
+
+  // Modal genérico fallback (Chrome sem prompt + não-iOS — raro)
+  function abrirModalFallback(){
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)';
+    ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+    ov.innerHTML =
+      '<div style="max-width:420px;width:100%;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
+        '<div style="text-align:center;margin-bottom:14px">' +
+          '<div style="font-size:38px;margin-bottom:6px">📱</div>' +
+          '<div style="font-size:18px;font-weight:800;color:#fff;font-family:var(--fd,system-ui)">Instalar pelo navegador</div>' +
+        '</div>' +
+        '<div style="font-size:13px;color:rgba(255,255,255,.88);line-height:1.7;margin-bottom:14px">' +
+          '<div>1. Toca nos <strong style="color:#fff">3 pontinhos ⋮</strong> do navegador</div>' +
+          '<div>2. Procura <strong style="color:#fff">"Instalar app"</strong> ou <strong style="color:#fff">"Adicionar à tela inicial"</strong></div>' +
+          '<div>3. Confirma "Instalar" / "Adicionar"</div>' +
+        '</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:12px;border-radius:11px;border:1.5px solid rgba(187,247,208,.4);background:rgba(187,247,208,.08);color:#bbf7d0;font-family:var(--ss,system-ui);font-size:14px;font-weight:800;cursor:pointer">Entendi 🌿</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+  }
+
+  // API pública
+  window.SanovaInstall = {
+    podeInstalar: podeInstalar,
+    isIOS: isIOS,
+    isPWAStandalone: isPWAStandalone,
+    instalar: function(){
+      if(deferredPrompt){
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choice){
+          if(choice && choice.outcome === 'accepted'){
+            if(typeof toast === 'function') toast('🌿 Instalando Sanova…', 2500);
+          }
+          deferredPrompt = null;
+          atualizarBotao();
+        }).catch(function(){ deferredPrompt = null; atualizarBotao(); });
+      } else if(isIOS()){
+        abrirModalIOS();
+      } else {
+        abrirModalFallback();
+      }
+    },
+    atualizarBotao: atualizarBotao
+  };
+
+  // Atualiza ao carregar e periodicamente (caso o prompt chegue depois)
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', atualizarBotao);
+  } else {
+    atualizarBotao();
+  }
+  setTimeout(atualizarBotao, 1500);
+  setTimeout(atualizarBotao, 5000);
 })();
 </script>
 
