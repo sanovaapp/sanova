@@ -3,6 +3,42 @@
 > Pendências cravadas durante a maratona de 28-29/05/2026.
 > Cada item vira PR separado na próxima sessão.
 
+## 🎨 Redesign visual progressivo (cravado pelo Bruno em 30/05)
+
+**Feedback do paciente Lucas Judice (designer/da tecnologia):**
+
+> *"Padrão genérico de Cloud com letrinhas muito pequenas. Quatro estilos diferentes, muita informação, paciente se perde. Mudei no meu app pra glassmorphism. Foco em 3-4 números importantes em vez de quinhentas coisas pra prestar atenção."*
+
+**Bruno cravou:** "Aproveitar feedback qualificado. Ele é da tecnologia."
+
+### Fase 1 — Princípios visuais (CSS variables globais)
+- [ ] Fonte mínima 14px em texto importante (hoje tem coisa em 11-12px)
+- [ ] Hierarquia tipográfica: título 20px / subtítulo 13px / body 14px / label 11px
+- [ ] Glassmorphism leve em cards principais (`backdrop-filter: blur(6px)`, opacidade 70-80%)
+- [ ] Espaçamento generoso (padding 16-20px em cards principais)
+- [ ] "1 KPI herói por seção" + 3-4 secundários
+- [ ] Estimativa: ~1h
+
+### Fase 2 — POC no Painel
+- [ ] Card herói: peso atual gigante + variação
+- [ ] Cards secundários: proteína / água / calorias / saciedade
+- [ ] Glassmorphism leve aplicado
+- [ ] Mostrar antes/depois pro Bruno + Lucas validarem
+- [ ] Estimativa: ~3-4h
+
+### Fase 3 — Expandir nas outras telas críticas
+- [ ] Check-in
+- [ ] Medicação
+- [ ] Saúde
+- [ ] Estimativa: ~4-6h
+
+### Notas
+- **Não reduzir informação** (Bruno é médico, precisa dos dados). REORGANIZAR em hierarquia.
+- **Glassmorphism sutil** (mobile com pouca GPU = laggy se exagerar).
+- **Lucas pode ser teste-piloto** das próximas versões (Bruno cravou aceitar).
+
+---
+
 ## 🚀 Infraestrutura
 
 ### Deploy do Worker `sanova-api`

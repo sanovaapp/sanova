@@ -3540,6 +3540,18 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <!-- v3.1.58: saldoCard movido pra entre Pilares e Calorias do dia (mais abaixo).
        Bruno cravou que estava incomodando ficar em cima do Hero da medicação. -->
 
+  <!-- v3.8.7: Card de objetivo no topo do Painel — sempre visível. -->
+  <div id="cardObjetivoPainel" style="margin-bottom:10px;padding:11px 14px;background:linear-gradient(135deg,rgba(15,79,36,.85),rgba(10,58,32,.85));border:1px solid rgba(187,247,208,.22);border-radius:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:9.5px;font-weight:800;color:rgba(187,247,208,.6);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px">🎯 Seu objetivo agora</div>
+        <div id="cardObjetivoLabel" style="font-size:14px;font-weight:800;color:#fff;line-height:1.2">—</div>
+        <div id="cardObjetivoMeta" style="font-size:11.5px;color:rgba(187,247,208,.75);margin-top:3px;line-height:1.4">—</div>
+      </div>
+      <button onclick="abrirModalObjetivo()" aria-label="Mudar objetivo" style="padding:8px 13px;border-radius:8px;border:1px solid rgba(187,247,208,.3);background:rgba(187,247,208,.10);color:#bbf7d0;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Mudar</button>
+    </div>
+  </div>
+
   <!-- ALERTAS SISTEMA -->
   <div id="alSint" style="display:none"></div>
   <div id="alAgua" style="display:none"></div>
@@ -5781,7 +5793,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.6';
+var SANOVA_VERSION = '3.8.7';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7285,6 +7297,8 @@ function _anaSalvar(){
   if(d.pesoInicio) S.profile.weightStartKg = d.pesoInicio;
   if(d.pesoMeta)   S.profile.weightGoalKg = d.pesoMeta;
   if(d.activ)      S.profile.activityLevel = d.activ;
+  // v3.8.7: objetivo (emagrecer/reconstruir/manter) coletado na anamnese
+  if(d.objetivo)   S.profile.objetivo = d.objetivo;
   if(d.farmaco && S.caneta){
     S.caneta.farmaco = d.farmaco;
     S.caneta.freq = d.farmaco === 'Liraglutida' ? 'diaria' : 'semanal';
@@ -7781,16 +7795,19 @@ function anaStep6A(){
       {ic:'🏃',lb:'Moderada',sub:'Exercício regular 3–5x/semana',v:'Moderada'},
       {ic:'🏋️',lb:'Alta',sub:'Treino intenso 6–7x/semana',v:'Alta'}
     ],function(v){
-      ANA.data.activ=v;anaMsg('usr',v);
-      var M=calcMetricsAna();
-      if(!M){anaStep7A();return;}
-      setTimeout(function(){
-        anaMsg('bot','📊 Calculei seu <strong>metabolismo em repouso (TMB)</strong> — a energia que seu corpo gasta só para existir: respirar, coração bater, manter temperatura. Mesmo deitado o dia todo, você gasta esse valor.<br><br>🔥 <strong>Sua TMB: '+Math.round(M.tmb)+' kcal/dia</strong>','clinical');
+      ANA.data.activ=v; _anaSalvar(); anaMsg('usr',v);
+      // v3.8.7: passa pelo step de objetivo ANTES de calcular TMB/GET
+      anaStepObjetivo(function(){
+        var M=calcMetricsAna();
+        if(!M){anaStep7A();return;}
         setTimeout(function(){
-          anaMsg('bot','Com seu nível de atividade, calculei o <strong>GET — Gasto Energético Total</strong>: tudo que você gasta num dia real.<br><br>⚡ <strong>Seu GET: '+Math.round(M.tdee)+' kcal/dia</strong><br><br>💡 <strong>Qualquer valor abaixo do seu GET já faz você emagrecer</strong> — quanto menos você come em relação ao GET, mais o corpo usa a gordura como combustível. O GLP-1 facilita isso reduzindo a fome naturalmente.<br><br>🎯 <strong>Sua meta calórica: '+Math.round(M.meta)+' kcal/dia</strong> (igual ao seu GET — quando registrar exercícios, ela aumenta dinamicamente)','clinical');
-          setTimeout(function(){anaStep7A();},200);
-        },800);
-      },400);
+          anaMsg('bot','📊 Calculei seu <strong>metabolismo em repouso (TMB)</strong> — a energia que seu corpo gasta só para existir: respirar, coração bater, manter temperatura. Mesmo deitado o dia todo, você gasta esse valor.<br><br>🔥 <strong>Sua TMB: '+Math.round(M.tmb)+' kcal/dia</strong>','clinical');
+          setTimeout(function(){
+            anaMsg('bot','Com seu nível de atividade, calculei o <strong>GET — Gasto Energético Total</strong>: tudo que você gasta num dia real.<br><br>⚡ <strong>Seu GET: '+Math.round(M.tdee)+' kcal/dia</strong><br><br>💡 <strong>Qualquer valor abaixo do seu GET já faz você emagrecer</strong> — quanto menos você come em relação ao GET, mais o corpo usa a gordura como combustível. O GLP-1 facilita isso reduzindo a fome naturalmente.<br><br>🎯 <strong>Sua meta calórica: '+Math.round(M.meta)+' kcal/dia</strong> (igual ao seu GET — quando registrar exercícios, ela aumenta dinamicamente)','clinical');
+            setTimeout(function(){anaStep7A();},200);
+          },800);
+        },400);
+      });
     });
   },400);
 }
@@ -8086,15 +8103,17 @@ function anaStep10B(){
       {ic:'🏋️',lb:'Alta',sub:'Treino intenso 6–7x/semana',v:'Alta'}
     ],function(v){
       ANA.data.activ=v; _anaSalvar(); anaMsg('usr',v);
-      var M=calcMetricsAna();
-      if(!M){anaDone();return;}
-      var pm=Math.round(M.pm);
-      var frango=Math.round(pm/0.31);
-      var carne=Math.round(pm/0.26);
-      var ovos=Math.round(pm/8);
-      var whey=Math.round(pm/24);
-      setTimeout(function(){
-        anaMsg('bot','📊 <strong>TMB: '+Math.round(M.tmb)+' kcal</strong> — energia que seu corpo gasta em repouso.<br>⚡ <strong>GET: '+Math.round(M.tdee)+' kcal</strong> — gasto real no seu dia com '+v.toLowerCase()+'.<br><br>💡 <strong>Qualquer valor abaixo de '+Math.round(M.tdee)+' kcal já faz você emagrecer.</strong> O corpo busca energia na gordura. O GLP-1 facilita isso reduzindo a fome.<br><br>🎯 <strong>Meta calórica: '+Math.round(M.meta)+' kcal/dia</strong> (igual ao GET — exercícios extras aumentam essa meta dinamicamente)','clinical');
+      // v3.8.7: step de objetivo ANTES do calculo final (versao B)
+      anaStepObjetivo(function(){
+        var M=calcMetricsAna();
+        if(!M){anaDone();return;}
+        var pm=Math.round(M.pm);
+        var frango=Math.round(pm/0.31);
+        var carne=Math.round(pm/0.26);
+        var ovos=Math.round(pm/8);
+        var whey=Math.round(pm/24);
+        setTimeout(function(){
+          anaMsg('bot','📊 <strong>TMB: '+Math.round(M.tmb)+' kcal</strong> — energia que seu corpo gasta em repouso.<br>⚡ <strong>GET: '+Math.round(M.tdee)+' kcal</strong> — gasto real no seu dia com '+v.toLowerCase()+'.<br><br>💡 <strong>Qualquer valor abaixo de '+Math.round(M.tdee)+' kcal já faz você emagrecer.</strong> O corpo busca energia na gordura. O GLP-1 facilita isso reduzindo a fome.<br><br>🎯 <strong>Meta calórica: '+Math.round(M.meta)+' kcal/dia</strong> (igual ao GET — exercícios extras aumentam essa meta dinamicamente)','clinical');
         setTimeout(function(){
           // v3.1.15: Mensagem reescrita com 3 refeições reais combinadas (acolhedor, não assustador)
           var protCafe = 25;
@@ -8113,8 +8132,31 @@ function anaStep10B(){
           },900);
         },800);
       },400);
+      });
     });
   },400);
+}
+
+// v3.8.7: step de objetivo na anamnese — paciente escolhe ANTES do calculo final.
+// Default = emagrecer (compatibilidade com fluxo original). Aparece apos coletar
+// nivel de atividade nos 2 fluxos (A e B).
+function anaStepObjetivo(cb){
+  setTimeout(function(){
+    anaMsg('bot','🎯 <strong>Qual seu objetivo agora?</strong><br><br>Pode trocar depois no Perfil quando mudar de fase do tratamento.');
+    setTimeout(function(){
+      anaOpts([
+        {ic:'🔥',lb:'Emagrecer',sub:'Perder gordura mantendo músculo',v:'emagrecer'},
+        {ic:'💪',lb:'Reconstruir músculo',sub:'Já magro ou sarcopênico — ganhar massa',v:'reconstruir'},
+        {ic:'⚖️',lb:'Manter peso',sub:'Já chegou na meta — manutenção',v:'manter'}
+      ], function(v){
+        ANA.data.objetivo = v;
+        _anaSalvar();
+        var label = (typeof OBJETIVOS !== 'undefined' && OBJETIVOS[v]) ? OBJETIVOS[v].label : v;
+        anaMsg('usr', label);
+        setTimeout(function(){ if(typeof cb === 'function') cb(); }, 250);
+      });
+    }, 300);
+  }, 400);
 }
 
 function anaDone(){
@@ -18473,10 +18515,77 @@ function setObjetivo(key){
   S.profile.objetivo = key;
   if(typeof salvar === 'function') salvar();
   if(typeof renderObjetivos === 'function') renderObjetivos();
+  if(typeof renderCardObjetivoPainel === 'function') renderCardObjetivoPainel();
+  if(typeof fecharModalObjetivo === 'function') fecharModalObjetivo();
   if(typeof render === 'function'){ try{ render(); }catch(e){} }
   if(typeof renderMetaDia === 'function'){ try{ renderMetaDia(); }catch(e){} }
   if(typeof renderQuatroGauges === 'function'){ try{ renderQuatroGauges(); }catch(e){} }
   if(typeof toast === 'function') toast(OBJETIVOS[key].icon + ' Metas atualizadas pra ' + OBJETIVOS[key].label.toLowerCase(), 2800);
+}
+
+// v3.8.7: renderiza o card de objetivo no topo do Painel.
+function renderCardObjetivoPainel(){
+  var card = el('cardObjetivoPainel');
+  if(!card) return;
+  var lbl = el('cardObjetivoLabel');
+  var meta = el('cardObjetivoMeta');
+  var key = (typeof getObjetivoAtual === 'function') ? getObjetivoAtual() : 'emagrecer';
+  var o = OBJETIVOS[key] || OBJETIVOS.emagrecer;
+  if(lbl) lbl.innerHTML = o.icon + ' ' + o.label;
+  if(meta){
+    var M = null;
+    try{ if(typeof calcMetrics === 'function') M = calcMetrics(); }catch(e){}
+    if(M){
+      meta.textContent = Math.round(M.pm) + 'g proteína · ' + Math.round(M.meta) + ' kcal/dia';
+    } else {
+      meta.textContent = o.detail;
+    }
+  }
+}
+
+// v3.8.7: abre modal de troca de objetivo (acessível direto do Painel).
+function abrirModalObjetivo(){
+  fecharModalObjetivo();
+  var atual = (typeof getObjetivoAtual === 'function') ? getObjetivoAtual() : 'emagrecer';
+  var html = '';
+  ['emagrecer','reconstruir','manter'].forEach(function(k){
+    var o = OBJETIVOS[k];
+    var sel = (k === atual);
+    var border = sel ? '2px solid #4ade80' : '1.5px solid rgba(187,247,208,.18)';
+    var bg = sel ? 'rgba(74,222,128,.15)' : 'rgba(255,255,255,.04)';
+    var check = sel ? '<span style="position:absolute;top:10px;right:12px;font-size:18px;color:#4ade80;font-weight:800">✓</span>' : '';
+    html += '<div onclick="setObjetivo(\''+k+'\')" style="position:relative;padding:13px 15px;border:'+border+';border-radius:12px;background:'+bg+';cursor:pointer;margin-bottom:9px">' +
+      check +
+      '<div style="display:flex;gap:11px;align-items:flex-start">' +
+        '<div style="font-size:24px;line-height:1;flex-shrink:0">'+o.icon+'</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:14.5px;font-weight:800;color:#fff;margin-bottom:3px">'+o.label+'</div>' +
+          '<div style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.45;margin-bottom:5px">'+o.desc+'</div>' +
+          '<div style="font-size:11.5px;color:#bbf7d0;font-family:monospace">'+o.detail+'</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  var ov = document.createElement('div');
+  ov.id = 'modalObjetivoPainel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9998;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)';
+  ov.onclick = function(e){ if(e.target === ov) fecharModalObjetivo(); };
+  ov.innerHTML =
+    '<div style="max-width:460px;width:100%;max-height:88vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
+      '<div style="text-align:center;margin-bottom:14px">' +
+        '<div style="font-size:34px;margin-bottom:6px">🎯</div>' +
+        '<div style="font-size:18px;font-weight:800;color:#fff;font-family:var(--fd,system-ui);letter-spacing:-.02em">Seu objetivo agora</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:4px">Define as metas de proteína e calorias. Troca quando mudar de fase.</div>' +
+      '</div>' +
+      html +
+      '<button onclick="fecharModalObjetivo()" style="width:100%;margin-top:6px;padding:11px;border-radius:11px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.75);font-family:var(--ss,system-ui);font-size:13px;font-weight:600;cursor:pointer">Fechar</button>' +
+    '</div>';
+  document.body.appendChild(ov);
+}
+
+function fecharModalObjetivo(){
+  var m = el('modalObjetivoPainel');
+  if(m) m.remove();
 }
 function popularCaneta(){
   var cf=el('cFarm');if(!cf) return;
@@ -18590,6 +18699,7 @@ function go(id){
   // Sempre re-renderizar o dashboard completamente ao navegar para ele
   if(id==='dashboard'){
     setTimeout(function(){
+      if(typeof renderCardObjetivoPainel==='function') renderCardObjetivoPainel();
       if(typeof renderHero==='function') renderHero();
       if(typeof renderQuatroGauges==='function') renderQuatroGauges();
       if(typeof renderMetaDia==='function') renderMetaDia();
