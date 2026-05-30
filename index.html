@@ -5781,7 +5781,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.4';
+var SANOVA_VERSION = '3.8.5';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -18434,7 +18434,8 @@ function popularPerfil(){
   if(typeof renderObjetivos === 'function') renderObjetivos();
 }
 
-// v3.8.4: renderiza os 3 cards de objetivo no Perfil com estado selecionado.
+// v3.8.4 + v3.8.5: renderiza os 3 cards de objetivo no Perfil com estado
+// selecionado. Cores adaptadas pra fundo CLARO do Perfil (cream/branco).
 function renderObjetivos(){
   var wrap = el('objetivosWrap');
   if(!wrap) return;
@@ -18443,17 +18444,17 @@ function renderObjetivos(){
   ['emagrecer','reconstruir','manter'].forEach(function(key){
     var o = OBJETIVOS[key];
     var sel = (key === atual);
-    var border = sel ? '2px solid #4ade80' : '1.5px solid rgba(255,255,255,.12)';
-    var bg = sel ? 'rgba(74,222,128,.10)' : 'rgba(255,255,255,.03)';
-    var check = sel ? '<span style="position:absolute;top:10px;right:12px;font-size:18px;color:#4ade80">✓</span>' : '';
-    html += '<div onclick="setObjetivo(\''+key+'\')" style="position:relative;padding:12px 14px;border:'+border+';border-radius:12px;background:'+bg+';cursor:pointer;transition:all .15s">' +
+    var border = sel ? '2px solid #15803d' : '1.5px solid rgba(21,128,61,.22)';
+    var bg = sel ? 'rgba(74,222,128,.15)' : '#ffffff';
+    var check = sel ? '<span style="position:absolute;top:10px;right:12px;font-size:18px;color:#15803d;font-weight:800">✓</span>' : '';
+    html += '<div onclick="setObjetivo(\''+key+'\')" style="position:relative;padding:12px 14px;border:'+border+';border-radius:12px;background:'+bg+';cursor:pointer;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
       check +
       '<div style="display:flex;gap:10px;align-items:flex-start">' +
         '<div style="font-size:22px;line-height:1;flex-shrink:0">'+o.icon+'</div>' +
         '<div style="flex:1">' +
-          '<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:2px">'+o.label+'</div>' +
-          '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.4;margin-bottom:3px">'+o.desc+'</div>' +
-          '<div style="font-size:11px;color:#bbf7d0;font-family:monospace">'+o.detail+'</div>' +
+          '<div style="font-size:14.5px;font-weight:800;color:#0f4f24;margin-bottom:3px">'+o.label+'</div>' +
+          '<div style="font-size:12.5px;color:#3d3d3d;line-height:1.45;margin-bottom:5px">'+o.desc+'</div>' +
+          '<div style="font-size:11.5px;color:#15803d;font-family:monospace;font-weight:600">'+o.detail+'</div>' +
         '</div>' +
       '</div>' +
     '</div>';
