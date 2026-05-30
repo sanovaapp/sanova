@@ -5749,7 +5749,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.7.0';
+var SANOVA_VERSION = '3.7.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9788,7 +9788,7 @@ function renderCalc(){
 
   // tipo === 'frasco'
   if(elTag)   elTag.textContent   = '🧪 CÁLCULO DE DOSE';
-  if(elTitle) elTitle.textContent = 'Calculadora de dose em seringa de insulina';
+  if(elTitle) elTitle.textContent = 'Converta aqui sua dose da medicação em unidades de insulina antes de aplicar';
   elSem.style.display = 'none';
   elCan.style.display = 'none';
   elFra.style.display = 'block';
@@ -9904,6 +9904,31 @@ function calcDil(){
   if(Math.abs(uni-uniR)>0) html+='<div style="margin-top:10px;font-size:12px;color:#a5b4fc;text-align:center">Arredondamento sugerido: <strong>'+uniR+' UI</strong></div>';
   html+=avisoSer+'</div>'
     +'<div class="calc-warn" style="margin-top:10px">⚠️ Unidades = (dose ÷ concentração) × 100 &nbsp;|&nbsp; Sempre confirme com seu médico antes da aplicação.</div>';
+
+  // v3.7.1: bloco educativo "Como chegamos em X UI?" — sempre visível.
+  // Explica passo-a-passo pra paciente leigo entender a conversão mg → UI.
+  var doseTxt = String(dose).replace('.',',');
+  var concTxt = (Math.round(conc*100)/100).toString().replace('.',',');
+  var volTxt = rd(volAspirar,3).toString().replace('.',',');
+  html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:12px">'
+    + '<div style="font-size:12px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px">🧠 Como chegamos em '+uni+' UI?</div>'
+    + '<div style="font-size:13px;color:rgba(255,255,255,.88);line-height:1.65">'
+    +   '<div><strong style="color:#fff">Sua dose:</strong> '+doseTxt+' mg</div>'
+    +   '<div><strong style="color:#fff">Frasco:</strong> '+concTxt+' mg/mL <span style="color:rgba(255,255,255,.55)">(a cada 1 mL tem '+concTxt+' mg da medicação)</span></div>'
+    +   '<div style="margin:10px 0;height:1px;background:rgba(187,247,208,.15)"></div>'
+    +   '<div style="margin-bottom:10px">'
+    +     '<div style="font-weight:700;color:#bbf7d0;font-size:12.5px;margin-bottom:2px">Passo 1 — Quanto volume tem '+doseTxt+' mg?</div>'
+    +     '<div style="font-family:monospace;color:rgba(255,255,255,.88);padding-left:10px">'+doseTxt+' ÷ '+concTxt+' = '+volTxt+' mL</div>'
+    +   '</div>'
+    +   '<div style="margin-bottom:10px">'
+    +     '<div style="font-weight:700;color:#bbf7d0;font-size:12.5px;margin-bottom:2px">Passo 2 — Quantas UI tem '+volTxt+' mL?</div>'
+    +     '<div style="font-family:monospace;color:rgba(255,255,255,.88);padding-left:10px">Seringa U-100: 1 mL = 100 UI</div>'
+    +     '<div style="font-family:monospace;color:rgba(255,255,255,.88);padding-left:10px">'+volTxt+' mL × 100 = <strong style="color:#86efac">'+uni+' UI</strong></div>'
+    +   '</div>'
+    +   '<div style="margin-top:10px;padding:9px 11px;background:rgba(74,222,128,.10);border:1px solid rgba(74,222,128,.28);border-radius:8px;font-size:12.5px;color:#bbf7d0;font-weight:700">✅ Aspire até a marca <strong style="color:#fff">'+uni+' UI</strong> na seringa.</div>'
+    + '</div>'
+    + '</div>';
+
   el('calcRes').innerHTML=html;
   // Salvar último cálculo + persiste o auto-save de S.caneta feito acima
   S.ultimaCalc={farm:f,mg:mgFrasco,ml:mlFrasco,dose:dose,uni:uni,conc:rd(conc,2),data:hoje()};
