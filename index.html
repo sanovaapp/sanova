@@ -5670,7 +5670,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.6.2';
+var SANOVA_VERSION = '3.6.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -19965,6 +19965,115 @@ window.addEventListener('beforeunload',function(){
       }
     }
   }, 1500);
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   Sanova — Camada de Gates Visuais (v3.6.3)
+   Aplica overlay de cadeado sobre features pagas quando o paciente
+   nao tem acesso (free/expired/canceled). Ao tocar no overlay, abre
+   o modal de paywall.
+   Isolada — nao mexe na logica das features.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+  var STYLE_ID = 'sanova-gates-style';
+  var OVERLAY_ATTR = 'data-sanova-gate-overlay';
+  var GATED_ATTR = 'data-sanova-gated';
+
+  // Mapeamento dos seletores das features pagas. Adicionar mais conforme
+  // a UI evoluir (ex: botao de PDF pro medico quando existir).
+  var GATES = [
+    { selector: '#sec-prato .card', motivo: 'ia_prato',
+      label: 'IA de prato — Sanova Completo' },
+    { selector: '#calcFrasco', motivo: 'conv_insulina',
+      label: 'Conversor UI insulina — Sanova Completo' }
+  ];
+
+  function injetarCSS(){
+    if(document.getElementById(STYLE_ID)) return;
+    var st = document.createElement('style');
+    st.id = STYLE_ID;
+    st.textContent =
+      '.sanova-gate-overlay{' +
+        'position:absolute;inset:0;' +
+        'background:linear-gradient(160deg,rgba(4,27,13,.78),rgba(10,58,32,.92));' +
+        'border-radius:inherit;display:flex;flex-direction:column;' +
+        'align-items:center;justify-content:center;z-index:50;cursor:pointer;' +
+        '-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);' +
+        'border:1.5px dashed rgba(187,247,208,.4);padding:18px;text-align:center;' +
+      '}' +
+      '.sanova-gate-overlay .gate-ic{font-size:38px;margin-bottom:8px;line-height:1}' +
+      '.sanova-gate-overlay .gate-lbl{color:#bbf7d0;font-family:system-ui,sans-serif;font-size:13px;font-weight:800;letter-spacing:.01em;margin-bottom:10px;line-height:1.35}' +
+      '.sanova-gate-overlay .gate-cta{padding:9px 18px;border-radius:99px;border:1px solid #bbf7d0;background:rgba(187,247,208,.18);color:#fff;font-family:system-ui,sans-serif;font-size:12px;font-weight:800;letter-spacing:.02em}';
+    document.head.appendChild(st);
+  }
+
+  function temAcesso(){
+    return window.SanovaAssinatura && window.SanovaAssinatura.temAcesso();
+  }
+
+  function aplicarCadeado(el, motivo, label){
+    if(el.getAttribute(GATED_ATTR) === '1') return;
+    el.setAttribute(GATED_ATTR, '1');
+    var pos = getComputedStyle(el).position;
+    if(pos === 'static') el.style.position = 'relative';
+
+    var ov = document.createElement('div');
+    ov.className = 'sanova-gate-overlay';
+    ov.setAttribute(OVERLAY_ATTR, '1');
+    ov.innerHTML =
+      '<div class="gate-ic">🔒</div>' +
+      '<div class="gate-lbl">' + label + '</div>' +
+      '<div class="gate-cta">Ver detalhes</div>';
+    ov.onclick = function(e){
+      e.stopPropagation();
+      try{
+        if(window.SanovaPaywall && typeof window.SanovaPaywall.abrirModal === 'function'){
+          window.SanovaPaywall.abrirModal(motivo);
+        }
+      }catch(err){ console.warn('[Gates] erro abrir paywall:', err); }
+    };
+    el.appendChild(ov);
+  }
+
+  function removerCadeado(el){
+    if(el.getAttribute(GATED_ATTR) !== '1') return;
+    el.removeAttribute(GATED_ATTR);
+    var ov = el.querySelector('[' + OVERLAY_ATTR + '="1"]');
+    if(ov) ov.remove();
+  }
+
+  function aplicar(){
+    var acesso = temAcesso();
+    GATES.forEach(function(g){
+      var els = document.querySelectorAll(g.selector);
+      Array.prototype.forEach.call(els, function(el){
+        if(acesso) removerCadeado(el);
+        else aplicarCadeado(el, g.motivo, g.label);
+      });
+    });
+  }
+
+  // Aplica ao receber estado de assinatura
+  window.addEventListener('sanova:assinatura', aplicar);
+
+  // Aplica de novo periodicamente se sem acesso — protege contra DOM
+  // re-renderizado por outras camadas (calc, render, etc).
+  setInterval(function(){
+    if(!temAcesso() && (window.SanovaAssinatura && window.SanovaAssinatura.get().carregado)){
+      aplicar();
+    }
+  }, 1500);
+
+  // Inicializa
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', injetarCSS);
+  }else{
+    injetarCSS();
+  }
+
+  window.SanovaGates = { aplicar: aplicar };
 })();
 </script>
 
