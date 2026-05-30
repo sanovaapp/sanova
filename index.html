@@ -6266,7 +6266,7 @@ function logoClicked(){
 
 // SHA-256 da senha do modo dev. NUNCA coloque a senha em texto aqui.
 // Pra trocar: ver "v3.1.36 — MODO DESENVOLVEDOR" no cabeçalho desta seção.
-var DEV_HASH = '__DEV_PASSWORD_HASH_PLACEHOLDER__';
+var DEV_HASH = '6528283c8b786c5c527c513a82d0c75fc2d991edeb0ad26b5ed71ebd899e62a7';
 
 function _devHashCheck(senha){
   return crypto.subtle.digest('SHA-256', new TextEncoder().encode(senha))
