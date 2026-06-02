@@ -30,7 +30,14 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.0.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.0.1' }, 200, origin, env);
+      }
+
+      // v1.0.1: endpoint de diagnostico — chama Gemini com prompt trivial e
+      // retorna status/body cru. Sem CORS check (pra abrir no browser).
+      // Usado pra debugar billing/quota/modelo. NAO vaza a API key.
+      if (url.pathname === '/api/debug-gemini' && request.method === 'GET') {
+        return await handleDebugGemini(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -110,4 +117,65 @@ async function handleAnalyzeText(request, env, origin) {
   const result = await provider.analyzeText(text.trim(), context);
 
   return jsonResponse({ ok: true, ...result }, 200, origin, env);
+}
+
+// ─── /api/debug-gemini ───────────────────────────────────────
+// Faz uma chamada minima ao Gemini ("diga oi") e retorna status + body cru
+// pra revelar erros de billing/quota/modelo. Mascara a API key na resposta.
+async function handleDebugGemini(env) {
+  const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const hasKey = !!env.GEMINI_API_KEY;
+  const keyHint = hasKey
+    ? env.GEMINI_API_KEY.slice(0, 6) + '...' + env.GEMINI_API_KEY.slice(-4)
+    : 'AUSENTE';
+
+  if (!hasKey) {
+    return new Response(
+      JSON.stringify({ ok: false, stage: 'missing_key', model, keyHint }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: 'Responda apenas "ok"' }] }],
+    generationConfig: { temperature: 0 },
+  };
+
+  let resp, txt;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    txt = await resp.text();
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ ok: false, stage: 'fetch_failed', error: String(e), model, keyHint }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  let bodyParsed;
+  try { bodyParsed = JSON.parse(txt); } catch { bodyParsed = txt.slice(0, 800); }
+
+  return new Response(
+    JSON.stringify(
+      {
+        ok: resp.ok,
+        stage: resp.ok ? 'success' : 'gemini_error',
+        httpStatus: resp.status,
+        model,
+        keyHint,
+        body: bodyParsed,
+      },
+      null,
+      2
+    ),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    }
+  );
 }
