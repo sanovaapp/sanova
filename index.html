@@ -2572,6 +2572,35 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   color:var(--cream3);
 }
 
+/* v3.9.0: selo "Em construção" — comunicação honesta de features prometidas
+   mas ainda não entregues. Opção C da auditoria 02/06/2026. */
+.camada-itens li.em-construcao{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.camada-itens li.em-construcao .item-txt{
+  flex:1;
+  min-width:0;
+}
+.camada-selo-construcao{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:10.5px;
+  font-weight:700;
+  padding:2px 8px;
+  border-radius:99px;
+  background:rgba(232,200,120,.15);
+  color:#e8c878;
+  border:1px solid rgba(232,200,120,.28);
+  letter-spacing:.02em;
+  white-space:nowrap;
+  flex-shrink:0;
+  margin-top:1px;
+}
+
 /* Hatch (modo avançado) */
 .jornada-hatch{
   margin-top:18px;
@@ -5793,7 +5822,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.9';
+var SANOVA_VERSION = '3.9.0';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9302,6 +9331,9 @@ function buildDiet(M){
 /* ══ Jornada — descrições concretas por camada (v3.1.8) ══
    Cada camada com 3-5 itens claros que paciente entende.
    Sem jargão, sem promessa vaga. */
+// v3.9.0: itens podem ser string (entregue) ou objeto {txt, emConstrucao:true}
+// pra marcar features prometidas mas ainda nao construidas. Opcao C da
+// auditoria 02/06/2026 — comunicacao honesta de gap conhecido.
 var CAMADAS_DETALHE = {
   1: {
     nome: 'Essencial',
@@ -9319,7 +9351,7 @@ var CAMADAS_DETALHE = {
     resumo: 'O Sanova começa a cruzar seus dados e gerar leituras.',
     itens: [
       'Padrões da sua semana cruzados automaticamente',
-      'Leitura por fase do ciclo da medicação',
+      { txt: 'Leitura por fase do ciclo da medicação', emConstrucao: true },
       'Sugestões educativas baseadas no que você registra',
       'Relatório semanal com observações personalizadas'
     ]
@@ -9328,9 +9360,9 @@ var CAMADAS_DETALHE = {
     nome: 'Preservação',
     resumo: 'Foco no "não murchar" — qualidade do peso.',
     itens: [
-      'Estimativa de gordura × massa magra (perímetros)',
-      'Fotos de progresso (rosto, corpo) com privacidade',
-      'Protocolo de proteína refinado pelo seu treino',
+      { txt: 'Estimativa de gordura × massa magra (perímetros)', emConstrucao: true },
+      { txt: 'Fotos de progresso (rosto, corpo) com privacidade', emConstrucao: true },
+      { txt: 'Protocolo de proteína refinado pelo seu treino', emConstrucao: true },
       'Ciclo menstrual integrado às leituras (se ativado)'
     ]
   },
@@ -9338,10 +9370,10 @@ var CAMADAS_DETALHE = {
     nome: 'Avançado',
     resumo: 'Profundidade total para pacientes experientes.',
     itens: [
-      'Detecção automática de platôs (28+ dias)',
-      'Plano de transição ao parar a medicação',
-      'Rastreamento de lote e farmácia (manipulado)',
-      'Personalização de cards do painel'
+      { txt: 'Detecção automática de platôs (28+ dias)', emConstrucao: true },
+      { txt: 'Plano de transição ao parar a medicação', emConstrucao: true },
+      { txt: 'Rastreamento de lote e farmácia (manipulado)', emConstrucao: true },
+      { txt: 'Personalização de cards do painel', emConstrucao: true }
     ]
   }
 };
@@ -9497,7 +9529,8 @@ function renderJornada(){
   html += '<div class="jornada-intro-ttl">Como funciona a progressão</div>';
   html += '<div class="jornada-intro-txt">O Sanova evolui com você. As primeiras semanas focam no básico — registrar e organizar. ';
   html += 'Conforme seus dados crescem, o app começa a cruzar informações e gerar leituras educativas. ';
-  html += 'Cada etapa abre quando faz sentido clínico — não antes.</div>';
+  html += 'Cada etapa abre quando faz sentido clínico — não antes.<br><br>';
+  html += '<span style="color:#e8c878;font-weight:600">🛠️ Algumas funcionalidades estão marcadas como "Em construção"</span> — são features em desenvolvimento ativo que chegam em breve. Te avisamos quando ficam prontas.</div>';
 
   if(modoAvancado){
     html += '<div class="jornada-intro-pos">';
@@ -9561,7 +9594,16 @@ function renderJornada(){
     html += '<div class="camada-resumo' + (isLocked ? ' camada-resumo-locked' : '') + '">' + c.resumo + '</div>';
     html += '<ul class="camada-itens">';
     for(var i=0;i<c.itens.length;i++){
-      html += '<li>' + c.itens[i] + '</li>';
+      var it = c.itens[i];
+      if(typeof it === 'string'){
+        html += '<li>' + it + '</li>';
+      } else {
+        // v3.9.0: feature prometida com selo "Em construção"
+        html += '<li class="em-construcao">'
+              +   '<span class="item-txt">' + it.txt + '</span>'
+              +   '<span class="camada-selo-construcao">🛠️ Em construção</span>'
+              + '</li>';
+      }
     }
     html += '</ul>';
     html += '</div></div>';
