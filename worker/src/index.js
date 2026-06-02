@@ -30,7 +30,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.0.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.0.2' }, 200, origin, env);
       }
 
       // v1.0.1: endpoint de diagnostico — chama Gemini com prompt trivial e
@@ -71,24 +71,32 @@ export default {
 };
 
 // ─── /api/analyze-photo ───────────────────────────────────────
+// v1.0.2: aceita 2 schemas pra compat com o app legado (Manus.space):
+//   - NOVO: { image: "base64", mimeType: "image/jpeg" }
+//   - LEGADO: { imageBase64: "data:image/jpeg;base64,<base64>" }
 async function handleAnalyzePhoto(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
 
   const body = await request.json().catch(() => ({}));
-  const { image, mimeType = 'image/jpeg', context } = body;
+  const raw = body.image || body.imageBase64;
+  const context = body.context;
 
-  if (!image || typeof image !== 'string') {
+  if (!raw || typeof raw !== 'string') {
     return jsonResponse(
-      { ok: false, error: 'missing_image', message: 'Envie image como base64 (sem prefixo data:).' },
+      { ok: false, error: 'missing_image', message: 'Envie image ou imageBase64 como string.' },
       400,
       origin,
       env
     );
   }
 
-  const cleanBase64 = image.replace(/^data:[^;]+;base64,/, '');
+  // Extrai mimeType do prefixo data: se houver; senao usa o explicito; default jpeg
+  const dataUrlMatch = raw.match(/^data:([^;]+);base64,(.*)$/);
+  const cleanBase64 = dataUrlMatch ? dataUrlMatch[2] : raw.replace(/^data:[^;]+;base64,/, '');
+  const mimeType = dataUrlMatch ? dataUrlMatch[1] : (body.mimeType || 'image/jpeg');
+
   const provider = new GeminiProvider(env);
   const result = await provider.analyzePhoto(cleanBase64, mimeType, context);
 
@@ -102,11 +110,13 @@ async function handleAnalyzeText(request, env, origin) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { text, context } = body;
+  // v1.0.2: aceita "text" (novo) ou "description" (legado Manus)
+  const text = body.text || body.description;
+  const context = body.context;
 
   if (!text || typeof text !== 'string' || text.trim().length < 2) {
     return jsonResponse(
-      { ok: false, error: 'missing_text', message: 'Envie text com descricao do prato.' },
+      { ok: false, error: 'missing_text', message: 'Envie text ou description com a descricao do prato.' },
       400,
       origin,
       env
