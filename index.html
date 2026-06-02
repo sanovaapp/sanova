@@ -5793,7 +5793,7 @@ var SANOVA_API_URL='https://sanovaai-ep4phnhk.manus.space';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.8.8';
+var SANOVA_VERSION = '3.8.9';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7022,11 +7022,11 @@ function diasParaProximaCamada(){
 
 function ativarModoAvancado(){
   if(!S.progressao) return;
-  if(!confirm('Ativar modo avançado?\n\nVocê terá acesso imediato a todas as camadas de acompanhamento, sem esperar os desbloqueios naturais. Recomendado para pacientes já experientes com tratamento.\n\nConfirmar?')) return;
+  if(!confirm('Liberar todas as funcionalidades?\n\nDesbloqueia as 4 camadas de acompanhamento (análises cruzadas, gráficos avançados, preservação muscular e leituras profundas) sem esperar o desbloqueio progressivo.\n\nNão muda cálculos nem metas — só libera abas e leituras que ainda estavam ocultas. Você pode reverter quando quiser.\n\nConfirmar?')) return;
   S.progressao.modoAvancadoAtivado = true;
   S.progressao.camadasDesbloqueadas = [1,2,3,4];
   salvar();
-  toast('Modo avançado ativado — todas as camadas liberadas', 3500);
+  toast('✅ Todas as camadas liberadas — explore Saúde e Mais pra ver as análises avançadas', 4200);
   setTimeout(function(){ render(); }, 200);
 }
 
@@ -9579,8 +9579,8 @@ function renderJornada(){
   } else if(atual < 4){
     html += '<div class="jornada-hatch">';
     html += '<div class="jornada-hatch-ttl">Já é paciente experiente?</div>';
-    html += '<div class="jornada-hatch-sub">Libere todas as camadas agora se você já está em tratamento há tempos e quer acesso completo. Você pode reverter a qualquer momento.</div>';
-    html += '<button class="jornada-hatch-btn" onclick="ativarModoAvancado()">Liberar tudo agora</button>';
+    html += '<div class="jornada-hatch-sub">Desbloqueia as 4 camadas (análises cruzadas, gráficos avançados, preservação muscular, leituras profundas) sem esperar o desbloqueio progressivo. <strong style="color:var(--ink2)">Não muda cálculos nem metas</strong> — só libera abas e leituras hoje ocultas. Reverte quando quiser.</div>';
+    html += '<button class="jornada-hatch-btn" onclick="ativarModoAvancado()">Liberar todas as camadas</button>';
     html += '</div>';
   }
 
@@ -12577,24 +12577,32 @@ function _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant){
   var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
 
   if(objKey === 'reconstruir'){
-    var deficit  = GET;                       // abaixo disso = déficit (ruim)
-    var idealMax = Math.round(GET * 1.10);    // ideal pra ganho
-    var excesso  = Math.round(GET * 1.20);    // excesso (engorda)
-    var escalaMax= Math.round(GET * 1.30);
+    // v3.8.9: faixas recalibradas. Antes, "Déficit" começava no GET e ocupava
+    // 77% da barra — paciente em GLP-1 (saciedade reduzida) ficava o dia
+    // inteiro no vermelho. Agora:
+    //   0          → GET×0.85  : muito baixo (compromete recuperação)
+    //   GET×0.85   → GET       : subótimo (manutenção, não constrói)
+    //   GET        → GET×1.20  : ✅ ideal (superávit construtor 0–20%)
+    //   GET×1.20   → GET×1.35  : excesso (vira gordura)
+    var muitoBx  = Math.round(GET * 0.85);
+    var subOtimo = GET;
+    var idealMax = Math.round(GET * 1.20);
+    var escalaMax= Math.round(GET * 1.35);
     var st;
-    if(kcalHoje === 0)            st = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição. Hoje você precisa de '+fmt(kcalMeta)+' kcal pra reconstruir.' };
-    else if(kcalHoje < deficit)   st = { txt:'⚠️ Déficit',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Faltam '+fmt(kcalMeta - kcalHoje)+' kcal. Déficit + treino = perda muscular. Aumente proteína e carbo.' };
-    else if(kcalHoje <= idealMax) st = { txt:'✅ Zona ideal',    bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Zona ideal pra ganho de massa. Mantém esse ritmo + treino resistido.' };
-    else if(kcalHoje <= excesso)  st = { txt:'⚠️ Excesso',       bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima do necessário. Excesso vira gordura, não músculo.' };
-    else                          st = { txt:'🔴 Muito alto',    bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(excesso)+' kcal — reduza pra evitar ganho de gordura.' };
+    if(kcalHoje === 0)            st = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição. Pra reconstruir, mire entre '+fmt(subOtimo)+' e '+fmt(idealMax)+' kcal hoje.' };
+    else if(kcalHoje < muitoBx)   st = { txt:'🔴 Muito baixo',   bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Abaixo de '+fmt(muitoBx)+' kcal. Em treino + GLP-1, isso compromete a recuperação. Priorize proteína e carbo.' };
+    else if(kcalHoje < subOtimo)  st = { txt:'⚠️ Subótimo',      bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Hoje você está em manutenção. Pra construir massa, mire entre '+fmt(subOtimo)+' e '+fmt(idealMax)+' kcal.' };
+    else if(kcalHoje <= idealMax) st = { txt:'✅ Zona ideal',    bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Superávit ideal pra hipertrofia. Mantém esse ritmo + treino resistido.' };
+    else                          st = { txt:'🔴 Excesso',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(idealMax)+' kcal — o excedente tende a virar gordura, não músculo.' };
     return {
       escalaMax: escalaMax,
-      pontos:  [0, deficit, idealMax, excesso, escalaMax],
-      labels:  ['Déficit', '✅ Ideal', 'Excesso', 'Muito alto'],
-      lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
-      faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
+      pontos:  [0, muitoBx, subOtimo, idealMax, escalaMax],
+      labels:  ['Muito baixo', 'Subótimo', '✅ Ideal', 'Excesso'],
+      lblCor:  ['rgba(220,150,130,.85)','rgba(232,200,120,.85)','rgba(74,222,128,.95)','rgba(220,150,130,.85)'],
+      faixaCor:['rgba(243,168,138,.30)','rgba(232,200,120,.35)','rgba(74,222,128,.35)','rgba(243,168,138,.30)'],
       escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(74,222,128,.85)','rgba(232,200,120,.7)','rgba(255,255,255,.35)'],
-      status: st
+      status: st,
+      metaTxt: fmt(subOtimo)+'–'+fmt(idealMax)+' kcal · zona ideal'
     };
   }
 
@@ -12679,7 +12687,7 @@ function _aplicarCalBarConfig(cfg, kcalHoje){
   var status = el('calBarStatus');
   var msg = el('calBarMsg');
   if(consumed) consumed.textContent = kcalHoje;
-  if(metaLbl) metaLbl.textContent = fmt(cfg.pontos[2]) + ' kcal meta';
+  if(metaLbl) metaLbl.textContent = cfg.metaTxt || (fmt(cfg.pontos[2]) + ' kcal meta');
   if(status){
     status.textContent = cfg.status.txt;
     status.style.background = cfg.status.bg;
@@ -18620,6 +18628,16 @@ function setObjetivo(key){
     if(typeof toast === 'function') toast('Já está em ' + OBJETIVOS[key].label, 1800);
     return;
   }
+  // v3.8.9: captura métricas ANTES da troca pra detectar quando a meta de
+  // proteína já estava saturada (ex.: paciente ativo + resistido já em 2,0 g/kg
+  // no Emagrecer não vê diferença ao trocar pra Reconstruir).
+  var pmAntes = null, metaAntes = null;
+  try{
+    if(typeof calcMetrics === 'function'){
+      var Ma = calcMetrics();
+      if(Ma){ pmAntes = Math.round(Ma.pm); metaAntes = Math.round(Ma.meta); }
+    }
+  }catch(e){}
   S.profile.objetivo = key;
   if(typeof salvar === 'function') salvar();
   if(typeof renderObjetivos === 'function') renderObjetivos();
@@ -18629,6 +18647,24 @@ function setObjetivo(key){
   if(typeof renderMetaDia === 'function'){ try{ renderMetaDia(); }catch(e){} }
   if(typeof renderQuatroGauges === 'function'){ try{ renderQuatroGauges(); }catch(e){} }
   if(typeof toast === 'function') toast(OBJETIVOS[key].icon + ' Metas atualizadas pra ' + OBJETIVOS[key].label.toLowerCase(), 2800);
+  // v3.8.9: se a proteína não mudou, explica o porquê depois do toast principal.
+  try{
+    if(typeof calcMetrics === 'function' && pmAntes !== null){
+      var Md = calcMetrics();
+      if(Md){
+        var pmDepois = Math.round(Md.pm);
+        var metaDepois = Math.round(Md.meta);
+        if(pmDepois === pmAntes && typeof toast === 'function'){
+          var dKcal = metaDepois - metaAntes;
+          var msg;
+          if(dKcal > 0)      msg = 'Proteína já estava em ' + pmDepois + 'g pela sua atividade. Meta calórica subiu ' + dKcal + ' kcal.';
+          else if(dKcal < 0) msg = 'Proteína já estava em ' + pmDepois + 'g pela sua atividade. Meta calórica caiu ' + Math.abs(dKcal) + ' kcal.';
+          else               msg = 'Proteína já estava em ' + pmDepois + 'g pela sua atividade — calorias também não mudaram.';
+          setTimeout(function(){ toast(msg, 4500); }, 3000);
+        }
+      }
+    }
+  }catch(e){}
 }
 
 // v3.8.7: renderiza o card de objetivo no topo do Painel.
