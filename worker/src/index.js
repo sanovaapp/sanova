@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.2.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.3.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -66,6 +66,15 @@ export default {
       // Acessar via GET /api/debug-admin no browser. Sem dados sensiveis.
       if (url.pathname === '/api/debug-admin' && request.method === 'GET') {
         return await handleDebugAdmin(env);
+      }
+
+      // v1.3.0: helpers admin pra testar o pipeline sem precisar pagamento real.
+      // Bruno (founder) e o unico autorizado — hardcoded.
+      if (url.pathname === '/api/admin-simulate-active' && request.method === 'GET') {
+        return await handleAdminSimulate(env, 'active');
+      }
+      if (url.pathname === '/api/admin-revert-trial' && request.method === 'GET') {
+        return await handleAdminSimulate(env, 'trial');
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -434,6 +443,65 @@ async function handleDebugAdmin(env) {
         null,
         2
       ),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-simulate-active e /api/admin-revert-trial (v1.3.0) ───
+// Helpers pra Bruno (founder) testar pipeline sem checkout MP real.
+// Atualiza a subscription do brunoambrozim@hotmail.com via service_role.
+// Hardcoded — so funciona pra esse e-mail.
+async function handleAdminSimulate(env, novoStatus) {
+  const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
+  try {
+    const userId = await findUserByEmail(BRUNO_EMAIL, env);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'bruno_nao_encontrado' }, null, 2),
+        { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    // Monta patch conforme status alvo
+    const now = new Date().toISOString();
+    let patch;
+    if (novoStatus === 'active') {
+      patch = {
+        status: 'active',
+        subscription_started_at: now,
+        mp_preapproval_id: 'admin-simulated-' + Date.now(),
+      };
+    } else {
+      // Volta pra trial limpo: 14 dias a partir de agora
+      const trialEnd = new Date(Date.now() + 14 * 86400000).toISOString();
+      patch = {
+        status: 'trial',
+        trial_started_at: now,
+        trial_ends_at: trialEnd,
+        subscription_started_at: null,
+        subscription_ends_at: null,
+        mp_preapproval_id: null,
+      };
+    }
+
+    const updated = await updateSubscriptionByUser(userId, patch, env);
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        email: BRUNO_EMAIL,
+        user_id_curto: userId.slice(0, 8) + '...',
+        status_novo: novoStatus,
+        linha: Array.isArray(updated) ? updated[0] : updated,
+        proximo_passo: novoStatus === 'active'
+          ? '✅ Subscription marcada como active. Abre o app no celular e confirma que mostra "Assinatura ativa".'
+          : '✅ Subscription voltou pra trial (14 dias novos).',
+      }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err) {
