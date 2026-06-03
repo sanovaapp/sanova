@@ -1,9 +1,30 @@
 🌿 SANOVA — HANDOFF (documento-mestre do projeto)
 Para o Claude Code (executor) e qualquer Claude futuro. Bruno é o dono do produto. Leia tudo antes de tocar no código.
 ⚡ COMECE POR AQUI
-Estado atual: v3.2.1 (no GitHub: sanovaapp.github.io/sanova).
+Estado atual: v3.9.7 (no GitHub: sanovaapp.github.io/sanova).
 Bruno é mobile-only (Android). Trabalha pelo celular. Adapte tudo pra isso.
 Bruno é médico, founder solo, NÃO é programador. Você é o executor técnico integral.
+
+🚨 REGRA INVIOLÁVEL DE AUTOMAÇÃO (cravada 03/06/2026 — "a alma do app"):
+NUNCA peça pro Bruno tocar em uma URL, copiar/colar JSON, rodar SQL, executar curl,
+ou qualquer ação de "programação" SE você (Claude Code) tem as ferramentas pra fazer
+sozinho. As ferramentas que você TEM:
+  - GitHub MCP (criar PRs, workflows, secrets via UI, comentários, branches)
+  - GitHub Actions (curl/script remoto via workflow_dispatch — gateway pra qualquer API)
+  - Worker Cloudflare (já tem MP_ACCESS_TOKEN_SANDBOX, MP_WEBHOOK_SECRET,
+    GEMINI_API_KEY, SUPABASE_SERVICE_ROLE_KEY no env)
+  - Supabase via service_role no Worker (todas as tabelas, RPC, auth admin)
+  - Supabase migrations auto-aplicadas via supabase/migrations/*.sql
+
+BRUNO SÓ TOCA EM:
+  - Decisões de produto (qual valor cobrar, qual texto, qual feature)
+  - Coisas que exigem IDENTIDADE PESSOAL (cartão dele, conta MP no nome dele,
+    Google Cloud billing, criar contas em serviços novos, senhas)
+  - Confirmar print/validar visualmente no celular
+
+Se sandbox bloqueia uma chamada externa, use GitHub Action workflow_dispatch
+como gateway — o servidor do GitHub tem internet livre.
+
 Há dois Claudes no projeto: o Claude "arquiteto" (no app de chat, planeja e revisa) e você, Claude Code (executor que mexe no repositório). O arquiteto escreve as instruções; você executa e mostra o plano antes de aplicar.
 Dinâmica de trabalho (cravada por Bruno):
 Bruno (ou o Claude arquiteto) dá uma decisão de produto clara
