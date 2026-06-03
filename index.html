@@ -5952,7 +5952,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.4';
+var SANOVA_VERSION = '3.9.5';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7345,15 +7345,24 @@ function fecharCardDia3(){
 
 var AF={Sedentário:1.20,Leve:1.35,Moderada:1.50,Alta:1.70};
 var WBX={Sedentário:0,Leve:200,Moderada:400,Alta:700};
-/* v3.8.4: Objetivos do paciente — define multiplicadores de proteína e calorias.
-   Decisão clínica do Bruno: paciente que está perdendo peso usa padrão (1.6g/kg, meta=GET).
-   Paciente sarcopênico em reconstrução muscular (Lucas Judice — Tirzepa 1 ano + musculação 4x/sem)
-   precisa de 2.0g/kg + superávit leve. Paciente em manutenção pós-meta usa intermediário. */
+/* v3.8.4 / v3.9.5: Objetivos do paciente — define multiplicadores de proteína e calorias.
+   Recalibragem clínica 02-03/06/2026 (Bruno cravou):
+   - Emagrecer: calMult 1.00 -> 0.80 (déficit 20% — antes não criava déficit nenhum!
+     literatura: Helms 2014, ISSN 2017, déficits 15-25% maximizam perda de gordura
+     preservando massa magra). protMin 1.6 -> 1.8 g/kg LBM (em GLP-1 deficit + treino
+     resistido exige proteína alta pra preservar MM — paradoxo).
+   - Reconstruir: calMult 1.05 -> 1.15 (superávit 15% — antes superávit fraco demais.
+     literatura: Slater 2019, ISSN — surplus 10-15% maximiza hipertrofia com mínimo
+     ganho de gordura). protMin 2.0 mantém.
+   - Manter: calMult 1.00 mantém. protMin 1.8 mantém.
+
+   Piso de seguranca calorico aplicado em calcMetrics(): mulher >= 1200 kcal/dia,
+   homem >= 1500 kcal/dia (ANVISA/SBEM ref pra dieta supervisionada). */
 var OBJETIVOS = {
-  emagrecer:   { protMin: 1.6, calMult: 1.00, icon: '🔥', label: 'Emagrecer',
-                 desc: 'Perder gordura mantendo músculo', detail: '1,6 g/kg proteína · meta = GET' },
-  reconstruir: { protMin: 2.0, calMult: 1.05, icon: '💪', label: 'Reconstruir músculo',
-                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g/kg proteína · meta = GET + 5%' },
+  emagrecer:   { protMin: 1.8, calMult: 0.80, icon: '🔥', label: 'Emagrecer',
+                 desc: 'Perder gordura mantendo músculo', detail: '1,8 g/kg proteína · meta = GET − 20%' },
+  reconstruir: { protMin: 2.0, calMult: 1.15, icon: '💪', label: 'Reconstruir músculo',
+                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g/kg proteína · meta = GET + 15%' },
   manter:      { protMin: 1.8, calMult: 1.00, icon: '⚖️', label: 'Manter peso',
                  desc: 'Manutenção pós-meta', detail: '1,8 g/kg proteína · meta = GET' }
 };
@@ -9423,7 +9432,7 @@ function calcMetrics(){
     pi1:Math.round(pm*1.1),
     pi2:Math.round(pm*1.25),
     protCalc:protCalc,
-    pisoAplicado: getDinamico < pisoMin,  // flag se piso fisiológico foi acionado
+    pisoAplicado: (getDinamico * calMult) < pisoMin,  // v3.9.5: flag se piso fisiologico foi acionado APOS aplicar calMult do objetivo (ex: emagrecer 0.80 aciona piso mais cedo)
     agua:w*35+(WBX[S.profile.activityLevel]||200)
   };
 }
@@ -12859,44 +12868,61 @@ function _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant){
   }
 
   if(objKey === 'manter'){
-    var baixo    = Math.round(GET * 0.90);
-    var manMax   = Math.round(GET * 1.05);
-    var acima    = Math.round(GET * 1.15);
-    var escalaMx = Math.round(GET * 1.30);
+    // v3.9.5: faixas recalibradas. Antes "Baixo" ia de 0 a GET*0.90 e ocupava 69%
+    // da barra (visualmente esmagador). Agora distribuicao mais honesta:
+    //   0          -> GET*0.75 : muito baixo (deficit grande)
+    //   GET*0.75   -> GET*0.90 : abaixo (deficit leve, amber buffer)
+    //   GET*0.90   -> GET*1.10 : ✅ manutencao (zona ideal ampliada)
+    //   GET*1.10   -> GET*1.20 : acima (comeca a ganhar)
+    // escala max baixou de GET*1.30 pra GET*1.20 (menos espaco morto)
+    var muitoBxM = Math.round(GET * 0.75);
+    var manMin   = Math.round(GET * 0.90);
+    var manMax   = Math.round(GET * 1.10);
+    var escalaMx = Math.round(GET * 1.20);
     var stm;
-    if(kcalHoje === 0)            stm = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição do dia.' };
-    else if(kcalHoje < baixo)     stm = { txt:'⚠️ Abaixo',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Abaixo do necessário pra manter. Pode começar a emagrecer.' };
-    else if(kcalHoje <= manMax)   stm = { txt:'✅ Manutenção',   bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Zona ideal pra manter o peso atual.' };
-    else if(kcalHoje <= acima)    stm = { txt:'⚠️ Acima',        bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima da manutenção — pode ganhar peso.' };
-    else                          stm = { txt:'🔴 Ganho',        bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Muito acima — risco de ganhar peso.' };
+    if(kcalHoje === 0)            stm = { txt:'Bom dia! 🌿',     bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição. Pra manter, mire entre '+fmt(manMin)+' e '+fmt(manMax)+' kcal.' };
+    else if(kcalHoje < muitoBxM)  stm = { txt:'🔴 Muito baixo',   bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Bem abaixo do necessário pra manter peso. Risco de perder massa magra.' };
+    else if(kcalHoje < manMin)    stm = { txt:'⚠️ Abaixo',        bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Abaixo da manutenção — pode emagrecer aos poucos. Ok se for objetivo, não-ok se quer manter.' };
+    else if(kcalHoje <= manMax)   stm = { txt:'✅ Manutenção',    bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Zona ideal pra manter o peso atual.' };
+    else                          stm = { txt:'🔴 Acima',          bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(manMax)+' kcal — pode começar a ganhar peso.' };
     return {
       escalaMax: escalaMx,
-      pontos:  [0, baixo, manMax, acima, escalaMx],
-      labels:  ['Baixo', '✅ Manutenção', 'Acima', 'Ganho'],
-      lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
-      faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
-      escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(74,222,128,.85)','rgba(232,200,120,.7)','rgba(255,255,255,.35)'],
-      status: stm
+      pontos:  [0, muitoBxM, manMin, manMax, escalaMx],
+      labels:  ['Muito baixo', 'Abaixo', '✅ Manutenção', 'Acima'],
+      lblCor:  ['rgba(220,150,130,.85)','rgba(232,200,120,.85)','rgba(74,222,128,.95)','rgba(220,150,130,.85)'],
+      faixaCor:['rgba(243,168,138,.30)','rgba(232,200,120,.35)','rgba(74,222,128,.35)','rgba(243,168,138,.30)'],
+      escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(232,200,120,.85)','rgba(74,222,128,.85)','rgba(255,255,255,.35)'],
+      status: stm,
+      metaTxt: fmt(manMin)+'–'+fmt(manMax)+' kcal · manutenção'
     };
   }
 
-  // Default: emagrecer (mantém lógica atual)
-  var baixoE   = 800;
-  var escalaMxE= Math.max(Math.round(kcalMant * 1.20), kcalMant + 400);
+  // v3.9.5: emagrecer — recalibrado pra refletir calMult 0.80 (era 1.00 erroneo).
+  // M.meta agora = GET*0.80 (deficit 20%). Faixas:
+  //   0          -> GET*0.65 : 🔴 muito baixo (deficit excessivo)
+  //   GET*0.65   -> GET*0.95 : ✅ emagrecimento (zona ideal ampla, ~23% da barra)
+  //   GET*0.95   -> GET*1.10 : ⚠️ manutencao (nao emagrece hoje)
+  //   GET*1.10   -> GET*1.30 : 🔴 ganho
+  var muitoBxE = Math.round(GET * 0.65);
+  var emagMax  = Math.round(GET * 0.95);
+  var manAcima = Math.round(GET * 1.10);
+  var escalaMxE= Math.round(GET * 1.30);
+  // Meta visivel (centro da zona ideal): kcalMeta vem de M.meta = GET*0.80
   var ste;
-  if(kcalHoje === 0)            ste = { txt:'Bom dia! 🌿',         bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição do dia.' };
-  else if(kcalHoje < baixoE)    ste = { txt:'⚠️ Déficit excessivo', bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Risco de perda muscular — aumente a ingestão.' };
-  else if(kcalHoje <= kcalMeta) ste = { txt:'✅ Zona ideal',         bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Você está na faixa de emagrecimento saudável.' };
-  else if(kcalHoje <= kcalMant) ste = { txt:'⚠️ Manutenção',         bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima da meta — pode não emagrecer hoje.' };
-  else                          ste = { txt:'🔴 Ganho de peso',      bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(kcalMant)+' kcal — risco de ganho.' };
+  if(kcalHoje === 0)            ste = { txt:'Bom dia! 🌿',         bg:'rgba(74,222,128,.1)',   cor:'rgba(74,222,128,.7)', msg:'Registre sua primeira refeição. Sua meta hoje: '+fmt(kcalMeta)+' kcal.' };
+  else if(kcalHoje < muitoBxE)  ste = { txt:'🔴 Muito baixo',       bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Déficit excessivo. Risco de perder massa magra — aumente a ingestão.' };
+  else if(kcalHoje <= emagMax)  ste = { txt:'✅ Zona ideal',         bg:'rgba(74,222,128,.15)',  cor:'#4ade80',             msg:'Você está na faixa de emagrecimento saudável.' };
+  else if(kcalHoje <= manAcima) ste = { txt:'⚠️ Manutenção',         bg:'rgba(232,200,120,.15)', cor:'#e8c878',             msg:'Acima da meta — pode não emagrecer hoje.' };
+  else                          ste = { txt:'🔴 Ganho',              bg:'rgba(232,168,138,.18)', cor:'#f3a88a',             msg:'Acima de '+fmt(manAcima)+' kcal — risco de ganhar peso.' };
   return {
     escalaMax: escalaMxE,
-    pontos:  [0, baixoE, kcalMeta, kcalMant, escalaMxE],
-    labels:  ['Baixo', '✅ Emagrecimento', 'Mant.', 'Ganho'],
+    pontos:  [0, muitoBxE, emagMax, manAcima, escalaMxE],
+    labels:  ['Muito baixo', '✅ Emagrecimento', 'Manutenção', 'Ganho'],
     lblCor:  ['rgba(220,150,130,.85)','rgba(74,222,128,.95)','rgba(232,200,120,.85)','rgba(220,150,130,.85)'],
     faixaCor:['rgba(243,168,138,.30)','rgba(74,222,128,.35)','rgba(232,200,120,.35)','rgba(243,168,138,.30)'],
-    escalaCor:['rgba(255,255,255,.35)','rgba(239,68,68,.6)','rgba(74,222,128,.7)','rgba(232,200,120,.6)','rgba(255,255,255,.35)'],
-    status: ste
+    escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(74,222,128,.85)','rgba(232,200,120,.7)','rgba(255,255,255,.35)'],
+    status: ste,
+    metaTxt: fmt(Math.round(GET * 0.65))+'–'+fmt(emagMax)+' kcal · emagrecimento'
   };
 }
 
