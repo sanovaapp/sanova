@@ -90,17 +90,24 @@ jobs:
 
           console.log('1. Abrindo magic link...');
           await page.goto(MAGIC, { waitUntil: 'load', timeout: 45000 });
-          await page.waitForTimeout(4000);
-          console.log('Pos magic link, URL:', page.url());
+          await page.waitForTimeout(3500);
+          const initialUrl = page.url();
+          console.log('Pos magic link, URL:', initialUrl);
           await snap('post-magic-link');
 
-          // Supabase magic link aterrisa em sanovaapp.github.io (raiz) sem o path
-          // /sanova/. A sessao Supabase persiste em localStorage da mesma origem,
-          // entao podemos navegar pra /sanova/ manualmente preservando login.
-          if (!page.url().includes('/sanova/')) {
-            console.log('2. Forcando navegacao pra /sanova/...');
-            await page.goto('https://sanovaapp.github.io/sanova/', { waitUntil: 'load', timeout: 45000 });
-            await page.waitForTimeout(6000);
+          // Supabase magic link aterrissa em sanovaapp.github.io/ (raiz GitHub
+          // Pages do user, sem /sanova/), com fragment #access_token=... que e
+          // o que ativa a sessao. Quando forcamos ir pra /sanova/ a URL muda
+          // e o fragment se perde — Supabase JS no app nao consegue capturar
+          // a sessao. Solucao: preservar o fragment ao navegar.
+          if (!initialUrl.includes('/sanova/')) {
+            // Pega o fragment com tokens
+            const hash = await page.evaluate(() => location.hash);
+            console.log('Fragment capturado:', hash ? hash.slice(0, 60) + '...' : '(vazio)');
+            const target = 'https://sanovaapp.github.io/sanova/' + (hash || '');
+            console.log('2. Navegando pra /sanova/ com fragment...');
+            await page.goto(target, { waitUntil: 'load', timeout: 45000 });
+            await page.waitForTimeout(8000);  // Supabase processa session do hash
           }
           await snap('home-painel');
 
