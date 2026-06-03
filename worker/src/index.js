@@ -16,7 +16,7 @@
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
-import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature } from './mp.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail } from './supabase.js';
 
 export default {
@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.1.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.1.1' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -53,6 +53,13 @@ export default {
       // Usado pra debugar billing/quota/modelo. NAO vaza a API key.
       if (url.pathname === '/api/debug-gemini' && request.method === 'GET') {
         return await handleDebugGemini(env);
+      }
+
+      // v1.1.1: helper pra criar Test User no MP sandbox (Bruno usa pra logar
+      // no checkout em vez da conta real dele). Sem CORS check.
+      // Acesso: GET /api/mp-create-test-user (1 chamada gera 1 conta)
+      if (url.pathname === '/api/mp-create-test-user' && request.method === 'GET') {
+        return await handleMpCreateTestUser(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -344,4 +351,37 @@ async function _resolveUserId(pa, env) {
     return await findUserByEmail(pa.payer_email, env);
   }
   return null;
+}
+
+// ─── /api/mp-create-test-user (v1.1.1) ───────────────────────
+// Cria um Test User do MP sandbox e retorna credenciais cruas
+// pra Bruno copiar. Sem CORS, sem auth — endpoint temporario,
+// remover quando sandbox testing terminar.
+async function handleMpCreateTestUser(env) {
+  try {
+    const user = await createTestUser(env);
+    // Retorna formato amigavel pra Bruno copiar do browser
+    return new Response(
+      JSON.stringify(
+        {
+          ok: true,
+          email: user.email,
+          password: user.password,
+          nickname: user.nickname,
+          id: user.id,
+          site_status: user.site_status,
+          como_usar:
+            'Em uma aba anonima, va no checkout do app Sanova e faca login no MP com esse email/password. Depois preencha cartao de teste 5031 4332 1540 6351 nome APRO.',
+        },
+        null,
+        2
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
 }
