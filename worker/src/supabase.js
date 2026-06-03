@@ -90,3 +90,36 @@ export async function findUserByEmail(email, env) {
   const hit = users.find(u => (u.email || '').toLowerCase() === (email || '').toLowerCase());
   return hit ? hit.id : null;
 }
+
+/**
+ * Conta linhas de uma tabela / view via REST. Usado como "ping" pra verificar
+ * se a entidade existe no banco. Retorna { exists, count } ou { exists: false }
+ * se erro de tabela inexistente.
+ */
+export async function countRows(tableName, env) {
+  const url = SUPABASE_URL + '/rest/v1/' + tableName + '?select=*&limit=0';
+  const resp = await fetch(url, {
+    headers: { ..._headers(env), 'Prefer': 'count=exact' },
+  });
+  if (resp.status === 404 || resp.status === 400) {
+    return { exists: false, count: 0 };
+  }
+  if (!resp.ok) return { exists: false, count: 0, error: 'HTTP ' + resp.status };
+  // Supabase retorna Content-Range no header pra count exato
+  const range = resp.headers.get('content-range') || '';
+  const m = range.match(/\/(\d+)$/);
+  return { exists: true, count: m ? Number(m[1]) : 0 };
+}
+
+/**
+ * Checa se um e-mail e admin (via service_role, ignora RLS).
+ */
+export async function isEmailAdmin(email, env) {
+  const userId = await findUserByEmail(email, env);
+  if (!userId) return { found: false, isAdmin: false };
+  const url = SUPABASE_URL + '/rest/v1/admins?user_id=eq.' + encodeURIComponent(userId) + '&select=user_id';
+  const resp = await fetch(url, { headers: _headers(env) });
+  if (!resp.ok) return { found: true, isAdmin: false, error: 'HTTP ' + resp.status };
+  const data = await resp.json().catch(() => []);
+  return { found: true, isAdmin: data.length > 0, userId };
+}
