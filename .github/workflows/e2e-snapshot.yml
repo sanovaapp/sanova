@@ -90,19 +90,18 @@ jobs:
 
           console.log('1. Abrindo magic link...');
           await page.goto(MAGIC, { waitUntil: 'load', timeout: 45000 });
-          await page.waitForTimeout(5000);
+          await page.waitForTimeout(4000);
+          console.log('Pos magic link, URL:', page.url());
           await snap('post-magic-link');
 
-          // Forca navegar pra raiz se Supabase redirecionou diferente
-          if (!page.url().includes('sanovaapp.github.io')) {
-            console.log('2. Forcando ir pra raiz...');
+          // Supabase magic link aterrisa em sanovaapp.github.io (raiz) sem o path
+          // /sanova/. A sessao Supabase persiste em localStorage da mesma origem,
+          // entao podemos navegar pra /sanova/ manualmente preservando login.
+          if (!page.url().includes('/sanova/')) {
+            console.log('2. Forcando navegacao pra /sanova/...');
             await page.goto('https://sanovaapp.github.io/sanova/', { waitUntil: 'load', timeout: 45000 });
-            await page.waitForTimeout(5000);
-            await snap('forced-home');
+            await page.waitForTimeout(6000);
           }
-
-          // Espera o app inicializar
-          await page.waitForTimeout(3000);
           await snap('home-painel');
 
           // Navegar pelas abas principais
