@@ -5450,6 +5450,21 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div class="cs">Acompanhamento opcional para usuárias que menstruam.</div>
     <div id="perfilCicloBody"></div>
   </div>
+
+  <!-- v3.9.6: Minha conta — sempre mostra qual e-mail está logado + Sair -->
+  <div class="card" id="cardMinhaConta">
+    <div class="ct">🔐 Minha conta</div>
+    <div class="cs">Estes dados ficam na nuvem (Supabase) e sincronizam entre seus dispositivos.</div>
+    <div id="contaInfo" style="margin-top:14px;font-size:13.5px;color:var(--ink2,#444);line-height:1.7">
+      <div>Carregando dados da sessão…</div>
+    </div>
+    <div class="row" style="margin-top:14px;gap:10px">
+      <button class="btn bg2" id="btnSair" onclick="sanovaSair()" style="flex:1">🚪 Sair desta conta</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--ink3,#777);margin-top:9px;line-height:1.5">
+      Ao sair, seus dados locais ficam no celular. Pra acessar de outro aparelho, você precisará logar de novo.
+    </div>
+  </div>
 </div>
 
 <!-- ═══ HISTÓRICO ═══ -->
@@ -5952,7 +5967,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.5';
+var SANOVA_VERSION = '3.9.6';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -15494,6 +15509,52 @@ function mostrarManual(tipo){
   el('manBtn2').className='btn '+(tipo==='ampola'?'bp':'bg2');
 }
 
+/* v3.9.6: Minha conta — mostra e-mail logado, status assinatura, e botão Sair.
+   Resolve UX: paciente abre app, ja loga automatico, e nao sabe qual conta
+   esta ativa nem como sair. */
+function renderMinhaConta(){
+  var box = document.getElementById('contaInfo');
+  if(!box) return;
+  var user = (typeof window.SanovaUser === 'function') ? window.SanovaUser() : null;
+  if(!user || !user.email){
+    box.innerHTML = '<div style="color:var(--ink3,#777)">Sem sessao ativa. Saia e entre de novo se quiser sincronizar com a nuvem.</div>';
+    return;
+  }
+  var idShort = (user.id || '').slice(0, 8) + '…' + (user.id || '').slice(-4);
+  var assin = (window.SanovaAssinatura && window.SanovaAssinatura.get) ? window.SanovaAssinatura.get() : null;
+  var statusTxt = '—';
+  if(assin && assin.carregado){
+    if(assin.status === 'trial')     statusTxt = '🌿 Trial · restam ' + (assin.diasRestantes || 0) + ' dia' + (assin.diasRestantes === 1 ? '' : 's');
+    else if(assin.status === 'active')   statusTxt = '✅ Assinatura ativa';
+    else if(assin.status === 'expired')  statusTxt = '⚠️ Trial expirado';
+    else if(assin.status === 'canceled') statusTxt = '🚫 Cancelada';
+    else                                  statusTxt = assin.status;
+  }
+  box.innerHTML =
+    '<div><strong style="color:var(--ink,#000)">📧 E-mail:</strong> ' + _escapeHtml(user.email) + '</div>' +
+    '<div style="margin-top:7px"><strong style="color:var(--ink,#000)">🆔 ID:</strong> <span style="font-family:monospace;font-size:12px;color:var(--ink3,#777)">' + idShort + '</span></div>' +
+    '<div style="margin-top:7px"><strong style="color:var(--ink,#000)">💳 Plano:</strong> ' + statusTxt + '</div>';
+}
+
+function _escapeHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function sanovaSair(){
+  if(!confirm('Sair desta conta?\n\nSeus dados locais ficam no celular. Pra reacessar de outro aparelho, voce vai precisar do mesmo e-mail e senha.')) return;
+  try{
+    if(typeof window.sanovaLogout === 'function'){
+      await window.sanovaLogout();
+    } else {
+      // Fallback: limpa session do Supabase manualmente
+      try{ localStorage.removeItem('sb-' + 'yjycpcydqfuvojfzwfvy' + '-auth-token'); }catch(e){}
+      location.reload();
+    }
+  }catch(e){
+    alert('Erro ao sair: ' + (e && e.message || e));
+  }
+}
+
 /* ══ AÇÕES ══ */
 function salvarPerfil(){
   var age=nv(el('idade').value),h=nv(el('altura').value),w=nv(el('peso').value);
@@ -19151,7 +19212,7 @@ function go(id){
     var disp=el('aguaCoposDisplay');
     if(disp&&av>0){var copos=Math.round(av/250);disp.textContent=copos+' copo'+(copos!==1?'s':'')+' ('+(av/1000).toFixed(1)+'L)';}
   }
-  if(id==='perfil'){popularPerfil();if(typeof renderPerfilCiclo==='function') renderPerfilCiclo();}
+  if(id==='perfil'){popularPerfil();if(typeof renderPerfilCiclo==='function') renderPerfilCiclo();if(typeof renderMinhaConta==='function') renderMinhaConta();}
   if(id==='saude'){if(typeof renderSaudeCicloAtalho==='function') renderSaudeCicloAtalho();}
   if(id==='educacao' && typeof renderBiblioteca==='function'){ renderBiblioteca(); }
   if(id==='caneta'){
