@@ -73,6 +73,34 @@ export async function getPreapproval(preapprovalId, env) {
 }
 
 /**
+ * Cria um Test User (pagador fictício) no MP.
+ * Usado pra teste sandbox — o pagador real do Bruno tava bloqueando
+ * cartoes de teste.
+ *
+ * Docs: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/accounts
+ */
+export async function createTestUser(env, siteId = 'MLB') {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+
+  const resp = await fetch(MP_API + '/users/test', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ site_id: siteId }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg = (data && data.message) ? data.message : ('HTTP ' + resp.status);
+    throw new Error('MP createTestUser: ' + msg);
+  }
+  return data; // { id, nickname, password, site_status, email }
+}
+
+/**
  * Busca um pagamento avulso no MP (usado quando webhook traz type=payment).
  */
 export async function getPayment(paymentId, env) {
