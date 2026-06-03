@@ -34,9 +34,16 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          # Define o secret GEMINI_API_KEY no Worker em cada deploy.
-          # Idempotente — se ja existe, sobrescreve.
+          # Em cada deploy: re-injeta esses secrets dentro do Worker
+          # (sobrescreve idempotentemente). Eles SO existem em runtime no
+          # Cloudflare; o repo nunca os ve em texto plano.
           secrets: |
             GEMINI_API_KEY
+            MP_ACCESS_TOKEN_SANDBOX
+            MP_WEBHOOK_SECRET
+            SUPABASE_SERVICE_ROLE_KEY
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MP_ACCESS_TOKEN_SANDBOX: ${{ secrets.MP_ACCESS_TOKEN_SANDBOX }}
+          MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
