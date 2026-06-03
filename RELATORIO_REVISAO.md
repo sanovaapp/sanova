@@ -1,395 +1,277 @@
-# 🌿 Sanova — Briefing para IA Revisora
+# 🌿 Sanova — Briefing para Sócia (Claude arquiteto)
 
 **Data:** 02 de junho de 2026
-**Versão:** v3.9.2 (app) · v1.0.2 (Worker)
+**Versão atual:** v3.9.4 (app) · v1.1.0 (Worker)
 **Produção:** https://sanovaapp.github.io/sanova
 **Repositório:** https://github.com/sanovaapp/sanova
-**Stack:** PWA single-file + Supabase + Cloudflare Worker + Gemini 2.5 Flash
+**Stack:** PWA single-file + Supabase + Cloudflare Worker + Gemini 2.5 Flash + Mercado Pago sandbox + PostHog
 
 ---
 
-## 0. Como usar este documento
+## 0. O que mudou desde o último briefing (v3.9.2 → v3.9.4)
 
-Você é uma IA revisora chamada para análise técnica e/ou clínica do Sanova. Este documento é seu briefing completo — leia inteiro antes de opinar. As perguntas específicas para você estão na **seção 12**.
+Sócia, você cravou em 02/06 às 21h: **"cobrar primeiro, construir depois com pagante pedindo"** + **"motor de medição obrigatório antes do MP em produção"**. Aceito sem discussão. Plano de 3 dias proposto, Bruno aprovou regras de máxima automação, começou pelo bloco de chaves.
 
-**Você pode (e deve) ser direta.** Bruno valoriza honestidade clínica acima de engajamento. Se algo está clinicamente questionável, fora do escopo, ou tecnicamente arriscado, aponte sem rodeios. Discorde com argumento. Não adule.
+### Chaves obtidas (Bruno fez tudo, eu nunca vi as 🔴):
+- ✅ PostHog Project Key (`phc_...`) — pública, no código
+- ✅ MP Public Key sandbox (`TEST-...`) — pública, no código
+- ✅ MP Access Token sandbox — GitHub Secret `MP_ACCESS_TOKEN_SANDBOX`
+- ✅ Supabase Service Role Key — GitHub Secret `SUPABASE_SERVICE_ROLE_KEY`
+- ✅ MP Webhook Secret (sandbox) — GitHub Secret `MP_WEBHOOK_SECRET`
 
----
+### Dia 1 entregue (v3.9.3, commit `271292e`, PR #30):
+- PostHog EU host, `maskAllInputs: true`, `respect_dnt: true`, `person_profiles: identified_only`, `autocapture: false`
+- CSP atualizado (`eu.i.posthog.com`, `eu-assets.i.posthog.com`, `worker-src 'self' blob:`)
+- UTM first-touch captura + persiste em `S.profile.utmFirstTouch` (não sobrescreve)
+- `utmLastTouch` a cada visita (reativação)
+- Helper `Sanova.track(event, props)` — wrapper seguro, anexa UTM como super-props, respeita opt-out
+- **7 eventos plantados:** `app_loaded`, `user_signup`, `user_login`, `paywall_viewed`, `checkout_started`, `trial_started`, `payment_succeeded` (+ bônus: `subscription_canceled`, `trial_expired`, `checkout_blocked`, `checkout_error`)
+- `posthog.identify(user.id)` no signup/login
+- Toggle opt-out em **Mais → Privacidade → Compartilhamento de uso** (modal explicativo + switch on/off)
+- Adendo nos Termos v1.1 → v1.2: cláusula 9.1 "Analytics e melhoria contínua"
 
-## 1. Identidade do Produto
+### Dia 2 entregue (v3.9.4 + Worker v1.1.0, commits `b870aed` + `808efe8`, PRs #31 + #32):
+- **Worker:**
+  - `worker/src/mp.js` — `createPreapproval`, `getPreapproval`, `getPayment`, `verifyWebhookSignature` (HMAC-SHA256 com `MP_WEBHOOK_SECRET`, template `id:<X>;request-id:<Y>;ts:<Z>;`)
+  - `worker/src/supabase.js` — admin via service_role: `upsertSubscription`, `updateSubscriptionByUser`, `updateSubscriptionByPreapproval`, `findUserByEmail`
+  - `POST /api/mp-create-preapproval` — `{userId, email, backUrl}` → cria assinatura R$ 19,90/mês no MP, grava `mp_preapproval_id` em `subscriptions`, devolve `init_point`
+  - `POST /api/mp-webhook` — valida HMAC antes de qualquer lógica; trata 4 tipos (`preapproval`, `subscription_preapproval`, `payment`, `subscription_authorized_payment`); resolve `user_id` por `external_reference` (`sanova_<uuid>`) ou `payer_email`; atualiza status
+- **App:**
+  - `iniciarAssinatura()` deixa de ser stub: pega user Supabase, chama Worker, redireciona pra `init_point`
+  - `back_url`: `${origin}/sanova/?mp_return=1`
+  - Bloqueio cordial se paciente não tem login (`checkout_blocked` event)
+- **Fix tardio (commit `808efe8`):** workflow só passava `GEMINI_API_KEY` pro Worker; adicionado `MP_ACCESS_TOKEN_SANDBOX`, `MP_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`. Bug meu, corrigido na hora que tentei o deploy real e os endpoints novos teriam falhado com "ausente no Worker".
 
-**Sanova** é um PWA (Progressive Web App) educativo para pacientes brasileiros em tratamento com agonistas de GLP-1 (Tirzepatida/Mounjaro, Semaglutida/Ozempic/Wegovy, Liraglutida/Saxenda).
+### Bruno configurou no painel MP:
+- ✅ Webhook "Modo de produção" — URL apontada, eventos selecionados, secret gerada (ficará pra fase de produção)
+- ✅ Webhook "Modo de teste" — URL apontada, eventos selecionados, **secret colada em `MP_WEBHOOK_SECRET`** no GitHub
+- ✅ Aplicação MP "Sanova" criada com modelo de Assinaturas recorrentes
 
-**Tese central:** o tratamento com GLP-1 abre uma "janela terapêutica" rara — saciedade reduzida, food noise diminuído, álcool cai naturalmente. O Sanova ajuda o paciente a **construir hábitos duradouros nessa janela**, com foco clínico em **"não murchar"** (preservar massa magra enquanto perde gordura).
-
-**Posicionamento de marca (Aline, médica validadora):**
-> "Acompanhamento terapêutico contínuo entre uma consulta e outra"
-
-**Posicionamento regulatório:**
-- ❌ NÃO é dispositivo médico ANVISA
-- ❌ NÃO prescreve nem ajusta doses
-- ✅ É **app educativo** de auto-acompanhamento
-- ✅ Para tratamento **já prescrito** por profissional habilitado
-
-**Fundador:** Bruno Ambrozim — médico, founder solo, **mobile-only** (trabalha exclusivamente pelo celular Android). Não é programador. Eu (Claude Code) sou o executor técnico integral.
-
----
-
-## 2. Restrições Inegociáveis (Bruno cravou)
-
-Estas regras vêm de decisões clínicas, jurídicas ou pragmáticas. Não sugira mudar nenhuma sem justificativa muito forte:
-
-| Regra | Razão |
-|---|---|
-| **PWA single-file** (`index.html` com todo HTML/CSS/JS inline) | Founder solo, mobile-only, deploy via `git push`. Modularizar = perder velocidade de iteração. |
-| **GitHub Pages como hosting do app** | Gratuito, atualização automática via merge na `main`. Não vamos mover. |
-| **NÃO modularizar em framework** (React/Vue/Svelte) | Bruno cravou. Edições cirúrgicas no `index.html`. |
-| **NÃO renomear `S.caneta`** | Schema legacy. Quebra dados salvos de pacientes ativos. |
-| **NÃO restaurar foto do frasco manipulado** | Decisão clínica: letras pequenas = risco erro de dose. |
-| **Manter Liraglutida no código** | Saxenda existe; remover excluiria pacientes que usam. |
-| **`skipWaiting()` no Service Worker** | Garante que paciente sempre pega versão nova. |
-| **Logo emoji 🌿 no header + ícones PNG** | Identidade visual. |
-| **Bloqueio F12** | Valor jurídico no Brasil (dificultar engenharia reversa). |
-| **Login obrigatório + Supabase sync** (v3.2.0+) | LGPD + recuperação multi-device. |
-| **SEMPRE bumpar versão** no `SANOVA_VERSION` (index.html) E `VERSION` (sw.js) | Caso contrário paciente fica no cache antigo. |
-| **SEMPRE validar HTML balanceado + sintaxe JS** antes de finalizar | Já tivemos regressões. |
+### Status no momento deste relatório:
+- Worker em deploy (run #9, sha `808efe8`, in_progress) — aguardando terminar pra liberar teste sandbox
+- Bruno aguardando confirmação pra fazer cadastro fictício + pagar com cartão de teste MP (`5031 4332 1540 6351 / CVV 123 / 11/30 / nome APRO`)
 
 ---
 
-## 3. Arquitetura Técnica
+## 1. Identidade do Produto (sem mudanças)
+
+PWA educativo BR pra pacientes em tratamento com GLP-1 (Tirzepatida/Semaglutida/Liraglutida). Foco clínico: **"não murchar"**. Posicionamento Aline: *"acompanhamento terapêutico contínuo entre uma consulta e outra"*.
+
+Founder solo, mobile-only, médico, não-programador. Eu (Claude Code) sou executor técnico. Você (sócia/arquiteta) é quem crava direção.
+
+---
+
+## 2. Restrições Inegociáveis (sem mudanças, cumpridas)
+
+PWA single-file, GitHub Pages, sem framework, `S.caneta` legacy, `skipWaiting()` no SW, bloqueio F12, login obrigatório, bumpar versão sempre, validar HTML+JS antes de finalizar.
+
+---
+
+## 3. Arquitetura Técnica (atualizada com PostHog + MP)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  PACIENTE (Android, Chrome)                                      │
-│  abre https://sanovaapp.github.io/sanova                        │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-                             ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  GITHUB PAGES — index.html (21.478 linhas, ~1MB)                │
-│  Tudo inline: HTML + CSS + JS. Service Worker (sw.js, 75 linhas)│
-│  Estado local: localStorage chave "equilibra_v5" (objeto S)     │
-└──┬────────────────────────────────────┬──────────────────────────┘
-   │ (sync opcional)                    │ (análise de prato)
-   ▼                                    ▼
-┌──────────────────────────┐  ┌──────────────────────────────────┐
-│  SUPABASE                │  │  Cloudflare Worker               │
-│  - Auth (email/senha)    │  │  sanova-api.contatosanovaapp    │
-│  - Tabela app_state      │  │  .workers.dev                    │
-│    (JSONB do S inteiro)  │  │  191 linhas (worker/src/)       │
-│  - Tabela subscriptions  │  │  Endpoints:                     │
-│  - RLS habilitado        │  │   POST /api/analyze-photo        │
-│                          │  │   POST /api/analyze-text         │
-│                          │  │   GET /api/health                │
-│                          │  │   GET /api/debug-gemini          │
-└──────────────────────────┘  └────────────┬─────────────────────┘
-                                           │ (chave escondida no Worker)
-                                           ▼
-                              ┌──────────────────────────────────┐
-                              │  Google Gemini 2.5 Flash         │
-                              │  Conta: contatosanovaapp@gmail   │
-                              │  Plano: PAGO (LGPD compliant)    │
-                              └──────────────────────────────────┘
+│  → sanovaapp.github.io/sanova                                   │
+└────┬─────────────────────────────────────┬─────────────────────┬─┘
+     │ (UI events + session replay)         │ (sync)              │ (foto)
+     ▼                                      ▼                     ▼
+┌─────────────────────┐  ┌────────────────────┐  ┌───────────────────────────┐
+│  PostHog (EU host)  │  │  Supabase          │  │  Cloudflare Worker        │
+│  - Eventos funil     │  │  - Auth            │  │  sanova-api.contato...    │
+│  - Session replay    │  │  - app_state JSONB │  │  - /analyze-photo         │
+│  - maskAll: ON       │  │  - subscriptions   │  │  - /analyze-text          │
+│  - DNT respeitado    │  │  - RLS habilitado  │  │  - /mp-create-preapproval │
+│  - Opt-out toggle    │  │                    │  │  - /mp-webhook (HMAC)     │
+└─────────────────────┘  └────────────────────┘  │  - /health                │
+                                       ▲          │  - /debug-gemini          │
+                                       │ service  └──┬────────────┬──────────┘
+                                       │ role        │            │
+                                       │ (Worker)    ▼            ▼
+                                       │      ┌───────────┐  ┌──────────┐
+                                       └──────│ MP API    │  │ Gemini   │
+                                              │ Preapprv  │  │ 2.5 Flash│
+                                              │ Payments  │  │ (pago)   │
+                                              └───────────┘  └──────────┘
+                                                    │
+                                                    │ webhook
+                                                    ▼
+                                              (volta no /mp-webhook)
 ```
-
-**Características importantes:**
-- Estado do paciente vive primariamente no `localStorage` do celular. Supabase é backup/sync.
-- Worker isola a `GEMINI_API_KEY` — paciente nunca vê a chave.
-- Worker tem **fallback** no client: se cair, `estimarPratoLocal()` faz estimativa heurística no celular.
-- Deploy do Worker: GitHub Actions automático em qualquer push em `worker/**`.
-- Deploy do app: GitHub Pages automático em merge na `main`.
 
 ---
 
-## 4. Estrutura de Dados (objeto `S`)
+## 4. Estrutura de Dados (atualizada)
 
 ```js
-// localStorage chave "equilibra_v5", schema_version: 31
-S = {
-  profile: {
-    name, age, sex, weightKg, heightCm,
-    weightStartKg,           // peso inicial pra cálculo de evolução
-    atividade,               // 'sedentario'|'leve'|'moderado'|'alto'
-    exercicioResistido,      // bool — pega últimos 14 dias dos checkins
-    objetivo,                // 'emagrecer'|'reconstruir'|'manter' (v3.8.4)
-    comorbidades: []
-  },
-  caneta: {                  // legacy name, NUNCA renomear
-    tipo,                    // 'caneta'|'frasco'
-    farmaco,                 // 'tirzepa'|'sema'|'lira'
-    dose,                    // mg ou UI dependendo do tipo
-    estoque, ...
-  },
-  daily: [{                  // checkins diários
-    date, saciedade, fome, peso, sintomas:[], notas, aplicouHoje,
-    waterMl, proteinG, kcal, carboG, gorduraG, ...
-  }],
-  ciclo: {                   // menstrual (opcional, ativável)
-    ultimaMenstr, duracao, durMenstr, usaAnticonc
-  },
-  progressao: {              // Jornada Sanova
-    camadasDesbloqueadas: [1,2,3,4],
-    modoAvancadoAtivado: false,
-    diasAtivos, checkinsTotais
-  },
-  assinatura: { plano, status, ... },
-  _meta: { schemaVersion, ... }
+S.profile = {
+  // ...existentes
+  utmFirstTouch: { source, medium, campaign, term, content, capturedAt, landingPath },
+  utmLastTouch:  { ... },                  // sobrescrito a cada visita
+  analyticsOptOut: false                   // toggle do paciente em Mais→Privacidade
 }
 ```
 
+Tabela `subscriptions` (Supabase, sem mudanças no schema — campos `mp_preapproval_id` e `mp_subscription_id` já existiam):
+
+```sql
+subscriptions(
+  user_id UUID, status TEXT,             -- 'trial'|'active'|'expired'|'canceled'
+  trial_started_at, trial_ends_at,
+  subscription_started_at, subscription_ends_at,
+  mp_subscription_id, mp_preapproval_id,
+  created_at, updated_at
+)
+```
+
 ---
 
-## 5. Mapeamento Crítico do Código
-
-Pontos-chave do `index.html` (21.478 linhas):
+## 5. Mapeamento Crítico do Código (linhas-chave atualizadas)
 
 | Linha | O que é |
 |---|---|
-| 82 | CSP (Content Security Policy) |
-| 5823 | `SANOVA_API_URL` = URL do Worker |
-| 5827 | `SANOVA_VERSION = '3.9.2'` |
-| 5836 | `SCHEMA_VERSION = 31` |
-| 5858 | `migrarDados()` — migrações de schema |
-| 5925-6309 | Bloco do ciclo menstrual |
-| 6427-6471 | Modo dev (senha SHA-256) |
-| 6943 | `var CAMADAS` — critérios de desbloqueio das camadas |
-| 7114-7118 | `OBJETIVOS` — config dos 3 objetivos (emagrecer/reconstruir/manter) |
-| 8843-8895 | `calcProteinaMeta()` — fórmula de proteína por objetivo + atividade + resistido |
-| 9078-9079 | Aplicação do piso de proteína por objetivo |
-| 9166 | `calcMetrics()` — métricas globais (TDEE, meta calórica, etc) |
-| 9305-9347 | `CAMADAS_DETALHE` — itens prometidos em cada camada (com selo "Bônus em breve") |
-| 9486-9610 | `renderJornada()` — UI da Minha Jornada |
-| 12569-12690 | Barra de calorias dinâmica por objetivo (v3.8.8/v3.8.9) |
-| 12697 | `abrirInfoProteina()` — modal educativo de proteína |
-| 15968 | `fetch` da `analyze-photo` (chamada Worker) |
-| 17861 | `fetch` da `analyze-text` (chamada Worker) |
-| 18570-18933 | `renderRelatorio()` — narrativa semanal completa |
-| 18616-18661 | `setObjetivo()` — troca de objetivo + toast educativo |
-| 18635-18652 | `renderCardObjetivoPainel()` — card do objetivo no Painel |
-| 19803 | `window.SANOVA_API_URL` (fallback) |
+| 82 | CSP (+ PostHog EU agora) |
+| 88-200 | **Snippet PostHog + Sanova.track() + UTM capture** (v3.9.3) |
+| 6942-7010 | **`abrirCompartilhamentoUso()` + `toggleCompartilhamentoUso()`** (v3.9.3) |
+| 6921 | **Cláusula 9.1 dos Termos v1.2 — adendo PostHog** |
+| 5841 | `SANOVA_API_URL` (Worker próprio) |
+| 5847 | `SANOVA_VERSION = '3.9.4'` |
+| 19873-19883 | `Sanova.track('app_loaded', ...)` no DOMContentLoaded |
+| 20158-20170 | `Sanova.track('user_signup'|'user_login')` + `posthog.identify()` |
+| 20509-20536 | `disparar()` com detecção de transição → `trial_started`/`payment_succeeded`/`subscription_canceled`/`trial_expired` |
+| 20580 | `Sanova.track('paywall_viewed', { motivo, status_assinatura })` |
+| 20596-20640 | **`iniciarAssinatura()` real** (chama Worker, redireciona MP) |
 
 ---
 
-## 6. Versões Recentes (changelog técnico)
+## 6. Versões Recentes (changelog técnico atualizado)
 
-### v3.9.x — Infra própria + reframe positivo
+### v3.9.x
 
 | Versão | Commit | O que mudou |
 |---|---|---|
-| **v3.9.2** | `00dc6c6` | Selo "🛠️ Em construção" → **"🎁 Bônus em breve"** (amber → verde). Framing positivo de gaps conhecidos. |
-| **v3.9.1** | `c3c4d5e` | **Cutover** `sanovaai-ep4phnhk.manus.space` → `sanova-api.contatosanovaapp.workers.dev`. SW bumped. Fallback local intacto. |
-| **v3.9.0** | `bc6c284` | **Selo "Em construção"** em 8 itens das C2/C3/C4 (auditoria honesta). `CAMADAS_DETALHE.itens` aceita `string` OU `{txt, emConstrucao:true}`. |
-| `1.0.2` (Worker) | `58f64a3` | **Fix crítico de compat de schema:** Worker aceita `imageBase64` (legado) E `image` (novo); `description` E `text`. |
-| `1.0.1` (Worker) | `5237135` | Endpoint `GET /api/debug-gemini` pra diagnosticar billing/quota/modelo. Mascara API key. |
-| Worker deploy | `f2741e4` | GitHub Action `.github/workflows/deploy-worker.yml` — deploy automático em push em `worker/**`. |
+| **v3.9.4** + Worker **v1.1.0** | `b870aed` | **MP sandbox completo** — endpoints `/api/mp-create-preapproval` e `/api/mp-webhook`, app chama Worker real, redireciona pra checkout |
+| **v3.9.3** | `271292e` | **PostHog + UTM + 7 events + opt-out + adendo Termos v1.2** |
+| **v3.9.2** | `00dc6c6` | Selo "🛠️ Em construção" → "🎁 Bônus em breve" (amber → verde) |
+| v3.9.1 | `c3c4d5e` | Cutover Manus → Cloudflare Worker próprio |
+| v3.9.0 | `bc6c284` | Selo "Em construção" em 8 itens das C2/C3/C4 |
+| Worker `1.0.2` | `58f64a3` | Fix compat schema (`imageBase64`/`description`) |
+| Workflow fix | `808efe8` | Injeta MP+Supabase secrets no deploy do Worker |
 
-### v3.8.x — Objetivos + recalibragem clínica
-
-| Versão | Commit | O que mudou |
-|---|---|---|
-| **v3.8.9** | `77e1b09` | **Recalibragem da barra de calorias em Reconstruir** (faixas honestas para GLP-1) + toast educativo quando proteína já saturada + Modo avançado clarificado. |
-| **v3.8.8** | `38f3ed6` | Barra de calorias **dinâmica por objetivo** (faixas + cores + mensagens diferentes). Bug clínico crítico — antes mostrava sempre as faixas de Emagrecer. |
-| **v3.8.7** | `7296638` | **Visibilidade do objetivo**: step na anamnese + card sempre visível no Painel + função `renderCardObjetivoPainel()`. |
-| v3.8.6 | `de28b06` | Fix: subtítulo do gráfico de peso reflete histórico completo. |
-| v3.8.5 | `f41fc61` | Fix: contraste dos cards de objetivo no fundo claro. |
-| **v3.8.4** | `585de8c` | **Feature: 3 objetivos** (emagrecer/reconstruir/manter) com multiplicadores próprios de proteína e calorias. |
-| v3.8.3 | `b322d5d` | Fix: persistência da anamnese em tempo real (bug levantado pelo Lucas Judice). |
-| v3.8.2 | `6675526` | Relatório clínico profissional completo. |
-
-### Características importantes da v3.8.9 (recalibragem de Reconstruir)
-
-A barra anterior tinha 4 faixas para o objetivo *Reconstruir*:
-- Déficit: 0 → GET (ocupava 77% da barra)
-- Ideal: GET → GET×1.10 (janela de só 251 kcal, 7.7% da barra)
-- Excesso: GET×1.10 → GET×1.20
-- Muito alto: > GET×1.20
-
-**Problema clínico:** paciente em GLP-1 com saciedade reduzida ficava o dia inteiro no vermelho ("Déficit + treino = perda muscular") mesmo em déficit pequeno de 1 dia. Demoralizante e clinicamente exagerado.
-
-**Recalibragem:**
-- Muito baixo: 0 → GET×0.85 (vermelho)
-- Subótimo: GET×0.85 → GET (amarelo — "manutenção, não constrói")
-- ✅ Ideal: GET → GET×1.20 (verde — janela de 501 kcal, 14.8% da barra)
-- Excesso: GET×1.20 → GET×1.35 (vermelho)
-
-E a label central deixou de ser "X kcal meta" (ambígua: era `idealMax`, mas o resto do app usa `M.meta = GET×1.05`) e virou **"X–Y kcal · zona ideal"**.
+### v3.8.x — sem mudanças desde último briefing
 
 ---
 
-## 7. Funcionalidades por Camada (estado atual)
+## 7. Funcionalidades por Camada (sem mudanças desde último briefing)
 
-### Camada 1 — Essencial (100% entregue)
-- Registro de medicação (caneta industrial ou frasco manipulado)
-- Calculadora de dose mL/UI para frasco manipulado
-- Check-in diário (saciedade, sintomas, notas, água, peso opcional)
-- Biblioteca de sintomas com orientações educativas
-- Acompanhamento de peso com tendência (média móvel 7 dias)
-
-### Camada 2 — Análise educativa (75% entregue)
-- ✅ Padrões da semana cruzados automaticamente (`renderRelatorio()`)
-- 🎁 Bônus em breve: Leitura por fase da medicação (sabe "semana N", não educa o que esperar)
-- ✅ Sugestões educativas (lógica if/else cobrindo proteína/água/exercício/sintomas)
-- ✅ Relatório semanal personalizado (narrativa com 7 pilares + insights clínicos)
-
-### Camada 3 — Preservação (25% entregue)
-- 🎁 Bônus em breve: Estimativa de gordura × massa magra (perímetros) — **zero código hoje**
-- 🎁 Bônus em breve: Fotos de progresso (rosto, corpo) — **zero código hoje**
-- 🎁 Bônus em breve: Protocolo de proteína refinado pelo treino — cálculo OK, educação contextual falta
-- ✅ Ciclo menstrual integrado (`cicloAtivo`, `calcularFaseCiclo`, `getFaseEducacao` com 5 fases)
-
-### Camada 4 — Avançado (0% entregue, todos como "Bônus em breve")
-- 🎁 Detecção automática de platôs (28+ dias)
-- 🎁 Plano de transição ao parar a medicação
-- 🎁 Rastreamento de lote e farmácia (paciente de manipulado)
-- 🎁 Personalização de cards do painel
+8 itens marcados "🎁 Bônus em breve" (congelados até primeira receita, por sua direção).
 
 ---
 
-## 8. Compliance e Privacidade
+## 8. Compliance e Privacidade (atualizado)
 
-**LGPD:**
-- Dados do paciente ficam exclusivamente no `localStorage` do celular
-- Sync opcional via Supabase com Row-Level Security (RLS)
-- Login obrigatório (email/senha) com recuperação multi-device
-- Análise de prato via **Gemini pago** (não usa dados para treinar IA do Google)
-- Sem ads, sem rastreamento, sem venda de dados
-
-**Aviso legal:**
-- Termos de uso v1.1 com aceite explícito (campo `_meta.termoAceitoEm`)
-- Não é dispositivo médico, não prescreve, não atende emergência
-- Bloqueio F12 (DevTools) — proteção jurídica BR
-
-**Próximos requisitos legais (pendentes):**
-- CNAE 6202-3/00 na empresa antes do Mercado Pago em produção
-- Backup semanal automatizado do Supabase (boa prática, ainda manual)
+- ✅ LGPD: dados no celular, sync opcional Supabase com RLS
+- ✅ Gemini pago (não treina IA Google)
+- ✅ **PostHog: dados em região EU, `maskAllInputs`, opt-out facilitado, adendo nos Termos v1.2 (cláusula 9.1)**
+- ✅ Login obrigatório + Supabase sync
+- ✅ Termos v1.2 ativos
+- ⏳ CNAE 6202-3/00 — Bruno perguntou hoje se pode começar no CPF. Eu o orientei a falar com contador esta semana (CPF tem risco fiscal real). **Não é decisão técnica, é decisão dele + contador.**
+- ⏳ Backup semanal Supabase ainda manual
 
 ---
 
-## 9. Decisões de Produto Notáveis
+## 9. Decisões de Produto Notáveis (atualizadas)
 
-### Decisão 1 — "Bônus em breve" em vez de "Em construção"
-**Contexto:** auditoria de 02/06/2026 revelou 8 features prometidas mas não entregues. Risco de *bait-and-switch* legal. Decisão Bruno: **Opção C** (selo de transparência + construir antes do paywall, em vez de remover do copy ou construir tudo agora).
+### Decisão 6 — Aceitei a inversão de prioridade que você cravou
+Eu tinha sugerido "construir 8 features de Bônus em breve antes do paywall". Você cortou: **"cobrar primeiro, construir depois com pagante pedindo"**. Aceito. Bruno aprovou. **8 features congeladas, 100% do foco em cobrança + medição.**
 
-**v3.9.2 reframe:** o selo virou positivo (🎁 verde) em vez de avisador (🛠️ amber). Mesma transparência, framing oposto: "olha o que vem a mais" em vez de "olha o que falta".
+### Decisão 7 — Motor de medição antes do paywall
+Aceito. PostHog + UTM + admin (em construção) operacionais antes de MP em produção. Sem isso, marketing fica cego.
 
-### Decisão 2 — Worker próprio antes da cobrança
-**Motivação:** Manus.space era alugado e transitório. Para LGPD e Mercado Pago, infra precisa ser nossa. Migração completa em 02/06/2026 — sem cair nenhuma feature.
-
-### Decisão 3 — Modo avançado clarificado
-**Contexto:** o "Modo avançado" desbloqueia C2+C3+C4 imediatamente (escape hatch pra pacientes experientes). Lucas Judice ativou e não viu diferença porque estava na C1 já. Reescrito o texto pra explicar **o que muda** (libera abas Saúde/Mais) e **o que NÃO muda** (cálculos, metas).
-
-### Decisão 4 — Cobrança por último
-**Bruno cravou:** mesmo que tecnicamente o Mercado Pago seja simples de integrar, a ordem agora é:
-1. Estrutural do app (infra ✅, gaps reais das camadas)
-2. UX/redesign visual
-3. Cobrança (Mercado Pago sandbox → produção)
-
-### Decisão 5 — Reframe das faixas de Reconstruir (v3.8.9)
-**Origem:** feedback Lucas Judice ("392 kcal aparece como deficitário; ideal deveria ser ~3100"). Recalibrada janela ideal para 501 kcal (era 251) e adicionada zona-buffer amarela "Subótimo" entre GET×0.85 e GET (substitui o vermelho "Déficit" alarmista).
+### Decisão 8 — Máxima automação (regra do Bruno)
+Bruno cravou: tudo que eu conseguir fazer via API, eu faço. Ele só toca em chaves/login/dinheiro. Cumprido até onde os tokens do ambiente permitiram (GitHub Secrets API exige scope `actions:write` que o `GITHUB_TOKEN` do ambiente não tem — então Bruno colou manualmente no GitHub UI).
 
 ---
 
-## 10. Convenções e Workflow
+## 10. Convenções e Workflow (sem mudanças)
 
-**Versionamento:** semver simples (`MAJOR.MINOR.PATCH`). Bump em **toda** entrega. Espelhado em `SANOVA_VERSION` (index.html) e `VERSION` (sw.js).
-
-**Branches:** `claude/<descrição-kebab>` para cada PR. Bruno autorizou merge direto pelo executor (sem aprovação manual em cada um) — ele revisa pós-merge no celular, reverte se quebrar.
-
-**Mensagens de commit:** PT-BR direto, escopo no prefixo (`fix(reconstruir):`, `feat(jornada):`, `docs:`, `ci(worker):`, `ux(jornada):`). Corpo explica o **porquê**, não o **o quê**.
-
-**Validação antes de finalizar:**
-- HTML balanceado (sem tag aberta sobrando)
-- Sintaxe JS válida (rodar `new Function(body)` em cada `<script>`)
-- Versão bumpada
-
-**Deploy:**
-- App (PWA): merge na `main` → GitHub Pages atualiza em ~1 min
-- Worker: push em `worker/**` na `main` → GitHub Action deploya em ~40s
+Semver. Branches `claude/<descricao>`. PRs squash-merged. Bruno autorizou merge direto. Bumpar `SANOVA_VERSION` e `sw.js VERSION` sempre.
 
 ---
 
-## 11. Gaps Conhecidos / Roadmap
+## 11. Pendências (atualizadas)
 
-### Críticos (LGPD/legal)
-- ✅ Gemini pago (LGPD) — feito em 02/06
-- ✅ Servidor próprio (Cloudflare) — feito em 02/06
-- ⏳ Backup semanal Supabase (boa prática, ainda manual)
-- ⏳ CNAE 6202-3/00 antes do MP produção
+### Imediatas (próximas horas)
+- ⏳ **Worker deploy run #9 in_progress** — aguardando terminar (necessário pra MP_WEBHOOK_SECRET chegar no Worker)
+- ⏳ **Bruno faz teste sandbox** — cadastro fictício/conta pessoal dele, aciona paywall, paga com cartão `5031 4332 1540 6351`, valida que sub vira `active` no banco + funil completo no PostHog
+- ⏳ Eu reverto status dele pra `trial` no banco depois do teste (1 UPDATE)
 
-### Funcionalidades (8 itens "Bônus em breve")
-- C2: educação por fase da medicação (~3-5h)
-- C3: perímetros + %gordura (~12-18h)
-- C3: fotos de progresso (~20-25h)
-- C3: protocolo proteína por treino educativo (~6-8h)
-- C4: detecção de platôs (~?)
-- C4: plano de transição parar medicação (~?)
-- C4: rastreamento lote farmácia (~?)
-- C4: personalização cards painel (~?)
-**Total mínimo da C3 (perímetros + fotos):** ~32-43h.
+### Dia 3 (próximo turno)
+- **Painel `/admin`** em `sanovaapp.github.io/sanova/admin/` (subdir do mesmo GitHub Pages)
+- Auth via Supabase + coluna `is_admin` em `profiles` (1 sistema só)
+- Métricas: cadastros 7d/30d, trial ativos/expirados, pagantes, MRR, top 5 UTMs, funnel cadastro→trial→pagante, churn 30d
+- Lê direto do Supabase via cliente JS (RLS específica de admin)
 
-### Cobrança / Mercado Pago
-- Webhook `/api/mp-webhook` no Worker (stub atual retorna 501)
-- Integração checkout sandbox → produção
-- Cadeados visuais nas 3 features pagas
-- Bruno: cravar quando, depois do redesign
+### Refinos UX cravados por você (ainda não feitos)
+- ⏳ **Selo "🎁 Bônus em breve" limitado a 5 visíveis** + escondido nos primeiros 3 dias de uso
+- ⏳ **Frase macro do posicionamento** aplicada no app (e instrução pra Bruno colar em Insta bio / landing / ad copy)
+- ⏳ **Disclaimer educativo** nas faixas calóricas (*"Estimativa educativa baseada em diretrizes gerais. Sua nutricionista pode personalizar conforme seu plano."*)
 
-### UX / Design
-- Redesign visual (Lucas Judice levantou: fontes pequenas, info demais, sem hierarquia)
-- Possibilidade de toggle "Clean × Detalhada" (em discussão, ~12-18h)
-- Sugestão alternativa: 1 design refinado + atalho "modo compacto" (~6-10h)
+### Semana 2 (cravado por você)
+- MP em produção (Bruno troca chaves no GitHub Secret, eu não preciso mexer em código)
+- Bruno paga R$ 19,90 real com cartão dele (primeiro pagamento de verdade)
+- Adendo final dos termos (cobrança real, reembolso CDC 7d já está nos termos atuais)
 
----
+### Bloqueador externo
+- **CNAE 6202-3/00** com contador (~1 semana). Bruno perguntou hoje se pode começar no CPF — orientei a falar com contador (CPF tem risco fiscal real, mas tecnicamente funciona pra primeiro teste). **Decisão dele + contador, não minha.**
 
-## 12. O que pedimos da sua revisão
-
-### Para IA com foco clínico
-
-**Questão 1 — Recalibragem de Reconstruir (v3.8.9):**
-As faixas atuais para o objetivo *Reconstruir* em pacientes em GLP-1 + treino resistido são:
-- Muito baixo: < GET×0.85
-- Subótimo: GET×0.85 a GET
-- ✅ Ideal: GET a GET×1.20
-- Excesso: > GET×1.20
-
-A literatura de hipertrofia recomenda superávit de 200-500 kcal/dia. Para um GET de 2.505 (caso Lucas, ativo + resistido), o ideal fica em 2.505-3.006. Isso é apropriado? Há contraindicação clínica em paciente em GLP-1? A zona "Muito baixo" começando em GET×0.85 é razoável?
-
-**Questão 2 — Fórmula de proteína:**
-`calcProteinaMeta()` (linha 8843) usa base 1.6-2.0 g/kg de massa magra (LBM via fórmula Boer) por idade, +0.1/0.2/0.3 g/kg por atividade (leve/moderada/alta), +0.2 g/kg se resistido detectado nos últimos 14 dias. Objetivo *Reconstruir* impõe piso de 2.0 g/kg. Está clinicamente bem calibrada? Conservadora demais ou agressiva demais?
-
-**Questão 3 — Educação faltante:**
-O app calcula "você está na semana 3 de Tirzepatida" mas **não diz** "náusea e vômito são comuns nessa fase, tende a passar em X semanas". Esse gap (Camada 2, marcado "🎁 Bônus em breve") tem prioridade alta? Que conteúdo específico por fase de medicamento você recomendaria?
-
-**Questão 4 — Camada 3 sem perímetros e fotos:**
-Paciente desbloqueia a Camada 3 ("Preservação") com 30 dias + 15 check-ins. Hoje encontra **só ciclo menstrual** entregue; perímetros e fotos estão marcados "🎁 Bônus em breve". Marcar como "em breve" é suficiente clinicamente, ou deveríamos pausar o acesso à Camada 3 até construir essas features?
-
-### Para IA com foco de produto/UX
-
-**Questão 5 — Framing "🎁 Bônus em breve":**
-O selo amber "🛠️ Em construção" sugeria gap; o atual verde "🎁 Bônus em breve" sugere promessa positiva. Qual o risco de paciente sentir "comprei algo incompleto" ao ver 8 itens marcados assim em camadas que ele desbloqueou? O reframe funciona ou esconde o problema?
-
-**Questão 6 — Hierarquia visual (feedback Lucas):**
-Lucas (designer, paciente real) cravou: "letrinhas muito pequenas (11-12px), 4 estilos diferentes, muita informação, paciente se perde, não tem número herói". Avaliando o Painel atual (4 gauges + barra de calorias + card peso + mini-cards), você recomendaria refatoração radical (1 número herói + 4 KPIs grandes) ou ajuste incremental (fontes maiores, mesmo layout)?
-
-**Questão 7 — Toggle clean vs detalhada:**
-Bruno está dividido entre (A) construir 2 versões e A/B testar, (B) construir 1 versão refinada com toggle "modo compacto" opcional, (C) só 1 versão. Argumento técnico contra (A): founder solo, divergência em semanas. Argumento contra (C): perde info sobre preferência. Qual você recomenda e por quê?
-
-**Questão 8 — Sequência pré-lançamento:**
-Roadmap atual: (1) Bônus em breve → real, (2) redesign visual, (3) Mercado Pago. Faz sentido para começar a cobrar? Há algo crítico de UX ou clínico que mudaria essa ordem?
+### Pós-lançamento (não bloqueia)
+- Backup semanal Supabase (GitHub Action)
+- Glassmorphism sutil (refino visual Lucas) — com guarda WCAG AA
 
 ---
 
-## 13. Como acessar para teste
+## 12. O que pedimos da sua revisão (atualizado pra v3.9.4)
 
-**App produção:** https://sanovaapp.github.io/sanova
+### Sobre o Dia 1 e Dia 2 entregues
 
-**Conta de teste:** podemos provisionar sob demanda. Para sentir a Jornada completa, idealmente criar paciente fictício com 30+ dias de check-ins simulados (desbloqueia C2 e C3).
+**Questão 1 — Eventos PostHog suficientes pra funil?**
+Plantei 7 principais (`app_loaded`, `user_signup`, `user_login`, `paywall_viewed`, `checkout_started`, `trial_started`, `payment_succeeded`) + 4 bônus (`subscription_canceled`, `trial_expired`, `checkout_blocked`, `checkout_error`). Falta algum crítico pro funil de aquisição → ativação → conversão que você crê importante medir desde o dia 1?
 
-**Endpoints públicos (sem auth) para inspeção:**
-- `GET https://sanova-api.contatosanovaapp.workers.dev/api/health` — `{ok:true, version:"1.0.2"}`
-- `GET https://sanova-api.contatosanovaapp.workers.dev/api/debug-gemini` — Gemini reachability check
+**Questão 2 — Bloqueio do checkout sem login (Dia 2)**
+Hoje, se paciente clica "Assinar agora" sem ter login Supabase, o app abre um `alert()` orientando logar antes. Razão: precisamos do `email + user.id` pra criar preapproval no MP. UX OK ou prefere fluxo de "criar conta inline" no momento do checkout pra reduzir fricção?
 
-**Repositório completo:** https://github.com/sanovaapp/sanova
+**Questão 3 — `verifyWebhookSignature` rejeita 401 em mismatch**
+Em produção, MP recomenda devolver 200 mesmo em validação falha (pra não disparar retries). Hoje devolvo 401 pra defender de spam. Vamos manter 401 em sandbox e mudar pra 200 silencioso quando subir produção? Ou já mudar agora?
+
+**Questão 4 — CPF vs CNPJ pro Bruno**
+Bruno perguntou hoje se pode começar recebendo no CPF (mais rápido, sem esperar CNAE). Orientei a falar com contador antes. Risco real: IRPF 27,5% no CPF vs ~6% Simples Anexo III no CNPJ, e RFB pode requalificar receita recorrente como atividade empresarial. Você endossa "esperar CNAE" ou vê motivo pra começar mesmo no CPF e migrar depois?
+
+**Questão 5 — Refinos UX que você cravou: ordem**
+Tenho 3 itens pendentes (selo limitado a 5, frase macro, disclaimer). Faço antes ou depois do Dia 3 (painel admin)? Minha tendência é primeiro Dia 3 (motor de medição completo é o que destrava produção), depois UX antes da semana 2. Mas se você crê que algum dos 3 tem urgência pra subir antes do teste sandbox de hoje, me diz.
 
 ---
 
-*Documento gerado para IA revisora · Última atualização: 02 de junho de 2026 · v3.9.2*
+## 13. Como inspecionar (atualizado)
+
+**App produção:** https://sanovaapp.github.io/sanova (v3.9.4)
+
+**Endpoints públicos:**
+- `GET /api/health` → `{ok:true, version:"1.1.0"}`
+- `GET /api/debug-gemini` → checa Gemini reachability
+- `POST /api/mp-create-preapproval` (requer Origin allowlisted) → cria preapproval sandbox
+- `POST /api/mp-webhook` (HMAC) → recebe notificação MP
+
+**Dashboards externos:**
+- PostHog EU: `app.posthog.com` (conta `contatosanovaapp@gmail.com`)
+- MP Developers: `mercadopago.com.br/developers/panel`
+- Cloudflare Workers: `dash.cloudflare.com`
+- Supabase: `supabase.com/dashboard`
+- GitHub Actions: `github.com/sanovaapp/sanova/actions`
+
+**Repositório:** https://github.com/sanovaapp/sanova
+**Branch ativa:** `main` (todos os PRs squash-merged via auto)
+
+---
+
+*Documento gerado para sócia (Claude arquiteto) · Atualizado: 02 de junho de 2026 · v3.9.4 · Worker v1.1.0*
