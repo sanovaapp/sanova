@@ -200,7 +200,44 @@ jobs:
           path: |
             screenshots/
             playwright.log
+            visual-analysis.md
           retention-days: 7
+
+      - name: Analise visual via Gemini Vision
+        if: always()
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set +e
+          : > visual-analysis.md
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "(GEMINI_API_KEY ausente — pulando)" > visual-analysis.md
+            exit 0
+          fi
+          PROMPT='Analise essa screenshot do app Sanova (aplicativo educativo mobile pra pacientes em tratamento com GLP-1 — Tirzepatida/Semaglutida). Estilo: verde escuro, mobile 412x915.
+          Liste EM 3 SECOES:
+          1) ELEMENTOS PRINCIPAIS VISIVEIS (em 5 bullets curtos)
+          2) BUGS / INCONSISTENCIAS visuais ou de copy (texto cortado, alinhamento ruim, contraste WCAG, valores —, labels truncados, lib mock, etc — em portugues do BR)
+          3) SUGESTOES de UX/clinica (1-3 bullets curtos)
+          Seja DIRETO. Sem preambulo. Foque em problemas acionaveis.'
+          for img in screenshots/*.png; do
+            [ -f "$img" ] || continue
+            name=$(basename "$img")
+            echo "## $name" >> visual-analysis.md
+            B64=$(base64 -w0 "$img")
+            BODY=$(jq -n --arg prompt "$PROMPT" --arg b64 "$B64" '{
+              contents:[{role:"user",parts:[{text:$prompt},{inlineData:{mimeType:"image/png",data:$b64}}]}],
+              generationConfig:{temperature:0.2,maxOutputTokens:600}
+            }')
+            RESP=$(curl -sS -X POST \
+              -H "Content-Type: application/json" \
+              -d "$BODY" \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY")
+            TEXT=$(echo "$RESP" | jq -r '.candidates[0].content.parts[0].text // .error.message // "(sem resposta)"')
+            echo "$TEXT" >> visual-analysis.md
+            echo "" >> visual-analysis.md
+          done
+          cat visual-analysis.md
 
       - name: Summary
         if: always()
@@ -216,4 +253,8 @@ jobs:
             echo ""
             echo "### Screenshots: veja artifact \`screenshots-e2e\`"
             ls -la screenshots/ 2>/dev/null || echo "(sem screenshots)"
+            echo ""
+            echo "### Analise visual Gemini Vision"
+            echo ""
+            cat visual-analysis.md 2>/dev/null || echo "(sem analise)"
           } >> $GITHUB_STEP_SUMMARY
