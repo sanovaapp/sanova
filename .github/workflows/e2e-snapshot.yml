@@ -1,0 +1,213 @@
+name: E2E Snapshot do app Sanova
+
+# Workflow rodado pelo Claude Code via mcp__github__actions_run_trigger.
+# Loga via magic link (sem senha), navega pelo app, tira screenshots em
+# resolucao mobile, e expoe como artifacts pra Claude baixar e analisar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulate_active:
+        description: 'Simular subscription active antes? (active/trial/skip)'
+        required: false
+        default: 'skip'
+        type: choice
+        options:
+          - skip
+          - active
+          - trial
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    name: Navegar app e capturar screenshots
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install -D @playwright/test@1.49.0
+          npx playwright install --with-deps chromium
+
+      - name: Pre-step — simular status assinatura (opcional)
+        if: github.event.inputs.simulate_active != 'skip'
+        run: |
+          ACTION="admin-${{ github.event.inputs.simulate_active == 'active' && 'simulate-active' || 'revert-trial' }}"
+          echo "Chamando $ACTION"
+          curl -sS "https://sanova-api.contatosanovaapp.workers.dev/api/$ACTION" | head -c 500
+          echo
+
+      - name: Obter magic link do Bruno
+        id: link
+        run: |
+          set -e
+          RAW=$(curl -sS "https://sanova-api.contatosanovaapp.workers.dev/api/admin-magic-link-bruno")
+          echo "Worker resp: $(echo "$RAW" | head -c 300)"
+          LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('action_link',''))")
+          if [ -z "$LINK" ]; then
+            echo "Erro: magic link nao retornado"
+            echo "$RAW"
+            exit 1
+          fi
+          # Mascara no log mas exporta na output
+          echo "MASK: ${LINK:0:60}..."
+          echo "magic_link=$LINK" >> $GITHUB_OUTPUT
+
+      - name: Cria script Playwright
+        run: |
+          mkdir -p screenshots
+          cat > snapshot.mjs <<'PWEND'
+          import { chromium } from '@playwright/test';
+
+          const MAGIC = process.env.MAGIC_LINK;
+          if (!MAGIC) { console.error('MAGIC_LINK vazio'); process.exit(1); }
+
+          const screens = [];
+          const browser = await chromium.launch();
+          const ctx = await browser.newContext({
+            viewport: { width: 412, height: 915 },
+            deviceScaleFactor: 2,
+            userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            locale: 'pt-BR',
+          });
+          const page = await ctx.newPage();
+          page.on('console', m => console.log('[browser]', m.type(), m.text().slice(0, 200)));
+          page.on('pageerror', e => console.log('[pageerror]', e.message));
+
+          async function snap(name) {
+            const path = `screenshots/${String(screens.length+1).padStart(2,'0')}-${name}.png`;
+            await page.screenshot({ path, fullPage: true });
+            screens.push(path);
+            console.log('Snap:', path);
+          }
+
+          console.log('1. Abrindo magic link...');
+          await page.goto(MAGIC, { waitUntil: 'load', timeout: 45000 });
+          await page.waitForTimeout(5000);
+          await snap('post-magic-link');
+
+          // Forca navegar pra raiz se Supabase redirecionou diferente
+          if (!page.url().includes('sanovaapp.github.io')) {
+            console.log('2. Forcando ir pra raiz...');
+            await page.goto('https://sanovaapp.github.io/sanova/', { waitUntil: 'load', timeout: 45000 });
+            await page.waitForTimeout(5000);
+            await snap('forced-home');
+          }
+
+          // Espera o app inicializar
+          await page.waitForTimeout(3000);
+          await snap('home-painel');
+
+          // Navegar pelas abas principais
+          const tabs = ['nb-medicacao', 'nb-checkin', 'nb-saude', 'nb-mais'];
+          for (const tabId of tabs) {
+            try {
+              const el = await page.$(`#${tabId}`);
+              if (el) {
+                await el.click();
+                await page.waitForTimeout(1500);
+                await snap(`tab-${tabId.replace('nb-','')}`);
+              } else {
+                console.log(`tab ${tabId} nao encontrada`);
+              }
+            } catch (e) { console.log('err tab', tabId, e.message); }
+          }
+
+          // Tenta acionar paywall via PDF pro medico
+          try {
+            await page.click('#nb-mais');
+            await page.waitForTimeout(1500);
+            const pdfBtn = await page.$('#btnPdfRelatorio');
+            if (pdfBtn) {
+              await pdfBtn.click();
+              await page.waitForTimeout(2000);
+              await snap('paywall-via-pdf');
+            }
+          } catch (e) { console.log('paywall test:', e.message); }
+
+          // Tela de Perfil pra ver "Minha conta"
+          try {
+            await page.click('#nb-mais');
+            await page.waitForTimeout(1000);
+            // Procura botao "Perfil" na grade do Mais
+            const perfilBtn = await page.$('button[aria-label="Perfil e configurações"]');
+            if (perfilBtn) {
+              await perfilBtn.click();
+              await page.waitForTimeout(1500);
+              await snap('perfil-topo');
+              // Rola pro fim
+              await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+              await page.waitForTimeout(1000);
+              await snap('perfil-fim-minha-conta');
+            }
+          } catch (e) { console.log('perfil:', e.message); }
+
+          // Coleta estado interno do app (S.profile, versao, status assinatura)
+          const estado = await page.evaluate(() => {
+            try {
+              const raw = localStorage.getItem('equilibra_v5');
+              const S = raw ? JSON.parse(raw) : null;
+              const verEl = document.querySelector('[data-version]') || null;
+              return {
+                location: location.href,
+                SANOVA_VERSION: window.SANOVA_VERSION,
+                profile: S && S.profile ? {
+                  hasName: !!S.profile.name,
+                  hasSex: !!S.profile.sex,
+                  hasWeight: !!S.profile.weightKg,
+                  objetivo: S.profile.objetivo || null,
+                  analyticsOptOut: S.profile.analyticsOptOut === true,
+                  utmFirstTouch: !!S.profile.utmFirstTouch,
+                } : null,
+                user: (window.SanovaUser && window.SanovaUser()) ? {
+                  email: window.SanovaUser().email,
+                  hasId: !!window.SanovaUser().id,
+                } : null,
+                assinatura: window.SanovaAssinatura ? window.SanovaAssinatura.get() : null,
+              };
+            } catch (e) { return { error: e.message }; }
+          });
+          console.log('=== ESTADO INTERNO ===');
+          console.log(JSON.stringify(estado, null, 2));
+
+          await browser.close();
+          console.log(`Done. ${screens.length} screenshots em screenshots/`);
+          PWEND
+
+      - name: Run Playwright snapshot
+        env:
+          MAGIC_LINK: ${{ steps.link.outputs.magic_link }}
+        run: node snapshot.mjs 2>&1 | tee playwright.log
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-e2e
+          path: |
+            screenshots/
+            playwright.log
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## E2E Snapshot"
+            echo ""
+            echo "### Estado interno capturado:"
+            echo ''
+            echo '```'
+            grep -A 200 '=== ESTADO INTERNO ===' playwright.log || echo "(nao encontrado)"
+            echo '```'
+            echo ""
+            echo "### Screenshots: veja artifact \`screenshots-e2e\`"
+            ls -la screenshots/ 2>/dev/null || echo "(sem screenshots)"
+          } >> $GITHUB_STEP_SUMMARY

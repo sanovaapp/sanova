@@ -17,7 +17,7 @@
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser } from './mp.js';
-import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin } from './supabase.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink } from './supabase.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.3.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.4.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -75,6 +75,11 @@ export default {
       }
       if (url.pathname === '/api/admin-revert-trial' && request.method === 'GET') {
         return await handleAdminSimulate(env, 'trial');
+      }
+
+      // v1.4.0: gera magic link pro Bruno (E2E testing via Playwright)
+      if (url.pathname === '/api/admin-magic-link-bruno' && request.method === 'GET') {
+        return await handleAdminMagicLink(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -501,6 +506,37 @@ async function handleAdminSimulate(env, novoStatus) {
         proximo_passo: novoStatus === 'active'
           ? '✅ Subscription marcada como active. Abre o app no celular e confirma que mostra "Assinatura ativa".'
           : '✅ Subscription voltou pra trial (14 dias novos).',
+      }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-magic-link-bruno (v1.4.0) ─────────────────────
+// Gera magic link de login pro Bruno via Supabase admin API.
+// Usado por Playwright/E2E pra logar sem precisar de senha.
+// Hardcoded — so funciona pra brunoambrozim@hotmail.com.
+async function handleAdminMagicLink(env) {
+  try {
+    const link = await generateMagicLink(
+      'brunoambrozim@hotmail.com',
+      'https://sanovaapp.github.io/sanova/',
+      env
+    );
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        action_link: link.properties?.action_link || link.action_link,
+        verification_type: link.properties?.verification_type,
+        email_otp: link.properties?.email_otp,
+        hashed_token: link.properties?.hashed_token,
+        redirect_to: link.properties?.redirect_to,
+        nota: 'Link unico, valido ate 1h. Abrir em browser limpo (sem sessao).',
       }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
