@@ -19,6 +19,8 @@ on:
           - debug-admin
           - debug-gemini
           - health
+          - admin-simulate-active
+          - admin-revert-trial
 
 jobs:
   call-worker:
