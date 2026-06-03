@@ -79,8 +79,131 @@
 <!-- v3.1.56: CSP defensivo. 'unsafe-inline' é necessário porque PWA single-file
      tem todo JS/CSS inline. connect-src libera Gemini API + Google Forms.
      img-src libera data: pra base64 de fotos do paciente. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://sanova-api.contatosanovaapp.workers.dev https://generativelanguage.googleapis.com https://docs.google.com https://forms.gle https://*.googleusercontent.com https://*.supabase.co wss://*.supabase.co; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://eu-assets.i.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://sanova-api.contatosanovaapp.workers.dev https://generativelanguage.googleapis.com https://docs.google.com https://forms.gle https://*.googleusercontent.com https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://docs.google.com;">
 <title>Sanova</title>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     v3.9.3 — PostHog (analytics + session replay)
+     Privacy-first: mascara TODOS os inputs, respeita DNT,
+     paciente pode optar por desativar em Mais → Privacidade.
+     Adendo nos termos descreve a coleta.
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId captureTraceFeedback captureTraceMetric".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+
+posthog.init('phc_BFXZcqvYiakjGjVi4jjv4VGryGXnmXKkqHC2NdBLt5ic', {
+  api_host: 'https://eu.i.posthog.com',
+  person_profiles: 'identified_only',
+  capture_pageview: true,
+  capture_pageleave: true,
+  autocapture: false,             // sem autocapture — instrumentamos manualmente
+  respect_dnt: true,              // respeita Do Not Track do navegador
+  disable_session_recording: false,
+  session_recording: {
+    maskAllInputs: true,          // TODOS os inputs (email, senha, peso, sintomas, notas) mascarados
+    maskTextSelector: '*',        // textos também mascarados por padrão
+    blockSelector: '[data-ph-no-capture], input, textarea'
+  },
+  loaded: function(ph){
+    try{
+      // Respeita opt-out persistido em S.profile.analyticsOptOut
+      var raw = localStorage.getItem('equilibra_v5');
+      if(raw){
+        var S = JSON.parse(raw);
+        if(S && S.profile && S.profile.analyticsOptOut === true){
+          ph.opt_out_capturing();
+        }
+      }
+    }catch(e){}
+  }
+});
+
+/* ─── Sanova.track — wrapper seguro pra eventos do funil ───────
+   Usa posthog.capture com guarda contra opt-out + envio de UTM
+   first-touch como super-property quando disponível. */
+window.Sanova = window.Sanova || {};
+window.Sanova.track = function(event, props){
+  try{
+    if(!window.posthog || typeof posthog.capture !== 'function') return;
+    var p = props || {};
+    var optOut = false;
+    try{
+      var raw = localStorage.getItem('equilibra_v5');
+      if(raw){
+        var S = JSON.parse(raw);
+        if(S && S.profile){
+          if(S.profile.analyticsOptOut === true){ optOut = true; }
+          var u = S.profile.utmFirstTouch;
+          if(u){
+            if(u.source) p.utm_source = u.source;
+            if(u.medium) p.utm_medium = u.medium;
+            if(u.campaign) p.utm_campaign = u.campaign;
+            if(u.term) p.utm_term = u.term;
+            if(u.content) p.utm_content = u.content;
+          }
+        }
+      }
+    }catch(e){}
+    if(optOut) return;
+    posthog.capture(event, p);
+  }catch(e){ /* analytics nunca quebra o app */ }
+};
+
+window.Sanova.optOutAnalytics = function(){
+  try{
+    if(window.posthog && posthog.opt_out_capturing) posthog.opt_out_capturing();
+    var raw = localStorage.getItem('equilibra_v5');
+    if(raw){
+      var S = JSON.parse(raw);
+      S.profile = S.profile || {};
+      S.profile.analyticsOptOut = true;
+      localStorage.setItem('equilibra_v5', JSON.stringify(S));
+    }
+  }catch(e){}
+};
+
+window.Sanova.optInAnalytics = function(){
+  try{
+    if(window.posthog && posthog.opt_in_capturing) posthog.opt_in_capturing();
+    var raw = localStorage.getItem('equilibra_v5');
+    if(raw){
+      var S = JSON.parse(raw);
+      S.profile = S.profile || {};
+      S.profile.analyticsOptOut = false;
+      localStorage.setItem('equilibra_v5', JSON.stringify(S));
+    }
+  }catch(e){}
+};
+
+/* ─── UTM first-touch capture ──────────────────────────────────
+   Lê utm_source/medium/campaign/term/content da URL atual e salva
+   em S.profile.utmFirstTouch APENAS se ainda não existir (first-touch).
+   Sobrescrever a cada visita estragaria atribuição de marketing. */
+(function captureUTM(){
+  try{
+    var params = new URLSearchParams(window.location.search);
+    var utm = {};
+    ['source','medium','campaign','term','content'].forEach(function(k){
+      var v = params.get('utm_' + k);
+      if(v) utm[k] = v.slice(0, 120); // limite defensivo
+    });
+    if(Object.keys(utm).length === 0) return;
+    utm.capturedAt = new Date().toISOString();
+    utm.landingPath = window.location.pathname;
+    var raw = localStorage.getItem('equilibra_v5');
+    var S = raw ? JSON.parse(raw) : {};
+    S.profile = S.profile || {};
+    if(!S.profile.utmFirstTouch){
+      S.profile.utmFirstTouch = utm;
+      localStorage.setItem('equilibra_v5', JSON.stringify(S));
+    }
+    // Touch corrente sempre (last-touch) — útil pra reativação
+    S.profile.utmLastTouch = utm;
+    localStorage.setItem('equilibra_v5', JSON.stringify(S));
+  }catch(e){}
+})();
+</script>
+
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDUyZTE2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzE2NjUzNCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ibGVhZiIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0YWRlODAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMjJjNTVlIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJlIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZmZmZmYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYmJmN2QwIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBGdW5kbyBhcnJlZG9uZGFkbyAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMCIgZmlsbD0idXJsKCNiZykiLz4KCiAgPCEtLSBGb2xoYSBkZWNvcmF0aXZhIGF0csOhcyBkbyBFIC0tPgogIDxlbGxpcHNlIGN4PSIyOTAiIGN5PSIyMTAiIHJ4PSI5MCIgcnk9IjQ4IiBmaWxsPSJ1cmwoI2xlYWYpIiBvcGFjaXR5PSIwLjE4IiB0cmFuc2Zvcm09InJvdGF0ZSgtMzUgMjkwIDIxMCkiLz4KICA8ZWxsaXBzZSBjeD0iMzAwIiBjeT0iMzEwIiByeD0iNzAiIHJ5PSIzOCIgZmlsbD0idXJsKCNsZWFmKSIgb3BhY2l0eT0iMC4xMiIgdHJhbnNmb3JtPSJyb3RhdGUoMjAgMzAwIDMxMCkiLz4KCiAgPCEtLSBMZXRyYSBFIGJvbGQgLS0+CiAgPGcgZmlsbD0idXJsKCNlKSI+CiAgICA8IS0tIEJhcnJhIHZlcnRpY2FsIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIxNDgiIHdpZHRoPSI1OCIgaGVpZ2h0PSIyMTYiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSB0b3BvIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIxNDgiIHdpZHRoPSIxOTAiIGhlaWdodD0iNTIiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSBtZWlvIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIyMzAiIHdpZHRoPSIxNTUiIGhlaWdodD0iNDgiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSBiYXNlIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIzMTIiIHdpZHRoPSIxOTAiIGhlaWdodD0iNTIiIHJ4PSIxMiIvPgogIDwvZz4KCiAgPCEtLSBGb2xoaW5oYSB2ZXJkZSB2aXZhIG5vIGNhbnRvIHN1cGVyaW9yIGRpcmVpdG8gZG8gRSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMzgsMTI4KSByb3RhdGUoMzApIj4KICAgIDxlbGxpcHNlIGN4PSIwIiBjeT0iMCIgcng9IjI4IiByeT0iNDgiIGZpbGw9InVybCgjbGVhZikiIG9wYWNpdHk9IjAuOTUiLz4KICAgIDxsaW5lIHgxPSIwIiB5MT0iLTQ0IiB4Mj0iMCIgeTI9IjQ0IiBzdHJva2U9IiMwNTJlMTYiIHN0cm9rZS13aWR0aD0iMyIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMCIgeTE9Ii0xMCIgeDI9IjE2IiB5Mj0iLTI2IiBzdHJva2U9IiMwNTJlMTYiIHN0cm9rZS13aWR0aD0iMiIgb3BhY2l0eT0iMC4zIi8+CiAgICA8bGluZSB4MT0iMCIgeTE9IjEwIiB4Mj0iLTE0IiB5Mj0iLTQiIHN0cm9rZT0iIzA1MmUxNiIgc3Ryb2tlLXdpZHRoPSIyIiBvcGFjaXR5PSIwLjMiLz4KICA8L2c+Cjwvc3ZnPgo=">
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDUyZTE2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzE2NjUzNCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ibGVhZiIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0YWRlODAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMjJjNTVlIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJlIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZmZmZmYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYmJmN2QwIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBGdW5kbyBhcnJlZG9uZGFkbyAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjExMCIgZmlsbD0idXJsKCNiZykiLz4KCiAgPCEtLSBGb2xoYSBkZWNvcmF0aXZhIGF0csOhcyBkbyBFIC0tPgogIDxlbGxpcHNlIGN4PSIyOTAiIGN5PSIyMTAiIHJ4PSI5MCIgcnk9IjQ4IiBmaWxsPSJ1cmwoI2xlYWYpIiBvcGFjaXR5PSIwLjE4IiB0cmFuc2Zvcm09InJvdGF0ZSgtMzUgMjkwIDIxMCkiLz4KICA8ZWxsaXBzZSBjeD0iMzAwIiBjeT0iMzEwIiByeD0iNzAiIHJ5PSIzOCIgZmlsbD0idXJsKCNsZWFmKSIgb3BhY2l0eT0iMC4xMiIgdHJhbnNmb3JtPSJyb3RhdGUoMjAgMzAwIDMxMCkiLz4KCiAgPCEtLSBMZXRyYSBFIGJvbGQgLS0+CiAgPGcgZmlsbD0idXJsKCNlKSI+CiAgICA8IS0tIEJhcnJhIHZlcnRpY2FsIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIxNDgiIHdpZHRoPSI1OCIgaGVpZ2h0PSIyMTYiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSB0b3BvIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIxNDgiIHdpZHRoPSIxOTAiIGhlaWdodD0iNTIiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSBtZWlvIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIyMzAiIHdpZHRoPSIxNTUiIGhlaWdodD0iNDgiIHJ4PSIxMiIvPgogICAgPCEtLSBCYXJyYSBiYXNlIC0tPgogICAgPHJlY3QgeD0iMTQ4IiB5PSIzMTIiIHdpZHRoPSIxOTAiIGhlaWdodD0iNTIiIHJ4PSIxMiIvPgogIDwvZz4KCiAgPCEtLSBGb2xoaW5oYSB2ZXJkZSB2aXZhIG5vIGNhbnRvIHN1cGVyaW9yIGRpcmVpdG8gZG8gRSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMzgsMTI4KSByb3RhdGUoMzApIj4KICAgIDxlbGxpcHNlIGN4PSIwIiBjeT0iMCIgcng9IjI4IiByeT0iNDgiIGZpbGw9InVybCgjbGVhZikiIG9wYWNpdHk9IjAuOTUiLz4KICAgIDxsaW5lIHgxPSIwIiB5MT0iLTQ0IiB4Mj0iMCIgeTI9IjQ0IiBzdHJva2U9IiMwNTJlMTYiIHN0cm9rZS13aWR0aD0iMyIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMCIgeTE9Ii0xMCIgeDI9IjE2IiB5Mj0iLTI2IiBzdHJva2U9IiMwNTJlMTYiIHN0cm9rZS13aWR0aD0iMiIgb3BhY2l0eT0iMC4zIi8+CiAgICA8bGluZSB4MT0iMCIgeTE9IjEwIiB4Mj0iLTE0IiB5Mj0iLTQiIHN0cm9rZT0iIzA1MmUxNiIgc3Ryb2tlLXdpZHRoPSIyIiBvcGFjaXR5PSIwLjMiLz4KICA8L2c+Cjwvc3ZnPgo=">
 <meta name="apple-mobile-web-app-title" content="Sanova">
@@ -3525,6 +3648,11 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           <div class="mais-lbl">Sobre</div>
           <div class="mais-sub">Versão e copyright</div>
         </button>
+        <button class="mais-btn" onclick="fecharMais();abrirCompartilhamentoUso()" aria-label="Compartilhamento de uso (analytics)">
+          <span class="mais-ic" aria-hidden="true">📊</span>
+          <div class="mais-lbl">Compartilhamento de uso</div>
+          <div class="mais-sub">Ativar/desativar analytics</div>
+        </button>
       </div>
     </div>
 
@@ -5824,7 +5952,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.2';
+var SANOVA_VERSION = '3.9.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -6633,7 +6761,7 @@ function abrirPoliticaPrivacidade(){
     '<div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(187,247,208,.15)">' +
       '<div style="font-size:30px;margin-bottom:4px">🔒</div>' +
       '<div style="font-size:18px;font-weight:700;color:#fff;font-family:var(--fd);letter-spacing:-.02em">Política de Privacidade</div>' +
-      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 29/05/2026 · Versão 1.1</div>' +
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 02/06/2026 · Versão 1.2</div>' +
     '</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,.92);line-height:1.65">' +
 
@@ -6712,7 +6840,7 @@ function abrirTermosUso(){
     '<div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(187,247,208,.15)">' +
       '<div style="font-size:30px;margin-bottom:4px">📋</div>' +
       '<div style="font-size:18px;font-weight:700;color:#fff;font-family:var(--fd);letter-spacing:-.02em">Termos de Uso</div>' +
-      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 29/05/2026 · Versão 1.1</div>' +
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px">Última atualização: 02/06/2026 · Versão 1.2</div>' +
     '</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,.92);line-height:1.65">' +
 
@@ -6781,6 +6909,15 @@ function abrirTermosUso(){
       '</ul>' +
       '<p style="margin:0 0 14px 0">Número de cartão, CVV, validade e demais dados financeiros <strong style="color:#fff">nunca tocam servidores do Sanova</strong>. Você pode exercer seus direitos LGPD a qualquer momento (acesso, correção, exclusão, portabilidade) escrevendo ao desenvolvedor pelo email de contato.</p>' +
 
+      '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">9.1 Analytics e melhoria contínua (v3.9.3)</div>' +
+      '<p style="margin:0 0 8px 0">Para entender como o app é utilizado e priorizar melhorias, o Sanova usa o <strong style="color:#fff">PostHog</strong> (ferramenta de analytics, servidor em região europeia, em conformidade com GDPR/LGPD). Capturamos:</p>' +
+      '<ul style="margin:0 0 10px 20px;padding:0;line-height:1.75">' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Eventos anônimos de navegação</strong> (telas visitadas, funções acionadas, conversão do funil de assinatura)</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Gravações de sessão com todos os campos sensíveis mascarados</strong> — e-mail, senha, peso, sintomas, notas e qualquer dado clínico aparecem como blocos cinza no replay. Isso permite identificar pontos confusos da interface sem expor seu conteúdo</li>' +
+        '<li style="margin-bottom:3px"><strong style="color:#fff">Origem do cadastro</strong> via parâmetros UTM da URL (de qual link você chegou ao app)</li>' +
+      '</ul>' +
+      '<p style="margin:0 0 14px 0">A captura <strong style="color:#fff">respeita o sinal Do Not Track</strong> do seu navegador. Você também pode desativar a coleta a qualquer momento em <strong style="color:#fff">Mais → Privacidade → Compartilhamento de uso</strong> sem prejuízo ao funcionamento do app.</p>' +
+
       '<div style="font-weight:800;color:#86efac;margin-bottom:6px;font-size:13.5px">10. Modificações nos Termos</div>' +
       '<p style="margin:0 0 14px 0">Estes Termos podem ser atualizados a qualquer momento. Mudanças relevantes serão comunicadas no app. Continuar usando após uma atualização significa aceitação dos novos Termos. Reajustes de preço terão aviso prévio de pelo menos 30 dias.</p>' +
 
@@ -6800,6 +6937,77 @@ function abrirTermosUso(){
    v3.1.27 — SOBRE O SANOVA
    Versão, copyright, créditos
    ══════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v3.9.3 — COMPARTILHAMENTO DE USO (opt-out de analytics)
+   Modal de privacidade: paciente liga/desliga a captura do PostHog.
+   Cumprimento do compromisso descrito na cláusula 9.1 dos Termos v1.2.
+   ══════════════════════════════════════════════════════════════════════════ */
+function abrirCompartilhamentoUso(){
+  var optOut = !!(S && S.profile && S.profile.analyticsOptOut === true);
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+  ov.innerHTML = '<div style="max-width:480px;width:100%;max-height:90vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:22px;border:1.5px solid rgba(187,247,208,.25)" onclick="event.stopPropagation()">' +
+    '<div style="text-align:center;margin-bottom:14px">' +
+      '<div style="font-size:30px;margin-bottom:4px">📊</div>' +
+      '<div style="font-size:18px;font-weight:700;color:#fff;font-family:var(--fd);letter-spacing:-.02em">Compartilhamento de uso</div>' +
+      '<div style="font-size:11.5px;color:rgba(255,255,255,.55);margin-top:3px">Você decide se quer ajudar a melhorar o app</div>' +
+    '</div>' +
+    '<div style="font-size:13px;color:rgba(255,255,255,.88);line-height:1.6;margin-bottom:14px">' +
+      '<p style="margin:0 0 10px 0">O Sanova usa o <strong style="color:#fff">PostHog</strong> (analytics em conformidade com LGPD) pra entender quais funcionalidades são mais úteis e priorizar melhorias.</p>' +
+      '<div style="background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.18);border-radius:10px;padding:11px 13px;margin-bottom:10px">' +
+        '<div style="font-weight:700;color:#86efac;margin-bottom:4px;font-size:12.5px">✅ O que coletamos</div>' +
+        '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.55">' +
+          '<li>Telas visitadas e botões tocados</li>' +
+          '<li>Origem do cadastro (link UTM)</li>' +
+          '<li>Gravação da sessão com <strong>tudo mascarado</strong> (e-mail, senha, peso, sintomas viram cinza)</li>' +
+        '</ul>' +
+      '</div>' +
+      '<div style="background:rgba(252,165,165,.06);border:1px solid rgba(252,165,165,.18);border-radius:10px;padding:11px 13px;margin-bottom:10px">' +
+        '<div style="font-weight:700;color:#fca5a5;margin-bottom:4px;font-size:12.5px">🚫 O que NUNCA coletamos</div>' +
+        '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.55">' +
+          '<li>Conteúdo dos seus campos (peso, sintomas, notas)</li>' +
+          '<li>E-mail ou senha</li>' +
+          '<li>Fotos enviadas pra IA do prato</li>' +
+          '<li>Dados de cartão de crédito</li>' +
+        '</ul>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin-bottom:14px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px">' +
+        '<div style="flex:1">' +
+          '<div style="font-size:14px;font-weight:700;color:#fff">Compartilhar uso anônimo</div>' +
+          '<div id="compUsoEstado" style="font-size:11.5px;color:rgba(255,255,255,.55);margin-top:2px">' + (optOut ? 'Desativado — não estamos coletando nada' : 'Ativo — obrigado por ajudar a melhorar o app 🌿') + '</div>' +
+        '</div>' +
+        '<label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0">' +
+          '<input type="checkbox" id="compUsoToggle" ' + (optOut ? '' : 'checked') + ' onchange="toggleCompartilhamentoUso(this.checked)" style="opacity:0;width:0;height:0">' +
+          '<span style="position:absolute;cursor:pointer;inset:0;background:' + (optOut ? 'rgba(255,255,255,.15)' : '#4ade80') + ';border-radius:99px;transition:.2s" id="compUsoSlider"></span>' +
+          '<span style="position:absolute;height:22px;width:22px;left:' + (optOut ? '3px' : '25px') + ';top:3px;background:#fff;border-radius:50%;transition:.2s;pointer-events:none" id="compUsoKnob"></span>' +
+        '</label>' +
+      '</div>' +
+    '</div>' +
+    '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:12px;border-radius:11px;border:1.5px solid rgba(187,247,208,.4);background:rgba(187,247,208,.08);color:#bbf7d0;font-family:var(--ss);font-size:14px;font-weight:700;cursor:pointer">Entendi</button>' +
+  '</div>';
+  document.body.appendChild(ov);
+}
+
+function toggleCompartilhamentoUso(ativo){
+  try{
+    if(ativo){
+      if(window.Sanova && Sanova.optInAnalytics) Sanova.optInAnalytics();
+    }else{
+      if(window.Sanova && Sanova.optOutAnalytics) Sanova.optOutAnalytics();
+    }
+    var est = document.getElementById('compUsoEstado');
+    var sl  = document.getElementById('compUsoSlider');
+    var kn  = document.getElementById('compUsoKnob');
+    if(est) est.textContent = ativo ? 'Ativo — obrigado por ajudar a melhorar o app 🌿' : 'Desativado — não estamos coletando nada';
+    if(sl)  sl.style.background = ativo ? '#4ade80' : 'rgba(255,255,255,.15)';
+    if(kn)  kn.style.left = ativo ? '25px' : '3px';
+  }catch(e){ console.warn('[Sanova] toggle analytics falhou:', e); }
+}
+
 function abrirSobreSanova(){
   var ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
@@ -19715,6 +19923,16 @@ function btnFeedback(btn,msg,dur){
 /* ══ INIT ══ */
 window.addEventListener('DOMContentLoaded',function(){
   carregar();
+  // v3.9.3: analytics — app_loaded com dias ativos pra segmentar coortes
+  try{
+    var dias = (typeof diasAtivosCalc === 'function') ? diasAtivosCalc() : 0;
+    Sanova.track('app_loaded', {
+      dias_ativos: dias,
+      versao_app: (typeof SANOVA_VERSION !== 'undefined') ? SANOVA_VERSION : 'unknown',
+      tem_perfil: !!(S && S.profile && S.profile.sex && S.profile.weightKg),
+      objetivo: (S && S.profile && S.profile.objetivo) || null
+    });
+  }catch(e){}
   // v3.1.36: detectar virada de dia ANTES de qualquer render
   // Resolve bug estrutural cravado pelo Bruno: registros de dia anterior
   // apareciam como "hoje" em alguns cards. Agora garantia automática.
@@ -20134,6 +20352,15 @@ window.addEventListener('beforeunload',function(){
       if(modoCriar){
         var r = await sb.auth.signUp({ email: email, password: pass });
         if(r.error) throw r.error;
+        // v3.9.3: analytics — user_signup (email NÃO é enviado, só id e UTM via super-props)
+        try{
+          var uid = r.data && r.data.user && r.data.user.id;
+          if(uid && window.posthog && posthog.identify) posthog.identify(uid);
+          Sanova.track('user_signup', {
+            login_automatico: !!(r.data && r.data.session),
+            confirmacao_email_necessaria: !(r.data && r.data.session)
+          });
+        }catch(e){}
         if(r.data && r.data.session){
           // Login automático após cadastro
           await aoLogar(r.data.session.user, true);
@@ -20144,6 +20371,12 @@ window.addEventListener('beforeunload',function(){
       }else{
         var r2 = await sb.auth.signInWithPassword({ email: email, password: pass });
         if(r2.error) throw r2.error;
+        // v3.9.3: analytics — user_login
+        try{
+          var uid2 = r2.data && r2.data.user && r2.data.user.id;
+          if(uid2 && window.posthog && posthog.identify) posthog.identify(uid2);
+          Sanova.track('user_login', {});
+        }catch(e){}
         await aoLogar(r2.data.session.user, false);
       }
     }catch(e){
@@ -20337,9 +20570,34 @@ window.addEventListener('beforeunload',function(){
     return s;
   }
 
+  // v3.9.3: estado anterior pra detectar transições (free→trial, trial→active, etc)
+  var _statusAnterior = null;
   function disparar(){
     try{
-      window.dispatchEvent(new CustomEvent('sanova:assinatura', {detail: get()}));
+      var atual = get();
+      // Eventos de transição pro PostHog (uma vez por mudança)
+      try{
+        if(_statusAnterior !== null && _statusAnterior !== atual.status){
+          if(atual.status === 'trial'){
+            window.Sanova && Sanova.track && Sanova.track('trial_started', {
+              dias_trial: atual.diasRestantes,
+              de: _statusAnterior
+            });
+          } else if(atual.status === 'active' && (_statusAnterior === 'trial' || _statusAnterior === 'free')){
+            window.Sanova && Sanova.track && Sanova.track('payment_succeeded', {
+              de: _statusAnterior
+            });
+          } else if(atual.status === 'canceled'){
+            window.Sanova && Sanova.track && Sanova.track('subscription_canceled', {
+              de: _statusAnterior
+            });
+          } else if(atual.status === 'expired'){
+            window.Sanova && Sanova.track && Sanova.track('trial_expired', {});
+          }
+        }
+        _statusAnterior = atual.status;
+      }catch(e){}
+      window.dispatchEvent(new CustomEvent('sanova:assinatura', {detail: atual}));
     }catch(e){}
   }
 
@@ -20552,6 +20810,8 @@ window.addEventListener('beforeunload',function(){
   function abrirModal(motivo){
     fecharModal();
     var estado = window.SanovaAssinatura ? window.SanovaAssinatura.get() : {};
+    // v3.9.3: analytics — paywall_viewed
+    try{ Sanova.track('paywall_viewed', { motivo: motivo || 'unknown', status_assinatura: estado.status || 'unknown' }); }catch(e){}
     var ov = document.createElement('div');
     ov.id = 'sanova-modal-paywall';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9998;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px)';
@@ -20566,7 +20826,9 @@ window.addEventListener('beforeunload',function(){
   }
 
   function iniciarAssinatura(){
-    // Stub ate o PR do Mercado Pago entrar (proxima sessao)
+    // v3.9.3: analytics — checkout_started (Dia 1 ainda em stub; chamada real do MP entra no Dia 2)
+    try{ Sanova.track('checkout_started', { plano: 'mensal_1990', stub: true }); }catch(e){}
+    // Stub ate o PR do Mercado Pago entrar (Dia 2)
     alert('🌿 Cobranca real entra no ar na proxima atualizacao do app. Se voce quiser ser avisado(a) primeiro, manda mensagem pro contato@sanova ou aguarda o proximo update.');
   }
 
