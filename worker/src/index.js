@@ -2,17 +2,22 @@
  * Sanova API Worker
  * ─────────────────────────────────────────────────────────────
  * Rotas:
- *   POST /api/analyze-photo  — Reconhece prato a partir de foto (base64)
- *   POST /api/analyze-text   — Estima macros a partir de descricao em texto
- *   POST /api/mp-webhook     — (proxima sessao) Recebe notificacao do MP
- *   GET  /api/health         — Healthcheck publico
+ *   POST /api/analyze-photo       — Reconhece prato a partir de foto (base64)
+ *   POST /api/analyze-text        — Estima macros a partir de descricao em texto
+ *   POST /api/mp-create-preapproval — Cria assinatura recorrente MP, devolve URL
+ *   POST /api/mp-webhook          — Recebe notificacao MP, atualiza Supabase
+ *   GET  /api/health              — Healthcheck publico
+ *   GET  /api/debug-gemini        — Diagnostico Gemini (status/keyHint)
  *
  * Provider de IA: Gemini 2.5 Flash via adapter (trocavel).
- * Prompt em PT-BR, focado em comida brasileira.
+ * Cobranca: Mercado Pago (sandbox via MP_ACCESS_TOKEN_SANDBOX).
+ * Escrita Supabase: service_role key (so o Worker tem; nunca no client).
  */
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature } from './mp.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail } from './supabase.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -30,7 +35,17 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.0.2' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.1.0' }, 200, origin, env);
+      }
+
+      // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
+      if (url.pathname === '/api/mp-create-preapproval' && request.method === 'POST') {
+        return await handleMpCreatePreapproval(request, env, origin);
+      }
+
+      // v1.1.0: recebe notificacao do MP, valida HMAC, atualiza Supabase
+      if (url.pathname === '/api/mp-webhook' && request.method === 'POST') {
+        return await handleMpWebhook(request, env);
       }
 
       // v1.0.1: endpoint de diagnostico — chama Gemini com prompt trivial e
@@ -46,15 +61,6 @@ export default {
 
       if (url.pathname === '/api/analyze-text' && request.method === 'POST') {
         return await handleAnalyzeText(request, env, origin);
-      }
-
-      if (url.pathname === '/api/mp-webhook' && request.method === 'POST') {
-        return jsonResponse(
-          { ok: false, error: 'mp-webhook nao implementado nesta versao' },
-          501,
-          origin,
-          env
-        );
       }
 
       return jsonResponse({ ok: false, error: 'not_found' }, 404, origin, env);
@@ -188,4 +194,154 @@ async function handleDebugGemini(env) {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     }
   );
+}
+
+// ─── /api/mp-create-preapproval ──────────────────────────────
+// Recebe { userId, email } do app, cria assinatura recorrente no MP,
+// devolve { init_point } com a URL de checkout pro paciente pagar.
+// Tambem grava mp_preapproval_id na linha do Supabase pra rastreamento.
+async function handleMpCreatePreapproval(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const userId = body.userId;
+  const email = body.email;
+  const backUrl = body.backUrl || 'https://sanovaapp.github.io/sanova/?mp_return=1';
+
+  if (!userId || !email) {
+    return jsonResponse(
+      { ok: false, error: 'missing_params', message: 'userId e email obrigatorios.' },
+      400, origin, env
+    );
+  }
+
+  try {
+    const preapproval = await createPreapproval({ userId, payerEmail: email, backUrl }, env);
+
+    // Grava preapproval_id na assinatura existente (criada pelo trigger no signup)
+    try {
+      await updateSubscriptionByUser(userId, {
+        mp_preapproval_id: preapproval.id,
+      }, env);
+    } catch (e) {
+      console.error('[mp-create-preapproval] supabase update falhou:', e.message);
+      // Nao bloqueia o checkout — paciente ainda pode pagar; webhook reconcilia depois.
+    }
+
+    return jsonResponse({
+      ok: true,
+      init_point: preapproval.init_point,
+      preapproval_id: preapproval.id,
+      status: preapproval.status,
+    }, 200, origin, env);
+  } catch (err) {
+    console.error('[mp-create-preapproval] erro:', err);
+    return jsonResponse(
+      { ok: false, error: 'mp_error', message: String(err.message || err) },
+      500, origin, env
+    );
+  }
+}
+
+// ─── /api/mp-webhook ─────────────────────────────────────────
+// Mercado Pago chama esse endpoint quando algo muda na assinatura/pagamento.
+// Tipos esperados:
+//   - type=subscription_preapproval ou type=preapproval -> mudou status da assinatura
+//   - type=payment                                       -> houve pagamento (cobrar mes)
+//   - type=subscription_authorized_payment               -> pagamento da assinatura cobrado
+// Sempre validar HMAC com MP_WEBHOOK_SECRET antes de agir.
+async function handleMpWebhook(request, env) {
+  const rawBody = await request.text();
+  let body = {};
+  try { body = JSON.parse(rawBody); } catch (e) {}
+
+  // 1) Valida assinatura HMAC (rejeita silenciosamente se invalida)
+  const sig = await verifyWebhookSignature(request, body, env);
+  if (!sig.ok) {
+    console.warn('[mp-webhook] HMAC invalido:', sig.reason);
+    // MP exige 200 mesmo em rejeicao silenciosa pra nao retentar infinito;
+    // mas pra defender de spam, devolvemos 401 em DEV. Em prod manter 200.
+    return new Response(JSON.stringify({ ok: false, error: sig.reason }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const url = new URL(request.url);
+  const type = url.searchParams.get('type') || body.type || body.action || '';
+  const dataId = url.searchParams.get('data.id') || url.searchParams.get('id')
+              || (body && body.data && body.data.id) || (body && body.id) || '';
+
+  console.log('[mp-webhook] type=' + type + ' dataId=' + dataId);
+
+  try {
+    // ── PREAPPROVAL (status da assinatura mudou) ──
+    if (type === 'preapproval' || type === 'subscription_preapproval') {
+      const pa = await getPreapproval(dataId, env);
+      // pa.status: pending | authorized | paused | cancelled
+      let status = 'trial';
+      let extraFields = { mp_preapproval_id: pa.id };
+
+      if (pa.status === 'authorized') {
+        status = 'active';
+        extraFields.subscription_started_at = pa.date_created || new Date().toISOString();
+      } else if (pa.status === 'cancelled' || pa.status === 'paused') {
+        status = 'canceled';
+        extraFields.subscription_ends_at = new Date().toISOString();
+      }
+
+      const userId = await _resolveUserId(pa, env);
+      if (userId) {
+        await updateSubscriptionByUser(userId, { status, ...extraFields }, env);
+      } else {
+        // Fallback: tenta achar pelo preapproval_id ja gravado
+        await updateSubscriptionByPreapproval(pa.id, { status, ...extraFields }, env);
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ── PAYMENT (cobranca recorrente confirmada) ──
+    if (type === 'payment' || type === 'subscription_authorized_payment') {
+      const pay = await getPayment(dataId, env);
+      // pay.status: approved | rejected | refunded | charged_back ...
+      // Vincular pelo external_reference (sanova_<user_id>) se presente
+      const extRef = pay.external_reference || '';
+      const userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
+
+      if (pay.status === 'approved' && userId) {
+        await updateSubscriptionByUser(userId, {
+          status: 'active',
+          subscription_started_at: pay.date_approved || new Date().toISOString(),
+        }, env);
+      } else if ((pay.status === 'refunded' || pay.status === 'charged_back') && userId) {
+        await updateSubscriptionByUser(userId, { status: 'canceled' }, env);
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Tipo desconhecido — apenas reconhece
+    return new Response(JSON.stringify({ ok: true, ignored: type }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('[mp-webhook] erro processando:', err);
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }), {
+      status: 200, // 200 pra evitar retentativas infinitas; logamos pra investigar
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// Resolve user_id a partir de uma preapproval do MP.
+// Prioridade: external_reference (sanova_<uuid>) > payer_email.
+async function _resolveUserId(pa, env) {
+  if (pa.external_reference && pa.external_reference.startsWith('sanova_')) {
+    return pa.external_reference.replace(/^sanova_/, '');
+  }
+  if (pa.payer_email) {
+    return await findUserByEmail(pa.payer_email, env);
+  }
+  return null;
 }

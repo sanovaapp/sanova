@@ -5952,7 +5952,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.3';
+var SANOVA_VERSION = '3.9.4';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -20825,11 +20825,46 @@ window.addEventListener('beforeunload',function(){
     if(ov) ov.remove();
   }
 
-  function iniciarAssinatura(){
-    // v3.9.3: analytics — checkout_started (Dia 1 ainda em stub; chamada real do MP entra no Dia 2)
-    try{ Sanova.track('checkout_started', { plano: 'mensal_1990', stub: true }); }catch(e){}
-    // Stub ate o PR do Mercado Pago entrar (Dia 2)
-    alert('🌿 Cobranca real entra no ar na proxima atualizacao do app. Se voce quiser ser avisado(a) primeiro, manda mensagem pro contato@sanova ou aguarda o proximo update.');
+  async function iniciarAssinatura(){
+    // v3.9.4: chamada real do MP sandbox via Worker.
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    var user = (typeof window.SanovaUser === 'function') ? window.SanovaUser() : null;
+    if(!sb || !user || !user.id || !user.email){
+      alert('Pra assinar, primeiro entra com seu e-mail e senha (toca em "Mais → Perfil").');
+      try{ Sanova.track('checkout_blocked', { motivo: 'sem_login' }); }catch(e){}
+      return;
+    }
+    try{ Sanova.track('checkout_started', { plano: 'mensal_1990' }); }catch(e){}
+
+    var btn = document.querySelector('#sanova-modal-paywall button[onclick*="iniciarAssinatura"]');
+    var txtOrig = btn ? btn.textContent : null;
+    if(btn){ btn.disabled = true; btn.textContent = 'Abrindo Mercado Pago...'; }
+
+    try{
+      var apiBase = (typeof SANOVA_API_URL !== 'undefined' && SANOVA_API_URL)
+                  || window.SANOVA_API_URL
+                  || 'https://sanova-api.contatosanovaapp.workers.dev';
+      var resp = await fetch(apiBase + '/api/mp-create-preapproval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          backUrl: window.location.origin + window.location.pathname + '?mp_return=1'
+        })
+      });
+      var data = await resp.json().catch(function(){ return {}; });
+      if(!resp.ok || !data.init_point){
+        throw new Error((data && data.message) || ('HTTP ' + resp.status));
+      }
+      // Redireciona pro checkout MP (mesma aba — paciente volta via back_url)
+      window.location.href = data.init_point;
+    }catch(err){
+      console.error('[Paywall] erro iniciarAssinatura:', err);
+      if(btn){ btn.disabled = false; btn.textContent = txtOrig || 'Assinar agora 🌿'; }
+      try{ Sanova.track('checkout_error', { erro: String(err && err.message || err) }); }catch(e){}
+      alert('Nao consegui abrir o Mercado Pago agora. Tente de novo em alguns segundos.');
+    }
   }
 
   function maybeMostrarModalExpirado(estado){
