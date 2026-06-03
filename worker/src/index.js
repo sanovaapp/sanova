@@ -17,7 +17,7 @@
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser } from './mp.js';
-import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail } from './supabase.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin } from './supabase.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.1.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.2.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -60,6 +60,12 @@ export default {
       // Acesso: GET /api/mp-create-test-user (1 chamada gera 1 conta)
       if (url.pathname === '/api/mp-create-test-user' && request.method === 'GET') {
         return await handleMpCreateTestUser(env);
+      }
+
+      // v1.2.0: debug do estado admin (tabela existe? bruno e admin?)
+      // Acessar via GET /api/debug-admin no browser. Sem dados sensiveis.
+      if (url.pathname === '/api/debug-admin' && request.method === 'GET') {
+        return await handleDebugAdmin(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -372,6 +378,58 @@ async function handleMpCreateTestUser(env) {
           site_status: user.site_status,
           como_usar:
             'Em uma aba anonima, va no checkout do app Sanova e faca login no MP com esse email/password. Depois preencha cartao de teste 5031 4332 1540 6351 nome APRO.',
+        },
+        null,
+        2
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/debug-admin (v1.2.0) ───────────────────────────────
+// Verifica estado da infra admin:
+//   - Tabela public.admins existe?
+//   - Quantos admins cadastrados?
+//   - Bruno (brunoambrozim@hotmail.com) é admin?
+//   - View admin_metrics_v1 acessível?
+// Sem dados sensiveis. Usado pra confirmar que migracoes aplicaram.
+async function handleDebugAdmin(env) {
+  const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
+  try {
+    const adminsTable = await countRows('admins', env);
+    const metricsView = await countRows('admin_metrics_v1', env);
+    const brunoAdmin = await isEmailAdmin(BRUNO_EMAIL, env);
+
+    return new Response(
+      JSON.stringify(
+        {
+          ok: true,
+          tabela_admins: {
+            existe: adminsTable.exists,
+            total_admins: adminsTable.count,
+            hint: adminsTable.exists ? null : 'Migration 20260603000000 nao aplicou ainda.',
+          },
+          view_admin_metrics: {
+            existe: metricsView.exists,
+            hint: metricsView.exists ? null : 'View admin_metrics_v1 nao existe.',
+          },
+          bruno: {
+            email: BRUNO_EMAIL,
+            usuario_supabase_encontrado: brunoAdmin.found,
+            user_id_curto: brunoAdmin.userId ? brunoAdmin.userId.slice(0, 8) + '...' : null,
+            e_admin: brunoAdmin.isAdmin,
+          },
+          proximo_passo: brunoAdmin.isAdmin
+            ? '✅ Tudo pronto. Acesse sanovaapp.github.io/sanova/admin/'
+            : (adminsTable.exists
+              ? '⚠️ Tabela admins existe mas Bruno nao foi inserido. Migration de seed 20260603120000 ainda nao aplicou.'
+              : '⚠️ Tabela admins nao existe. Verifique Supabase GitHub Integration.'),
         },
         null,
         2
