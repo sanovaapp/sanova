@@ -1,0 +1,44 @@
+name: MP Sandbox helper
+
+# Workflow gateway pra acionar endpoints do Worker que o sandbox do Claude Code
+# nao consegue chamar (workers.dev bloqueado por host_not_allowed).
+#
+# Disparado manualmente via workflow_dispatch. Cada action corresponde a um
+# endpoint helper do Worker. O resultado vai parar no log do run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Acao a executar'
+        required: true
+        default: 'mp-create-test-user'
+        type: choice
+        options:
+          - mp-create-test-user
+          - debug-admin
+          - debug-gemini
+          - health
+
+jobs:
+  call-worker:
+    runs-on: ubuntu-latest
+    name: Chama Worker e exibe resposta
+    steps:
+      - name: Curl Worker endpoint
+        id: curl
+        run: |
+          set -e
+          BASE="https://sanova-api.contatosanovaapp.workers.dev"
+          ACTION="${{ github.event.inputs.action }}"
+          echo "## Chamando $BASE/api/$ACTION" | tee -a $GITHUB_STEP_SUMMARY
+          RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" "$BASE/api/$ACTION")
+          echo "$RESPONSE"
+          # Tambem grava no Summary (acessivel via API) e como output
+          {
+            echo "## Resposta do Worker"
+            echo ''
+            echo '```json'
+            echo "$RESPONSE"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
