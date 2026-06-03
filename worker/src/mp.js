@@ -83,13 +83,21 @@ export async function createTestUser(env, siteId = 'MLB') {
   const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
   if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
 
+  // v1.2.1: adicionado description + idempotency key — MP atualizou validacao
+  // e estava retornando "invalid site_id" sem esses campos.
+  const idempKey = 'sanova-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+
   const resp = await fetch(MP_API + '/users/test', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + token,
       'Content-Type': 'application/json',
+      'X-Idempotency-Key': idempKey,
     },
-    body: JSON.stringify({ site_id: siteId }),
+    body: JSON.stringify({
+      site_id: siteId,
+      description: 'Sanova sandbox test user',
+    }),
   });
 
   const data = await resp.json().catch(() => ({}));
@@ -97,7 +105,7 @@ export async function createTestUser(env, siteId = 'MLB') {
     const msg = (data && data.message) ? data.message : ('HTTP ' + resp.status);
     throw new Error('MP createTestUser: ' + msg);
   }
-  return data; // { id, nickname, password, site_status, email }
+  return data;
 }
 
 /**
