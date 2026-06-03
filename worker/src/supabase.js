@@ -123,3 +123,26 @@ export async function isEmailAdmin(email, env) {
   const data = await resp.json().catch(() => []);
   return { found: true, isAdmin: data.length > 0, userId };
 }
+
+/**
+ * Gera magic link de login pra um e-mail. Permite Playwright/E2E logar
+ * sem precisar de senha (Bruno mobile-only nao precisa expor a dele).
+ * Retorna {action_link, ...}.
+ */
+export async function generateMagicLink(email, redirectTo, env) {
+  const url = SUPABASE_URL + '/auth/v1/admin/generate_link';
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: _headers(env),
+    body: JSON.stringify({
+      type: 'magiclink',
+      email,
+      options: redirectTo ? { redirect_to: redirectTo } : {},
+    }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error('Supabase generateMagicLink: HTTP ' + resp.status + ' ' + JSON.stringify(data).slice(0, 200));
+  }
+  return data;
+}
