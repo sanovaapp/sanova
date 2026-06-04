@@ -606,7 +606,7 @@ button:active,.btn:active,.ci-card:active,.fase-opt:active,.ana-opt:active,.ana-
 /* ==========================================================================
    WRAP (main container)
    ========================================================================== */
-.wrap{max-width:1180px;margin:0 auto;padding:24px 16px calc(110px + var(--safe-bottom))}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px calc(128px + var(--safe-bottom))}
 .sec{display:none;animation:secIn .25s ease}
 .sec.on{display:block;animation:secIn .28s cubic-bezier(.22,.8,.28,1)}
 @keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -1409,7 +1409,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   .kg{grid-template-columns:1fr 1fr}
   .fg{grid-template-columns:1fr}
   .egrid,.sint-grid{grid-template-columns:1fr}
-  .wrap{padding:18px 14px calc(104px + var(--safe-bottom))}
+  .wrap{padding:18px 14px calc(122px + var(--safe-bottom))}
   .pg-title{font-size:26px;letter-spacing:-.03em}
   .card{padding:20px 18px;border-radius:22px}
   .tab-bar-in{padding:8px 10px 12px;gap:6px}
@@ -5981,7 +5981,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.13';
+var SANOVA_VERSION = '3.9.14';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -14951,15 +14951,6 @@ var FAQ=[
   {cat:'💉 Medicação',ic:'💉',q:'É normal sentir menos fome logo após aplicar?',a:'Sim, e isso é o medicamento funcionando. O efeito de saciedade começa nas primeiras horas após a aplicação e atinge o pico entre 24 e 72 horas depois. Aproveite esse período para priorizar proteína — mesmo sem fome, tente comer pequenas quantidades de alimentos proteicos. É o momento mais importante da semana para proteger seus músculos.'},
   {cat:'💉 Medicação',ic:'💉',q:'Posso mudar o dia da aplicação semanal?',a:'Sim. Você pode mudar o dia desde que mantenha pelo menos 4 dias de intervalo entre as doses. Após a mudança, mantenha o novo dia fixo toda semana.'},
   {cat:'💉 Medicação',ic:'💉',q:'Posso tomar com outros remédios?',a:'Informe sempre ao seu médico todos os medicamentos em uso. Atenção especial com insulina, antidiabéticos orais, anticoagulantes e remédios para tireoide. O GLP-1 pode alterar a absorção de medicamentos orais — tome outros medicamentos orais pelo menos 1 hora antes ou 4 horas após o GLP-1 oral.'},
-/* ─── 🤢 EFEITOS COLATERAIS ─── */
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Náusea — é normal e o que fazer?',a:'<strong>Sim, é o sintoma mais comum.</strong> O medicamento retarda o esvaziamento do estômago — a comida fica mais tempo lá dentro, gerando saciedade mas também enjoo no início.<br><br><strong>O que fazer:</strong> Coma devagar e em volumes menores · Evite deitar logo após comer · Prefira alimentos leves · Evite frituras · Beba água em pequenos goles · Gengibre (chá ou cápsulas) pode ajudar.<br><br><strong>⚠️ Pode ser sinal de dose elevada:</strong> Náusea intensa ou persistente pode indicar que a dose está acima do necessário para o seu organismo. Converse com seu médico sobre revisar a dose antes de desistir do tratamento.<br><br><strong>🚨 Vá ao médico se:</strong> Vômitos que não param por mais de 24h · Não consegue beber água sem vomitar · Boca muito seca, urina escura, tontura ao levantar · Dor abdominal intensa junto com o enjoo.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Constipação (intestino preso) — o que fazer?',a:'<strong>Muito comum com GLP-1.</strong> O mesmo mecanismo que retarda o estômago também retarda o intestino. Com menos comida e menos fibra, fica ainda mais lento.<br><br><strong>O que fazer:</strong> Aumente água — mínimo 2 litros por dia (passo mais importante!) · Inclua fibras: frutas com casca, verduras, aveia, chia · Ameixa, mamão e kiwi ajudam · Movimento físico — mesmo uma caminhada · Horário fixo para ir ao banheiro.<br><br><strong>🚨 Vá ao médico se:</strong> Mais de 5 dias sem evacuar · Dor abdominal intensa · Abdômen distendido e duro · Sangue nas fezes.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Diarreia — o que fazer?',a:'<strong>Menos comum que a constipação</strong>, mas acontece especialmente no início ou após aumento de dose. Geralmente é temporária.<br><br><strong>O que fazer:</strong> Hidratação rigorosa — água, água de coco, soro caseiro · Alimentos de fácil digestão: arroz, frango, banana · Evite laticínios temporariamente · Evite adoçantes (sorbitol e manitol pioram a diarreia).<br><br><strong>⚠️ Pode ser sinal de dose elevada:</strong> Diarreia persistente toda semana pode indicar dose acima do necessário. Não normalize esse sintoma. Converse com seu médico.<br><br><strong>🚨 Vá ao médico se:</strong> Diarreia por mais de 3 dias seguidos · Sinais de desidratação · Sangue ou muco nas fezes · Febre junto com diarreia.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Refluxo e azia — o que fazer?',a:'<strong>Com o esvaziamento gástrico mais lento</strong>, o estômago fica cheio por mais tempo, aumentando a pressão e facilitando o refluxo.<br><br><strong>O que fazer:</strong> Não deite por pelo menos 2h após comer · Eleve a cabeceira da cama · Evite café, chocolate, frituras e álcool · Refeições menores e mais frequentes · Não use roupas apertadas após as refeições.<br><br><strong>🚨 Vá ao médico se:</strong> Dor no peito · Dificuldade para engolir · Refluxo que não melhora com nenhuma medida · Vômito com sangue.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Cansaço e fadiga — é normal?',a:'<strong>Algum cansaço inicial é comum</strong> — você está comendo menos e o corpo está se adaptando. Mas fadiga persistente merece atenção.<br><br><strong>Verifique:</strong> Está atingindo a meta de proteína? · Está comendo carboidrato suficiente para energia no treino? · Está hidratado? · Está dormindo bem?<br><br><strong>🚨 Vá ao médico se:</strong> Cansaço intenso que não melhora · Fraqueza muscular progressiva · Tontura ao levantar junto com cansaço.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Queda de cabelo — é do remédio?',a:'<strong>Não é causada diretamente pelo medicamento</strong>, mas pela perda de peso acelerada. Chama-se eflúvio telógeno — o folículo capilar sofre estresse nutricional durante o emagrecimento rápido.<br><br><strong>O que ajuda:</strong> Proteína suficiente (prioritário) · Zinco e biotina (converse com seu médico) · Evitar dietas muito restritivas · Paciência — o cabelo costuma se recuperar após estabilização do peso.<br><br><strong>🚨 Vá ao médico se:</strong> Queda muito intensa ou em placas.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Dor no local da aplicação — o que fazer?',a:'<strong>Comum e geralmente leve.</strong> Pode aparecer como vermelhão, coceira ou nódulo pequeno no local.<br><br><strong>O que fazer:</strong> Gire sempre o local de aplicação — abdômen, coxa e braço em rodízio · Retire o medicamento da geladeira 30 min antes (aplicar frio aumenta dor) · Deixe o álcool secar completamente antes de aplicar · Aplique devagar e segure por 10 segundos.<br><br><strong>🚨 Vá ao médico se:</strong> Inchaço grande ou endurecimento no local · Vermelhão que espalha · Febre associada.'},
-  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Fome voltou forte antes da próxima dose — e agora?',a:'É o "vale" do medicamento — concentração no ponto mais baixo antes da próxima dose. É normal e esperado. O Sanova mostra exatamente em que fase você está.<br><br><strong>Estratégias para o vale:</strong> Proteína em todas as refeições · Alimentos com fibra (saciam mais) · Água antes das refeições · Não pule refeições (fome em jejum é mais difícil de controlar) · Se muito intenso, converse com seu médico — pode ser sinal de que a dose precisa de ajuste.'},
 /* ─── ⚖️ SOBRE O PESO ─── */
   {cat:'⚖️ Sobre o peso',ic:'⚖️',q:'Quanto tempo para ver resultado?',a:'A maioria das pessoas nota diferença nas roupas antes de ver na balança — especialmente nas primeiras 2 a 4 semanas. Perda de gordura real começa a aparecer entre a 4ª e 8ª semana. Resultados mais expressivos geralmente aparecem entre o 2º e 4º mês, quando a dose terapêutica está estabelecida. Cada organismo responde diferente — não compare seu ritmo com o de outros.'},
   {cat:'⚖️ Sobre o peso',ic:'⚖️',q:'Parei de emagrecer. O que está acontecendo?',a:'Platôs são normais e esperados — o corpo se adapta. Verifique: proteína está na meta? Água em dia? Sono de qualidade? Atividade física? Às vezes o platô coincide com período de aumento de dose. Não entre em pânico — continue os hábitos. Se passar de 3 semanas sem mudança, converse com seu médico.'},
@@ -14989,37 +14980,47 @@ var FAQ=[
   {cat:'🧠 Reeducação',ic:'🧠',q:'Posso emagrecer comendo mal com GLP-1?',a:'Sim — o GLP-1 vai te fazer emagrecer independente do que você coma, porque você come menos. Mas existe uma diferença enorme entre emagrecer e transformar sua saúde.<br><br>Quem emagrece comendo pizza e hambúrguer com GLP-1: perde peso · mas mantém os hábitos que o fizeram engordar · quando para o medicamento, a compulsão por esses alimentos volta e o peso retorna rapidamente.<br><br>Quem usa o período para reeducar: perde o mesmo peso · mas chega na meta com preferências alimentares diferentes · o cérebro aprendeu a preferir comida de verdade.'},
   {cat:'🧠 Reeducação',ic:'🧠',q:'Como saber se estou criando hábitos ou dependendo do remédio?',a:'Boa pergunta. Alguns sinais de que a reeducação está acontecendo: você consegue fazer escolhas alimentares melhores mesmo quando não está com náusea · você prefere naturalmente porções menores · alimentos muito gordurosos ou doces estão te agradando menos · você come mais devagar espontaneamente.<br><br>Sinais de que pode estar só dependendo do medicamento: sem o remédio os velhos padrões voltam completamente · você não pensa em comida diferente · não houve mudança nos alimentos que prefere.'},
 
-/* ─── 🩺 SINTOMAS — Comuns ─── */
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Náusea — o que fazer?',
+/* ─── 🤢 EFEITOS COLATERAIS ─── */
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Náusea — o que fazer?',
    a:'<strong>💬 Em resumo:</strong> É o sintoma mais comum. Na maioria dos casos é leve e melhora com o tempo.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O medicamento retarda o esvaziamento do estômago. Isso gera saciedade — mas no início, enquanto o corpo se adapta, causa enjoo. Piora nos dias após a aplicação.<br><br>'
     +'<strong>✅ O que fazer:</strong> Coma devagar e em volumes menores · Não deite logo após comer · Evite frituras e gordura · Beba água em pequenos goles · Gengibre (chá ou cápsulas) pode ajudar · Se muito intenso: converse com seu médico — pode ser dose acima do necessário.<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Vômitos que não param por mais de 24h · Não consegue beber água · Boca muito seca, urina escura, tontura ao levantar · Dor abdominal intensa junto com o enjoo.'},
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Constipação (intestino preso) — o que fazer?',
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Constipação (intestino preso) — o que fazer?',
    a:'<strong>💬 Em resumo:</strong> Muito comum. O medicamento retarda o trânsito intestinal. Tem solução simples.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O mesmo mecanismo que retarda o estômago também retarda o intestino. Com menos comida e desidratação, piora ainda mais.<br><br>'
     +'<strong>✅ O que fazer:</strong> Aumente água — mínimo 2L/dia (passo mais importante!) · Frutas com casca, verduras, aveia e chia · Ameixa, mamão e kiwi ajudam · Caminhada leve ativa o intestino.<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Mais de 5 dias sem evacuar · Dor abdominal intensa · Abdômen duro e distendido · Sangue nas fezes.'},
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Diarreia — o que fazer?',
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Diarreia — o que fazer?',
    a:'<strong>💬 Em resumo:</strong> Menos comum que a constipação. Geralmente temporária, passa em poucos dias.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O intestino pode reagir de forma oposta em algumas pessoas. Também pode indicar dose acima do necessário.<br><br>'
     +'<strong>✅ O que fazer:</strong> Hidratação rigorosa — água, água de coco, soro caseiro · Alimentos leves: arroz, frango, banana · Evite laticínios e adoçantes (sorbitol piora diarreia) · ⚠️ Se toda semana: converse com médico sobre dose.<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Mais de 3 dias seguidos · Sinais de desidratação · Sangue ou muco nas fezes · Febre junto.'},
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Refluxo e azia — o que fazer?',
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Refluxo e azia — o que fazer?',
    a:'<strong>💬 Em resumo:</strong> Com estômago mais cheio por mais tempo, o ácido pode subir. Gerenciável com cuidados simples.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O esvaziamento gástrico lento aumenta a pressão no estômago, facilitando o refluxo para o esôfago.<br><br>'
     +'<strong>✅ O que fazer:</strong> Não deite por pelo menos 2h após comer · Refeições menores e mais frequentes · Evite café, chocolate, frituras e álcool · Eleve levemente a cabeceira da cama.<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Dor no peito · Dificuldade para engolir · Refluxo que não melhora com nenhuma medida · Vômito com sangue.'},
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Cansaço e fadiga — é normal?',
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Cansaço e fadiga — é normal?',
    a:'<strong>💬 Em resumo:</strong> Algum cansaço no início é esperado. Fadiga persistente merece investigação.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O corpo está se adaptando, comendo menos e redistribuindo energia. Pode também ser déficit de carboidrato (importante para energia no treino!) ou proteína.<br><br>'
     +'<strong>✅ O que fazer:</strong> Verifique: atingiu a meta de proteína? · Está comendo carboidrato para o treino? · Está hidratado? · Está dormindo bem?<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Cansaço intenso que não melhora · Fraqueza muscular progressiva · Tontura ao levantar + cansaço.'},
-  {cat:'🩺 Sintomas Comuns',ic:'🩺',q:'Queda de cabelo — é do medicamento?',
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Queda de cabelo — é do medicamento?',
    a:'<strong>💬 Em resumo:</strong> Não é causada diretamente pelo GLP-1, mas pela perda rápida de peso. É temporária.<br><br>'
     +'<strong>📖 Por que acontece:</strong> Eflúvio telógeno — o folículo capilar sofre estresse nutricional durante o emagrecimento acelerado. Aparece 2 a 4 meses depois do início do tratamento.<br><br>'
     +'<strong>✅ O que fazer:</strong> Proteína suficiente (prioritário) · Zinco e biotina (converse com médico) · Paciência — o cabelo se recupera após estabilização do peso.<br><br>'
     +'<strong>🚨 Vá ao médico se:</strong> Queda muito intensa ou em placas.'},
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Dor no local da aplicação — o que fazer?',
+   a:'<strong>💬 Em resumo:</strong> Comum e geralmente leve. Pode aparecer como vermelhão, coceira ou nódulo pequeno no local.<br><br>'
+    +'<strong>📖 Por que acontece:</strong> Resposta inflamatória normal ao volume e à temperatura do líquido injetado. Aplicar gelado aumenta a dor.<br><br>'
+    +'<strong>✅ O que fazer:</strong> Gire sempre o local — abdômen, coxa e braço em rodízio · Retire o medicamento da geladeira 30 min antes · Deixe o álcool secar completamente antes de aplicar · Aplique devagar e segure por 10 segundos.<br><br>'
+    +'<strong>🚨 Vá ao médico se:</strong> Inchaço grande ou endurecimento no local · Vermelhão que espalha · Febre associada.'},
+  {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Fome voltou forte antes da próxima dose — é normal?',
+   a:'<strong>💬 Em resumo:</strong> Sim — é o "vale" do medicamento, quando a concentração no sangue está no ponto mais baixo antes da próxima dose.<br><br>'
+    +'<strong>📖 Por que acontece:</strong> O efeito do GLP-1 semanal é forte logo após a aplicação e vai diminuindo. Nos 1 a 2 dias antes da próxima dose, a saciedade cai e a fome volta. Não significa que o remédio parou de funcionar.<br><br>'
+    +'<strong>✅ O que fazer:</strong> Proteína em todas as refeições · Alimentos com fibra (saciam mais) · Água antes das refeições · Não pule refeições (fome em jejum é mais difícil de controlar).<br><br>'
+    +'<strong>🚨 Converse com seu médico se:</strong> A fome no "vale" é insuportável toda semana — pode ser sinal de que a dose precisa de ajuste.'},
 /* ─── 🚨 SINTOMAS — Sinais de Alerta ─── */
   {cat:'🚨 Sinais de Alerta',ic:'🚨',q:'Dor abdominal forte irradiando para as costas',
    a:'<strong>💬 Em resumo:</strong> Este sinal específico pode indicar pancreatite. Não ignore — busque atendimento médico imediatamente.<br><br>'
