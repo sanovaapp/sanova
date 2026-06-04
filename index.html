@@ -5981,7 +5981,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.11';
+var SANOVA_VERSION = '3.9.12';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13733,7 +13733,7 @@ function render(){
     if(_chD){
       if(S.caneta && S.caneta.farmaco){
         _chD.textContent = S.caneta.farmaco;
-        if(_chDs) _chDs.textContent = S.caneta.dose ? 'Dose atual: '+S.caneta.dose+' mg' : 'Configure a dose abaixo';
+        if(_chDs) _chDs.textContent = S.caneta.dose ? 'Dose atual: '+fmtDoseMg(S.caneta.dose) : 'Configure a dose abaixo';
         // Também esconder o formulário de configuração se já tem dados
         var formEl = el('tratFormWrap');
         if(formEl && S.caneta.dose) formEl.style.display = 'none';
@@ -13847,7 +13847,7 @@ function render(){
     setTimeout(buildPKChart,50);var _df=el('dFarm');if(_df)_df.textContent=S.caneta.farmaco;var _dd=el('dDose');if(_dd)_dd.textContent=S.caneta.dose||'—';var sem2=calcSemanas();var _ds=el('dSem');if(_ds)_ds.textContent=sem2!==null?'Semana '+sem2:'—';
     if(pd){var pv=pd.diff<=0?'Hoje! 💉':pd.diff===1?'Amanhã':'Em '+pd.diff+' dia'+(pd.diff>1?'s':'')+' ('+dataBR(pd.date)+')';var _pv=el('proxVal');if(_pv)_pv.textContent=pv;var _pt=el('proxTag');if(_pt){_pt.className=pd.diff<=0?'tag tr':pd.diff<=2?'tag tw':'tag tg';_pt.textContent=pd.diff<=0?'Hoje':pd.diff<=2?'Em breve':'Aguardando';}}
     var _chD=el('chDrug');if(_chD)_chD.textContent=S.caneta.farmaco;
-    var _chDs=el('chDose');if(_chDs)_chDs.textContent=S.caneta.dose?'Dose atual: '+S.caneta.dose+' mg':'Configure a dose abaixo';
+    var _chDs=el('chDose');if(_chDs)_chDs.textContent=S.caneta.dose?'Dose atual: '+fmtDoseMg(S.caneta.dose):'Configure a dose abaixo';
     var crow=el('chRow');if(crow){crow.innerHTML='';
     [{l:'Frequência',v:S.caneta.freq==='semanal'?'Semanal':'Diária'},{l:'Última aplicação',v:S.caneta.ultima?dataBR(S.caneta.ultima):'—'},{l:'Próxima',v:pd?pd.diff<=0?'Hoje':dataBR(pd.date):'—'}].forEach(function(k){var d=document.createElement('div');d.className='ch-kpi';d.innerHTML='<div class="ch-kl">'+k.l+'</div><div class="ch-kv">'+k.v+'</div>';crow.appendChild(d);});}
     var doses2=DOSES[S.caneta.farmaco];
@@ -15041,26 +15041,26 @@ var FAQ=[
     +'<strong>📖 Risco principal:</strong> Desidratação e desequilíbrio de eletrólitos — pode ser grave especialmente em idosos e pessoas com doenças renais.<br><br>'
     +'<strong>✅ Sinais de desidratação para observar:</strong> Boca muito seca · Urina escura ou ausente · Tontura ao ficar em pé · Fraqueza intensa · Coração acelerado.<br><br>'
     +'<strong>🚨 Pronto-socorro se:</strong> Vômitos há mais de 24h sem melhora · Não consegue manter nenhum líquido · Qualquer sinal de desidratação acima · Dor abdominal intensa junto.'},
-/* ─── 🧠 JANELA TERAPÊUTICA — Efeitos do GLP-1 além do peso (v3.1.55) ─── */
-  {cat:'🧠 Janela Terapêutica',ic:'🧠',q:'O barulho da comida sumiu — por que isso acontece?',
+/* ─── ⏳ JANELA TERAPÊUTICA — Efeitos do GLP-1 além do peso (v3.1.55) ─── */
+  {cat:'⏳ Janela Terapêutica',ic:'⏳',q:'O barulho da comida sumiu — por que isso acontece?',
    a:'<strong>💬 Em resumo:</strong> O "food noise" — pensamentos constantes sobre comida — é um dos efeitos mais marcantes do GLP-1, e não é coincidência. Para muita gente, é mais transformador que a perda de peso em si.<br><br>'
     +'<strong>📖 Por que acontece:</strong> Os receptores de GLP-1 não estão só no estômago. Eles existem também em regiões do cérebro ligadas à <strong>recompensa e antecipação</strong> (núcleo accumbens, sistema mesolímbico). Quando ativados, reduzem o ciclo "estímulo → desejo → simulação mental → impulso de comer".<br><br>'
     +'<strong>📊 O que a literatura mostra:</strong> Estudo apresentado na EASD 2025 com 550 pacientes: antes do tratamento, 62% relatavam pensamentos constantes sobre comida; depois, apenas 16%. No mesmo grupo, 64% relataram melhora da saúde mental e 76% melhora da autoconfiança.<br><br>'
     +'<strong>🌿 Por que isso importa:</strong> Esse "silêncio" não é apenas conforto — é uma <strong>janela rara</strong>. Sem o barulho mental constante, você consegue construir hábitos com calma: padrão de refeição, relação com a fome real (não emocional), escolhas conscientes. Hábitos construídos nessa janela tendem a sustentar mudança mesmo depois que a medicação termina.<br><br>'
     +'<strong>⚠️ Atenção:</strong> Se você tem ou já teve transtorno alimentar (anorexia, bulimia, compulsão alimentar), o food noise pode ser um sinal importante para sua recuperação. Conversa com seu médico ou psicólogo antes de "comemorar" o silêncio mental — em alguns casos, é preciso preservar essa percepção de fome. Sanova é educativo e não substitui acompanhamento especializado em TCA.'},
-  {cat:'🧠 Janela Terapêutica',ic:'🧠',q:'Estou bebendo menos álcool — é do medicamento?',
+  {cat:'⏳ Janela Terapêutica',ic:'⏳',q:'Estou bebendo menos álcool — é do medicamento?',
    a:'<strong>💬 Em resumo:</strong> Provavelmente sim. A literatura recente é forte: GLP-1 (especialmente semaglutida e tirzepatida) reduz consumo e desejo por álcool em boa parte dos pacientes — mesmo sem você ter procurado isso.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O álcool ativa o mesmo sistema de recompensa cerebral que a comida hipercalórica. Como o GLP-1 atua nesse sistema (núcleo accumbens, dopamina), ele "embota" o sinal de prazer associado à bebida. Resultado: a vontade aparece com menos força — ou simplesmente não aparece.<br><br>'
     +'<strong>📊 O que a literatura mostra:</strong> Ensaio clínico randomizado publicado em JAMA Psychiatry 2025: semaglutida em dose baixa reduziu consumo, pico alcoólico no hálito e desejo semanal por álcool em adultos com transtorno por uso de álcool. Meta-análise no Lancet eClinicalMedicine (2025) confirma o efeito. Mais de 10 ensaios clínicos formais estão em curso.<br><br>'
     +'<strong>🌿 Por que isso importa:</strong> Mesmo que você não tivesse problema com álcool, essa janela é uma oportunidade de <strong>recalibrar</strong> sua relação com a bebida. Pacientes que aproveitam para reduzir naturalmente nesse período costumam manter o consumo mais baixo mesmo depois da medicação.<br><br>'
     +'<strong>⚠️ Importante:</strong> A pesquisa é animadora mas ainda preliminar — ensaios maiores são necessários. GLP-1 <strong>não é tratamento aprovado</strong> para transtorno por uso de álcool no Brasil. Se você tem problema sério com álcool, busque acompanhamento especializado (psiquiatra, terapia, grupos de apoio). Sanova é educativo.'},
-  {cat:'🧠 Janela Terapêutica',ic:'🧠',q:'Outras compulsões diminuíram (cigarro, jogo, compras) — é normal?',
+  {cat:'⏳ Janela Terapêutica',ic:'⏳',q:'Outras compulsões diminuíram (cigarro, jogo, compras) — é normal?',
    a:'<strong>💬 Em resumo:</strong> Sim, está sendo cada vez mais reportado. Como o sistema de recompensa cerebral é compartilhado entre comida, álcool, nicotina, jogo e outras compulsões, o efeito do GLP-1 sobre esse sistema pode atravessar todos eles.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O sistema mesolímbico dopaminérgico — o "circuito do desejo" — não distingue muito bem entre fontes de recompensa. Quando o GLP-1 reduz a sensibilidade desse circuito, várias compulsões podem diminuir ao mesmo tempo. Pacientes descrevem sensação de "interruptor desligado".<br><br>'
     +'<strong>📊 O que a literatura mostra:</strong> Ensaio JAMA Psychiatry 2025: subgrupo de fumantes em uso de semaglutida teve maior redução de cigarros/dia comparado a placebo. Revisão sistemática (81 estudos): GLP-1 mostrou efeito sobre uso de álcool, substâncias e compulsão alimentar. Reportes de pacientes incluem também jogo e compras compulsivas — embora ainda não haja ensaios formais para esses casos.<br><br>'
     +'<strong>🌿 Por que isso importa:</strong> Mais uma vez, a janela. Se uma compulsão antiga está mais silenciosa, esse é o momento de construir novos comportamentos no lugar — terapia, hobby, exercício, comunidade. O que se constrói durante a janela tende a persistir.<br><br>'
     +'<strong>⚠️ Importante:</strong> GLP-1 <strong>não é tratamento aprovado</strong> para vícios no Brasil. Se você sofre com compulsão (cigarro, jogo, compras, substâncias), a redução natural com GLP-1 não substitui acompanhamento especializado — é apoio adicional, não tratamento. Procure ajuda profissional sempre.'},
-  {cat:'🧠 Janela Terapêutica',ic:'🧠',q:'Como me sinto mentalmente com o GLP-1 — humor, ansiedade, depressão',
+  {cat:'⏳ Janela Terapêutica',ic:'⏳',q:'Como me sinto mentalmente com o GLP-1 — humor, ansiedade, depressão',
    a:'<strong>💬 Em resumo:</strong> Os efeitos sobre saúde mental são <strong>de dois lados</strong>: a maioria dos pacientes relata melhora do humor e da autoestima, mas uma minoria pode ter piora de ansiedade ou sintomas depressivos. Vigilância é importante.<br><br>'
     +'<strong>📖 Por que acontece (lado positivo):</strong> Obesidade e depressão se alimentam mutuamente — quem tem uma tem 55-58% mais risco da outra. Mecanismos compartilhados: inflamação crônica, eixo HPA, neurotransmissores. Tratar peso pode aliviar humor. Estudos sugerem que GLP-1 tem efeito anti-inflamatório no cérebro e pode modular pathways de neurotransmissores.<br><br>'
     +'<strong>📖 Por que acontece (lado de risco):</strong> Em pessoas com predisposição genética a baixa função dopaminérgica, o efeito de "embotar recompensa" pode causar apatia, anedonia ou sintomas depressivos. Casos relatados em farmacovigilância: 1-2% dos pacientes. Mais comum durante escalonamento de dose.<br><br>'
@@ -15068,7 +15068,7 @@ var FAQ=[
     +'<strong>🚨 Sinais de alerta — comunique seu médico imediatamente:</strong> Tristeza persistente · Perda de interesse em coisas que antes te alegravam · Pensamentos de fazer mal a si mesmo ou outros · Ansiedade que não cede · Mudança brusca de humor.<br><br>'
     +'<strong>🆘 Emergência psicológica:</strong> Ligue <strong>CVV — 188</strong> (24h, gratuito, sigiloso) · CAPS mais próximo · SAMU 192.<br><br>'
     +'<strong>⚠️ Importante:</strong> Nunca interrompa antidepressivo por conta própria ao iniciar GLP-1. Continue terapia se já faz. Sanova é educativo e não substitui acompanhamento psiquiátrico.'},
-  {cat:'🧠 Janela Terapêutica',ic:'🧠',q:'E quando eu parar a medicação? Vou recuperar tudo?',
+  {cat:'⏳ Janela Terapêutica',ic:'⏳',q:'E quando eu parar a medicação? Vou recuperar tudo?',
    a:'<strong>💬 Em resumo:</strong> O risco de recuperar peso após parar GLP-1 é real — estudos mostram que sem mudanças sustentadas de hábito, parte significativa do peso volta em 6 a 12 meses. Mas <strong>como</strong> você passou pela janela é o que define se você recupera ou não.<br><br>'
     +'<strong>📖 Por que acontece:</strong> O GLP-1 não "consertou" seu metabolismo nem rewireou seu cérebro definitivamente. Ele criou uma <strong>janela</strong> em que o food noise foi silenciado, o desejo por álcool diminuiu, a saciedade aumentou. Quando a medicação sai, esses sinais podem voltar — e voltam mais fortes em quem não construiu novos hábitos durante a janela.<br><br>'
     +'<strong>📊 O que a literatura mostra:</strong> Estudo STEP 4 (semaglutida): pacientes que pararam recuperaram em média 2/3 do peso perdido em 1 ano. Mas grande variação individual: quem associou intervenção comportamental, exercício de força e nutrição adequada manteve resultado significativamente melhor.<br><br>'
@@ -15839,6 +15839,7 @@ function salvarCaneta(){
   toast('Tratamento salvo! 💉');
 }
 function normDose(v){ return String(v==null?'':v).replace(/mg/i,'').replace(',','.').trim(); }
+function fmtDoseMg(v){ var n = normDose(v); return n ? n.replace('.',',') + ' mg' : ''; }
 function updateDoses(){
   var f=el('cFarm').value,s=el('cDose');
   s.innerHTML='<option value="">— Registre a dose prescrita por seu médico —</option>';
@@ -20052,7 +20053,7 @@ function salvarGeminiKey(){
   var m=document.getElementById('geminiKeyModal');
   if(m)m.remove();
 }
-function toast(msg,dur){var t=el('toastEl');if(!t){t=document.createElement('div');t.id='toastEl';t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--g700);color:#fff;padding:10px 20px;border-radius:999px;font-size:14px;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s;text-align:center;max-width:85vw';document.body.appendChild(t);}t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0';},dur||2500);}
+function toast(msg,dur){var t=el('toastEl');if(!t){t=document.createElement('div');t.id='toastEl';t.style.cssText='position:fixed;bottom:calc(108px + var(--safe-bottom, 0px));left:50%;transform:translateX(-50%);background:var(--g700);color:#fff;padding:10px 20px;border-radius:999px;font-size:14px;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s;text-align:center;max-width:85vw';document.body.appendChild(t);}t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0';},dur||2500);}
 
 function btnFeedback(btn,msg,dur){
   if(!btn) return;

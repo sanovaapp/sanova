@@ -589,7 +589,7 @@ async function handleAdminSeedProfile(env) {
         exercicioResistido: true,
         startDate: '2025-12-01',
       },
-      caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10 mg' },
+      caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10', freq: 'semanal' },
       daily: [],
       weights: [],
       _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString() },
