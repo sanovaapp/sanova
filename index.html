@@ -5981,7 +5981,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.10';
+var SANOVA_VERSION = '3.9.11';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7067,7 +7067,12 @@ function abrirSobreSanova(){
 
     '<div style="font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.7">' +
 
-      '<div style="padding:11px 13px;background:rgba(187,247,208,.08);border:1px solid rgba(187,247,208,.18);border-radius:10px;margin-bottom:14px;text-align:center">' +
+      '<div style="padding:13px 14px;background:linear-gradient(135deg,rgba(74,222,128,.16),rgba(74,222,128,.04));border:1px solid rgba(74,222,128,.28);border-radius:12px;margin-bottom:14px">' +
+        '<div style="font-size:14.5px;font-weight:700;color:#fff;line-height:1.45">O Sanova te ajuda a <strong style="color:#86efac">NÃO MURCHAR</strong> durante o GLP-1</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.78);margin-top:5px;line-height:1.5">Acompanhamento contínuo entre uma consulta e outra.</div>' +
+      '</div>' +
+
+      '<div style="padding:11px 13px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.14);border-radius:10px;margin-bottom:14px;text-align:center">' +
         '<div style="font-size:11px;font-weight:800;color:#86efac;letter-spacing:.6px;margin-bottom:4px">© 2026 SANOVA</div>' +
         '<div style="font-size:11px;color:rgba(255,255,255,.7)">Todos os direitos reservados</div>' +
       '</div>' +
