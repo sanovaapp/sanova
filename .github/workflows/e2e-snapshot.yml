@@ -109,6 +109,29 @@ jobs:
             await page.goto(target, { waitUntil: 'load', timeout: 45000 });
             await page.waitForTimeout(8000);  // Supabase processa session do hash
           }
+
+          // v3.9.9 fix: pre-popula S.profile pra pular anamnese inicial
+          // (sem isso o app esconde as tabs e nao da pra testar nada).
+          await page.evaluate(() => {
+            try {
+              const raw = localStorage.getItem('equilibra_v5');
+              const S = raw ? JSON.parse(raw) : {};
+              S.profile = S.profile || {};
+              S.profile.sex = S.profile.sex || 'M';
+              S.profile.age = S.profile.age || 40;
+              S.profile.heightCm = S.profile.heightCm || 178;
+              S.profile.weightKg = S.profile.weightKg || 92;
+              S.profile.weightStartKg = S.profile.weightStartKg || 114;
+              S.profile.atividade = S.profile.atividade || 'Moderada';
+              S.profile.objetivo = S.profile.objetivo || 'reconstruir';
+              S.profile.exercicioResistido = true;
+              localStorage.setItem('equilibra_v5', JSON.stringify(S));
+              localStorage.setItem('sanova_ativo', '1');
+            } catch (e) { console.log('seed err:', e.message); }
+          });
+          // Recarrega pra app re-bootar com perfil preenchido
+          await page.reload({ waitUntil: 'load', timeout: 45000 });
+          await page.waitForTimeout(6000);
           await snap('home-painel');
 
           // Navegar pelas abas principais
@@ -231,7 +254,7 @@ jobs:
             # Usa --rawfile pra ler conteudo do arquivo dentro do jq sem argv
             jq -n --rawfile prompt /tmp/prompt.txt --rawfile b64 /tmp/b64.txt '{
               contents:[{role:"user",parts:[{text:$prompt},{inlineData:{mimeType:"image/png",data:$b64}}]}],
-              generationConfig:{temperature:0.2,maxOutputTokens:600}
+              generationConfig:{temperature:0.2,maxOutputTokens:1500}
             }' > /tmp/body.json
             curl -sS -X POST \
               -H "Content-Type: application/json" \
