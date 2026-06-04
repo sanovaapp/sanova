@@ -5981,7 +5981,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.15';
+var SANOVA_VERSION = '3.9.16';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -15841,6 +15841,20 @@ function salvarCaneta(){
 }
 function normDose(v){ return String(v==null?'':v).replace(/mg/i,'').replace(',','.').trim(); }
 function fmtDoseMg(v){ var n = normDose(v); return n ? n.replace('.',',') + ' mg' : ''; }
+
+// v3.9.16: calcula UI da seringa de insulina U-100 a partir de S.caneta
+// Retorna nº inteiro de unidades OU null se config incompleta / tipo != frasco.
+// Mesma formula da calculadora dedicada (calcDil): uni = (dose/conc)*100
+function calcUIFromCaneta(){
+  if(!S.caneta || S.caneta.tipo !== 'frasco') return null;
+  var dose = parseFloat(normDose(S.caneta.dose));
+  var mg = parseFloat(S.caneta.concRotuloMg);
+  var ml = parseFloat(S.caneta.concRotuloMl);
+  if(!(dose > 0 && mg > 0 && ml > 0)) return null;
+  var conc = mg / ml;
+  if(conc <= 0) return null;
+  return Math.round((dose / conc) * 100);
+}
 function updateDoses(){
   var f=el('cFarm').value,s=el('cDose');
   s.innerHTML='<option value="">— Registre a dose prescrita por seu médico —</option>';
@@ -17873,6 +17887,9 @@ function renderHero(){
   if(ds){
     var subTxt=S.caneta.freq==='semanal'?'Aplicação semanal':'Aplicação diária';
     if(semanasTrat) subTxt+=' · Semana '+semanasTrat;
+    // v3.9.16: UI da seringa SO pra frasco manipulado (quem usa seringa de insulina)
+    var ui = (typeof calcUIFromCaneta === 'function') ? calcUIFromCaneta() : null;
+    if(ui != null) subTxt += ' · ≈ ' + ui + ' UI';
     ds.textContent=subTxt;
   }
 
