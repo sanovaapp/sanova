@@ -4444,15 +4444,13 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     </div>
 
     <!-- v3.1.59 — Expansão Álcool: aparece quando paciente toca card 🍷 -->
+    <!-- v3.9.18: 4 tipos com kcal real (cerveja/vinho/destilado/drinkDoce). -->
     <div id="alcoolExpand" style="display:none;margin-top:12px;padding:14px;background:rgba(159,32,80,.08);border:1px solid rgba(159,32,80,.25);border-radius:14px">
-      <div style="font-size:13px;font-weight:700;color:#1a0f00;margin-bottom:4px">Quantas doses hoje?</div>
-      <div style="font-size:11px;color:#5a4a3a;margin-bottom:10px;line-height:1.4">1 dose = 1 lata cerveja (350ml) · 1 taça vinho (150ml) · 1 dose destilado (50ml)</div>
-      <div style="display:flex;align-items:center;gap:14px;justify-content:center;margin:6px 0">
-        <button type="button" onclick="ajustarAlcoolDosesV2(-1)" aria-label="Diminuir doses" style="width:44px;height:44px;border-radius:50%;background:#fdf6e3;color:#1a0f00;border:1.5px solid #d6c896;font-size:22px;font-weight:700;cursor:pointer">−</button>
-        <div id="alcoolDosesDisplayV2" style="min-width:68px;text-align:center;font-size:30px;font-weight:900;color:#1a0f00;font-variant-numeric:tabular-nums">1</div>
-        <button type="button" onclick="ajustarAlcoolDosesV2(1)" aria-label="Aumentar doses" style="width:44px;height:44px;border-radius:50%;background:#fdf6e3;color:#1a0f00;border:1.5px solid #d6c896;font-size:22px;font-weight:700;cursor:pointer">+</button>
-      </div>
-      <div style="font-size:10.5px;color:#5a4a3a;margin-top:8px;font-style:italic;line-height:1.5;text-align:center">Registre também como <strong>refeição</strong> pra IA contar as calorias do dia.</div>
+      <div style="font-size:13px;font-weight:700;color:#1a0f00;margin-bottom:4px">Quantas doses de cada tipo hoje?</div>
+      <div style="font-size:11px;color:#5a4a3a;margin-bottom:10px;line-height:1.4">Cada bebida tem caloria diferente — separe por tipo pra IA somar certo no painel.</div>
+      <div id="alcoolTiposWrap" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="alcoolKcalTotal" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(159,32,80,.14);border:1px solid rgba(159,32,80,.28);border-radius:9px;font-size:13px;color:#7a2a3a;text-align:center;font-weight:700"></div>
+      <div style="font-size:10.5px;color:#5a4a3a;margin-top:10px;font-style:italic;line-height:1.5;text-align:center">Outra bebida fora dessas (chope, caipiroska, gin tônica…)? Tire <strong>foto do prato</strong> com a bebida — a IA reconhece e soma as calorias automaticamente.</div>
 
       <!-- v3.1.60: Botão "O que é?" no padrão Metabolismo e Metas -->
       <button class="exp-btn" onclick="toggleExp('expAlcoolGLP1',this)">Por que registrar álcool? <span class="exp-arr">▾</span></button>
@@ -5981,7 +5979,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.17';
+var SANOVA_VERSION = '3.9.18';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11600,6 +11598,8 @@ function setFoodNoise(nivel){
   }
 }
 
+// v3.9.18: schema novo dh.alcool {cerveja,vinho,destilado,drinkDoce}.
+// Toggle limpa tudo (incluindo legado alcoolDoses) ao desmarcar.
 function toggleAlcoolCard(){
   var card = el('ciSAL');
   var expand = el('alcoolExpand');
@@ -11607,19 +11607,18 @@ function toggleAlcoolCard(){
 
   var ativo = card.classList.contains('active');
   if(ativo){
-    // Desmarcar
+    // Desmarcar — zera tudo
     card.classList.remove('active');
     expand.style.display = 'none';
     var dh = getDH();
     if(dh){
       delete dh.alcoolHoje;
       delete dh.alcoolDoses;
+      delete dh.alcool;
     }
     salvar();
-    var disp = el('alcoolDosesDisplayV2');
-    if(disp) disp.textContent = '1';
   } else {
-    // Marcar — expande
+    // Marcar — expande, default 1 cerveja (mais comum no BR)
     card.classList.add('active');
     expand.style.display = 'block';
     var dh2 = getDH();
@@ -11628,43 +11627,136 @@ function toggleAlcoolCard(){
       S.daily.push(dh2);
     }
     dh2.alcoolHoje = true;
-    if(typeof dh2.alcoolDoses !== 'number' || dh2.alcoolDoses < 1){
-      dh2.alcoolDoses = 1;
+    if(!dh2.alcool || typeof dh2.alcool !== 'object'){
+      var legado = (typeof dh2.alcoolDoses === 'number') ? dh2.alcoolDoses : 0;
+      dh2.alcool = {
+        cerveja: legado > 0 ? legado : 1,
+        vinho: 0, destilado: 0, drinkDoce: 0
+      };
+      delete dh2.alcoolDoses;
     }
     salvar();
-    var disp2 = el('alcoolDosesDisplayV2');
-    if(disp2) disp2.textContent = dh2.alcoolDoses;
+    if(typeof renderAlcoolTipos === 'function') renderAlcoolTipos();
   }
 }
 
 /* v3.1.59: Ajusta contador de doses de álcool (versão card grid).
    Limites: 0 (zera = desmarca card) a 20 doses. */
-function ajustarAlcoolDosesV2(delta){
+// v3.9.18: 4 tipos com kcal real (USDA medias). Schema novo: dh.alcool = {cerveja,vinho,destilado,drinkDoce}.
+// Backward compat: dh.alcoolDoses (legado, contador unico) conta como 130 kcal/dose.
+var ALCOOL_KCAL = { cerveja: 150, vinho: 125, destilado: 110, drinkDoce: 250 };
+var ALCOOL_META = [
+  { key:'cerveja',    icon:'🍺', lbl:'Cerveja',         sub:'lata/long neck 350ml · 150 kcal' },
+  { key:'vinho',      icon:'🥂', lbl:'Vinho',           sub:'taça 150ml · 125 kcal' },
+  { key:'destilado',  icon:'🥃', lbl:'Destilado puro',  sub:'dose 50ml · 110 kcal' },
+  { key:'drinkDoce',  icon:'🍹', lbl:'Drink doce',      sub:'caipirinha/vodka c/ suco 250ml · 250 kcal' }
+];
+var ALCOOL_LEGACY_KCAL = 130;
+
+function calcKcalAlcool(dh){
+  if(!dh) return 0;
+  if(dh.alcool && typeof dh.alcool === 'object'){
+    var t = 0;
+    Object.keys(ALCOOL_KCAL).forEach(function(k){
+      var n = (typeof dh.alcool[k] === 'number') ? dh.alcool[k] : 0;
+      t += n * ALCOOL_KCAL[k];
+    });
+    return t;
+  }
+  // Legado: alcoolDoses (contador unico) — usa media ponderada
+  if(typeof dh.alcoolDoses === 'number' && dh.alcoolDoses > 0){
+    return dh.alcoolDoses * ALCOOL_LEGACY_KCAL;
+  }
+  return 0;
+}
+
+// Total de doses no dia (qualquer tipo). Compat com alcoolDoses legado.
+function totalDosesAlcool(dh){
+  if(!dh) return 0;
+  if(dh.alcool && typeof dh.alcool === 'object'){
+    return Object.keys(ALCOOL_KCAL).reduce(function(s,k){ return s + ((dh.alcool[k]||0)); }, 0);
+  }
+  return (typeof dh.alcoolDoses === 'number') ? dh.alcoolDoses : 0;
+}
+
+function renderAlcoolTipos(){
+  var wrap = el('alcoolTiposWrap');
+  if(!wrap) return;
+  var dh = getDH();
+  // Migra legado pro novo schema na primeira renderizacao (sem perder dados).
+  if(dh && (!dh.alcool || typeof dh.alcool !== 'object')){
+    var legado = (typeof dh.alcoolDoses === 'number') ? dh.alcoolDoses : 0;
+    dh.alcool = { cerveja: legado, vinho: 0, destilado: 0, drinkDoce: 0 };
+    if(legado > 0) delete dh.alcoolDoses;
+  }
+  var html = '';
+  ALCOOL_META.forEach(function(t){
+    var n = (dh && dh.alcool && typeof dh.alcool[t.key] === 'number') ? dh.alcool[t.key] : 0;
+    html +=
+      '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.55);border:1px solid rgba(159,32,80,.18);border-radius:10px">' +
+        '<div style="font-size:22px;line-height:1">'+t.icon+'</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12.5px;font-weight:700;color:#1a0f00;line-height:1.15">'+t.lbl+'</div>' +
+          '<div style="font-size:10.5px;color:#5a4a3a;line-height:1.35">'+t.sub+'</div>' +
+        '</div>' +
+        '<button type="button" onclick="ajustarAlcoolTipo(\''+t.key+'\',-1)" aria-label="Diminuir '+t.lbl+'" style="width:32px;height:32px;border-radius:50%;background:#fdf6e3;color:#1a0f00;border:1.5px solid #d6c896;font-size:18px;font-weight:700;cursor:pointer;flex-shrink:0">−</button>' +
+        '<div id="alcoolN_'+t.key+'" style="min-width:24px;text-align:center;font-size:18px;font-weight:800;color:#1a0f00;font-variant-numeric:tabular-nums">'+n+'</div>' +
+        '<button type="button" onclick="ajustarAlcoolTipo(\''+t.key+'\',1)" aria-label="Aumentar '+t.lbl+'" style="width:32px;height:32px;border-radius:50%;background:#fdf6e3;color:#1a0f00;border:1.5px solid #d6c896;font-size:18px;font-weight:700;cursor:pointer;flex-shrink:0">+</button>' +
+      '</div>';
+  });
+  wrap.innerHTML = html;
+  renderAlcoolKcalTotal();
+}
+
+function renderAlcoolKcalTotal(){
+  var totEl = el('alcoolKcalTotal');
+  if(!totEl) return;
+  var dh = getDH();
+  var kcal = calcKcalAlcool(dh);
+  var doses = totalDosesAlcool(dh);
+  if(kcal > 0){
+    totEl.style.display = 'block';
+    totEl.innerHTML = '🔥 <strong>+'+kcal+' kcal</strong> em álcool hoje · '+doses+' dose'+(doses===1?'':'s');
+  } else {
+    totEl.style.display = 'none';
+  }
+}
+
+function ajustarAlcoolTipo(tipo, delta){
+  if(!(tipo in ALCOOL_KCAL)) return;
   var dh = getDH();
   if(!dh){
     dh = {date: hoje(), refeicoes: [], sintomas: []};
     S.daily.push(dh);
   }
-  var atual = (typeof dh.alcoolDoses === 'number') ? dh.alcoolDoses : 1;
-  var novo = Math.max(0, Math.min(20, atual + delta));
-  if(novo === 0){
-    // Zerou = desmarca card
-    delete dh.alcoolHoje;
+  if(!dh.alcool || typeof dh.alcool !== 'object'){
+    var legado = (typeof dh.alcoolDoses === 'number') ? dh.alcoolDoses : 0;
+    dh.alcool = { cerveja: legado, vinho: 0, destilado: 0, drinkDoce: 0 };
     delete dh.alcoolDoses;
-    salvar();
+  }
+  var atual = (typeof dh.alcool[tipo] === 'number') ? dh.alcool[tipo] : 0;
+  var novo = Math.max(0, Math.min(20, atual + delta));
+  dh.alcool[tipo] = novo;
+
+  var totalDoses = Object.keys(ALCOOL_KCAL).reduce(function(s,k){ return s + (dh.alcool[k]||0); }, 0);
+  if(totalDoses > 0){
+    dh.alcoolHoje = true;
+  } else {
+    delete dh.alcoolHoje;
+    delete dh.alcool;
     var card = el('ciSAL');
     if(card) card.classList.remove('active');
     var expand = el('alcoolExpand');
     if(expand) expand.style.display = 'none';
-    var disp = el('alcoolDosesDisplayV2');
-    if(disp) disp.textContent = '1';
-    return;
   }
-  dh.alcoolDoses = novo;
-  dh.alcoolHoje = true;
   salvar();
-  var disp2 = el('alcoolDosesDisplayV2');
-  if(disp2) disp2.textContent = novo;
+  renderAlcoolTipos();
+}
+
+// v3.9.18: shim de compat — chama renderAlcoolTipos pra atualizar a UI nova.
+function ajustarAlcoolDosesV2(delta){
+  // Sem tipo, assume cerveja (mais comum no BR).
+  ajustarAlcoolTipo('cerveja', delta);
 }
 
 /* v3.1.59: Restaura visualmente os cards Food Noise / Álcool ao abrir o check-in.
@@ -11683,14 +11775,14 @@ function restaurarCardsJanelaTerapeutica(){
     if(optFN) optFN.classList.add('active');
   }
 
-  // Álcool
-  if(dh.alcoolHoje && typeof dh.alcoolDoses === 'number' && dh.alcoolDoses > 0){
+  // Álcool — v3.9.18: detecta schema novo (dh.alcool) OU legado (dh.alcoolDoses).
+  var temDoses = (typeof totalDosesAlcool === 'function') ? totalDosesAlcool(dh) : 0;
+  if(dh.alcoolHoje && temDoses > 0){
     var cardAL = el('ciSAL');
     var expAL = el('alcoolExpand');
     if(cardAL) cardAL.classList.add('active');
     if(expAL) expAL.style.display = 'block';
-    var dispAL = el('alcoolDosesDisplayV2');
-    if(dispAL) dispAL.textContent = dh.alcoolDoses;
+    if(typeof renderAlcoolTipos === 'function') renderAlcoolTipos();
   }
 }
 
@@ -16239,7 +16331,9 @@ function apagarRefeicaoInline(idx){
   });
   dh.proteinG = Math.round(totalProt);
   dh.kcalFromPhoto = Math.round(totalKcal);
-  dh.kcalConsumed = (dh.kcalFromPhoto||0) + (dh.kcalFromProt||0);
+  // v3.9.18: alcool entra no total de kcal consumidas (USDA medias por tipo).
+  var kAlc = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+  dh.kcalConsumed = (dh.kcalFromPhoto||0) + (dh.kcalFromProt||0) + kAlc;
   // Persistir
   var i = S.daily.findIndex(function(x){return x.date === hoje();});
   if(i >= 0) S.daily[i] = dh;
@@ -16277,8 +16371,9 @@ document.addEventListener('DOMContentLoaded',function(){
           d.proteinFoods = [];
           d.kcalFromProt = 0;
           d.protFoods = [];
-          // Recalcular kcalConsumed sem kcalFromProt
-          d.kcalConsumed = (d.kcalFromPhoto || 0);
+          // v3.9.18: recalcular kcalConsumed sem kcalFromProt mas mantendo alcool.
+          var kAlcMig = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(d) : 0;
+          d.kcalConsumed = (d.kcalFromPhoto || 0) + kAlcMig;
           migrados++;
         }
       });
@@ -17610,7 +17705,8 @@ function renderJanelaTerapeutica(){
       var dd = parseLocalDate(d.date);
       if(dd >= iniSem && dd <= fimSem){
         comDado++;
-        if(typeof d.alcoolDoses === 'number') doses += d.alcoolDoses;
+        // v3.9.18: usa totalDosesAlcool() que cobre schema novo (dh.alcool) + legado.
+        doses += (typeof totalDosesAlcool === 'function') ? totalDosesAlcool(d) : (d.alcoolDoses || 0);
         // v3.1.59: escala 0-3 (foodNoiseHoje) + retrocompatibilidade com chip antigo
         if(typeof d.foodNoiseHoje === 'number'){
           fnSoma += d.foodNoiseHoje;
@@ -19476,7 +19572,9 @@ function apagarRefeicao(dataStr, refIdx, evt){
   // kcalFromProt = registros manuais separados (não relacionados a refeições)
   dh.proteinG = Math.round(totalProt);
   dh.kcalFromPhoto = Math.round(totalKcalRefs);
-  dh.kcalConsumed = Math.round(totalKcalRefs + (dh.kcalFromProt || 0));
+  // v3.9.18: alcool entra no total de kcal (mesma logica do salvarRefeicao).
+  var kAlcDel = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+  dh.kcalConsumed = Math.round(totalKcalRefs + (dh.kcalFromProt || 0) + kAlcDel);
 
   S.daily[idx] = dh;
   salvar();
@@ -21258,7 +21356,8 @@ window.addEventListener('beforeunload',function(){
       if(d.alcoolHoje && d.alcoolHoje !== false && d.alcoolHoje !== 'nao'){
         contSac.alcool++;
         diasAlcool++;
-        if(d.alcoolDoses) alcoolDoses += d.alcoolDoses;
+        // v3.9.18: cobre schema novo (dh.alcool) + legado (dh.alcoolDoses).
+        alcoolDoses += (typeof totalDosesAlcool === 'function') ? totalDosesAlcool(d) : (d.alcoolDoses || 0);
       }
 
       if(Array.isArray(d.symptoms)){
