@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.4.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.5.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -80,6 +80,12 @@ export default {
       // v1.4.0: gera magic link pro Bruno (E2E testing via Playwright)
       if (url.pathname === '/api/admin-magic-link-bruno' && request.method === 'GET') {
         return await handleAdminMagicLink(env);
+      }
+
+      // v1.5.0: seeda app_state do Bruno no Supabase com profile completo
+      // pra E2E nao depender de localStorage (que sync sobrescreve).
+      if (url.pathname === '/api/admin-seed-bruno-profile' && request.method === 'GET') {
+        return await handleAdminSeedProfile(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -542,6 +548,73 @@ async function handleAdminMagicLink(env) {
         hashed_token: link.properties?.hashed_token,
         redirect_to: link.properties?.redirect_to,
         nota: 'Link unico, valido ate 1h. Abrir em browser limpo (sem sessao).',
+      }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-seed-bruno-profile (v1.5.0) ──────────────────
+// Insere/atualiza app_state do Bruno no Supabase via service_role
+// com profile completo. E2E (apos sync) puxa esse estado e o app
+// nao mostra anamnese.
+async function handleAdminSeedProfile(env) {
+  const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
+  try {
+    const userId = await findUserByEmail(BRUNO_EMAIL, env);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'bruno_nao_encontrado' }, null, 2),
+        { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    const state = {
+      profile: {
+        name: 'Bruno',
+        sex: 'M',
+        age: 40,
+        heightCm: 178,
+        weightKg: 92,
+        weightStartKg: 114,
+        weightGoalKg: 85,
+        atividade: 'Moderada',
+        activityLevel: 'Moderada',
+        objetivo: 'reconstruir',
+        exercicioResistido: true,
+        startDate: '2025-12-01',
+      },
+      caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10 mg' },
+      daily: [],
+      weights: [],
+      _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString() },
+    };
+
+    const url = 'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/app_state?on_conflict=user_id';
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=representation',
+      },
+      body: JSON.stringify({ user_id: userId, state }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return new Response(
+      JSON.stringify({
+        ok: resp.ok,
+        httpStatus: resp.status,
+        email: BRUNO_EMAIL,
+        user_id_curto: userId.slice(0, 8) + '...',
+        profile_seedado: state.profile,
+        supabase_resp: Array.isArray(data) ? data[0] : data,
       }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
