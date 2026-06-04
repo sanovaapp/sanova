@@ -43,6 +43,31 @@ BRUNO SÓ TOCA EM:
 Se sandbox bloqueia uma chamada externa, use GitHub Action workflow_dispatch
 como gateway — o servidor do GitHub tem internet livre.
 
+🔁 LOOP DE E2E AUTOMATIZADO (consolidado 04/06/2026):
+Pipeline pra debugar app sem depender de print do Bruno:
+1) mcp__github__actions_run_trigger pra workflow e2e-snapshot.yml com
+   simulate_active=active
+2) Worker /api/admin-simulate-active marca subscription do Bruno como
+   active (subscription_ends_at = +30d, NAO esquecer)
+3) Worker /api/admin-magic-link-bruno gera link 1h sem senha
+4) Playwright (chromium mobile 412x915, pt-BR, Pixel 8 UA):
+   a) Abre magic link → aterrissa em sanovaapp.github.io/ com fragment
+   b) Captura location.hash e re-navega pra /sanova/ + fragment
+   c) Seeda S.profile + sanova_ativo=1 pra pular anamnese
+   d) Tira screenshots: home-painel, tab-medicacao/checkin/saude/mais,
+      paywall-via-pdf, perfil-topo, perfil-fim-minha-conta
+5) Step "Analise visual via Gemini Vision":
+   - base64 -w0 em arquivo /tmp/b64.txt (NUNCA via argv direto — argv-limit)
+   - jq -n --rawfile prompt /tmp/prompt.txt --rawfile b64 /tmp/b64.txt
+   - curl --data-binary @/tmp/body.json
+   - maxOutputTokens >= 1500 (senao Gemini trunca a resposta)
+   - prompt cobre os 5 chapeus: elementos, bugs, sugestoes
+6) Claude le job logs via mcp__github__get_job_logs (tail_lines 500+)
+7) Identifica bugs e corrige em PR cirurgico
+8) Re-roda
+
+NUNCA peca pro Bruno ver print de tela — o robo ja viu por voce.
+
 Há dois Claudes no projeto: o Claude "arquiteto" (no app de chat, planeja e revisa) e você, Claude Code (executor que mexe no repositório). O arquiteto escreve as instruções; você executa e mostra o plano antes de aplicar.
 Dinâmica de trabalho (cravada por Bruno):
 Bruno (ou o Claude arquiteto) dá uma decisão de produto clara
