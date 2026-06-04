@@ -5979,7 +5979,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.18';
+var SANOVA_VERSION = '3.9.19';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11615,8 +11615,12 @@ function toggleAlcoolCard(){
       delete dh.alcoolHoje;
       delete dh.alcoolDoses;
       delete dh.alcool;
+      // v3.9.19: tirar alcool tambem zera as kcal correspondentes no painel.
+      recalcKcalConsumed(dh);
     }
     salvar();
+    try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
+    try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
   } else {
     // Marcar — expande, default 1 cerveja (mais comum no BR)
     card.classList.add('active');
@@ -11635,8 +11639,12 @@ function toggleAlcoolCard(){
       };
       delete dh2.alcoolDoses;
     }
+    // v3.9.19: somar a kcal default ao painel imediatamente.
+    recalcKcalConsumed(dh2);
     salvar();
     if(typeof renderAlcoolTipos === 'function') renderAlcoolTipos();
+    try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
+    try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
   }
 }
 
@@ -11722,6 +11730,16 @@ function renderAlcoolKcalTotal(){
   }
 }
 
+// v3.9.19: helper que recalcula dh.kcalConsumed sem precisar refeicao nova.
+// Chamado por toggle de alcool e ajuste de tipo pra manter o gauge do
+// painel em sincronia com qualquer alteracao de alcool.
+function recalcKcalConsumed(dh){
+  if(!dh) return 0;
+  var kAlc = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+  dh.kcalConsumed = Math.round((dh.kcalFromPhoto||0) + (dh.kcalFromProt||0) + kAlc);
+  return dh.kcalConsumed;
+}
+
 function ajustarAlcoolTipo(tipo, delta){
   if(!(tipo in ALCOOL_KCAL)) return;
   var dh = getDH();
@@ -11749,8 +11767,12 @@ function ajustarAlcoolTipo(tipo, delta){
     var expand = el('alcoolExpand');
     if(expand) expand.style.display = 'none';
   }
+  recalcKcalConsumed(dh);
   salvar();
   renderAlcoolTipos();
+  // v3.9.19: atualiza gauge de calorias e pilares no painel.
+  try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
+  try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
 }
 
 // v3.9.18: shim de compat — chama renderAlcoolTipos pra atualizar a UI nova.
