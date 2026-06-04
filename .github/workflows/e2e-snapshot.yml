@@ -115,34 +115,47 @@ jobs:
             await page.waitForTimeout(8000);  // Supabase processa session do hash
           }
 
-          // v3.9.9 fix: pre-popula S.profile pra pular anamnese inicial
-          // (sem isso o app esconde as tabs e nao da pra testar nada).
-          await page.evaluate(() => {
+          // v3.9.11 fix: seed FORTE (campos completos + daily/weights pra
+          // _tentarCarregar aceitar) DEPOIS do tempo da cloud sync. Garante
+          // que mesmo se aoLogar puxar estado parcial da nuvem, o seed local
+          // sobrescreve.
+          const seed = () => page.evaluate(() => {
             try {
-              const raw = localStorage.getItem('equilibra_v5');
-              const S = raw ? JSON.parse(raw) : {};
-              S.profile = S.profile || {};
-              S.profile.sex = S.profile.sex || 'M';
-              S.profile.age = S.profile.age || 40;
-              S.profile.heightCm = S.profile.heightCm || 178;
-              S.profile.weightKg = S.profile.weightKg || 92;
-              S.profile.weightStartKg = S.profile.weightStartKg || 114;
-              S.profile.atividade = S.profile.atividade || 'Moderada';
-              S.profile.objetivo = S.profile.objetivo || 'reconstruir';
-              S.profile.exercicioResistido = true;
+              const S = {
+                profile: {
+                  name: 'Bruno', sex: 'M', age: 40, heightCm: 178,
+                  weightKg: 92, weightStartKg: 114, weightGoalKg: 85,
+                  atividade: 'Moderada', activityLevel: 'Moderada',
+                  objetivo: 'reconstruir', exercicioResistido: true,
+                  startDate: '2025-12-01',
+                },
+                caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10 mg', freq: 'semanal' },
+                daily: [], weights: [], applications: [], insights: [],
+                _meta: { schemaVersion: 31, seededByE2E: true },
+              };
               localStorage.setItem('equilibra_v5', JSON.stringify(S));
               localStorage.setItem('sanova_ativo', '1');
+              if (typeof window.carregar === 'function') window.carregar();
             } catch (e) { console.log('seed err:', e.message); }
           });
-          // Recarrega pra app re-bootar com perfil preenchido
+          await seed();
           await page.reload({ waitUntil: 'load', timeout: 45000 });
-          await page.waitForTimeout(6000);
+          await page.waitForTimeout(4000);
+          // Re-seeda DEPOIS da cloud sync (aoLogar leva ~2-3s e pode sobrescrever)
+          await seed();
+          await page.waitForTimeout(1500);
           await snap('home-painel');
 
-          // Navegar pelas abas principais
-          const tabs = ['nb-medicacao', 'nb-checkin', 'nb-saude', 'nb-mais'];
+          // Helper pra fechar drawer "Mais" antes de cada click externo
+          const closeMais = () => page.evaluate(() => {
+            try { if (typeof fecharMais === 'function') fecharMais(); } catch(e){}
+          });
+
+          // Navegar pelas abas principais (ID correto = nb-caneta)
+          const tabs = ['nb-caneta', 'nb-checkin', 'nb-saude', 'nb-mais'];
           for (const tabId of tabs) {
             try {
+              await closeMais();
               const el = await page.$(`#${tabId}`);
               if (el) {
                 await el.click();
@@ -154,10 +167,11 @@ jobs:
             } catch (e) { console.log('err tab', tabId, e.message); }
           }
 
-          // Tenta acionar paywall via PDF pro medico
+          // Tenta acionar paywall via PDF pro medico (Mais ja deve estar aberto)
           try {
-            await page.click('#nb-mais');
-            await page.waitForTimeout(1500);
+            // Garante Mais aberto via JS (evita race da animacao)
+            await page.evaluate(() => { if (typeof abrirMais === 'function') abrirMais(); });
+            await page.waitForTimeout(800);
             const pdfBtn = await page.$('#btnPdfRelatorio');
             if (pdfBtn) {
               await pdfBtn.click();
@@ -168,8 +182,10 @@ jobs:
 
           // Tela de Perfil pra ver "Minha conta"
           try {
-            await page.click('#nb-mais');
-            await page.waitForTimeout(1000);
+            await closeMais();
+            await page.waitForTimeout(300);
+            await page.evaluate(() => { if (typeof abrirMais === 'function') abrirMais(); });
+            await page.waitForTimeout(800);
             // Procura botao "Perfil" na grade do Mais
             const perfilBtn = await page.$('button[aria-label="Perfil e configurações"]');
             if (perfilBtn) {
@@ -183,23 +199,19 @@ jobs:
             }
           } catch (e) { console.log('perfil:', e.message); }
 
-          // Coleta estado interno do app (S.profile, versao, status assinatura)
+          // Coleta estado interno do app (S.profile completo, raw localStorage)
           const estado = await page.evaluate(() => {
             try {
               const raw = localStorage.getItem('equilibra_v5');
               const S = raw ? JSON.parse(raw) : null;
-              const verEl = document.querySelector('[data-version]') || null;
+              const Smem = window.S || null;
               return {
                 location: location.href,
                 SANOVA_VERSION: window.SANOVA_VERSION,
-                profile: S && S.profile ? {
-                  hasName: !!S.profile.name,
-                  hasSex: !!S.profile.sex,
-                  hasWeight: !!S.profile.weightKg,
-                  objetivo: S.profile.objetivo || null,
-                  analyticsOptOut: S.profile.analyticsOptOut === true,
-                  utmFirstTouch: !!S.profile.utmFirstTouch,
-                } : null,
+                profile_LS: S && S.profile ? S.profile : null,
+                profile_mem: Smem && Smem.profile ? Smem.profile : null,
+                LS_keys: S ? Object.keys(S) : [],
+                LS_raw_head: raw ? raw.slice(0, 400) : null,
                 user: (window.SanovaUser && window.SanovaUser()) ? {
                   email: window.SanovaUser().email,
                   hasId: !!window.SanovaUser().id,
@@ -259,7 +271,7 @@ jobs:
             # Usa --rawfile pra ler conteudo do arquivo dentro do jq sem argv
             jq -n --rawfile prompt /tmp/prompt.txt --rawfile b64 /tmp/b64.txt '{
               contents:[{role:"user",parts:[{text:$prompt},{inlineData:{mimeType:"image/png",data:$b64}}]}],
-              generationConfig:{temperature:0.2,maxOutputTokens:1500}
+              generationConfig:{temperature:0.2,maxOutputTokens:2500}
             }' > /tmp/body.json
             curl -sS -X POST \
               -H "Content-Type: application/json" \
