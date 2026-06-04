@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.4.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.4.1' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -477,9 +477,14 @@ async function handleAdminSimulate(env, novoStatus) {
     const now = new Date().toISOString();
     let patch;
     if (novoStatus === 'active') {
+      // v1.4.1: setar subscription_ends_at 30d future. Antes ficava o valor
+      // antigo do banco (no passado) e SanovaAssinatura interpretava como
+      // expired, derrubando o teste do pipeline.
+      const endsAt = new Date(Date.now() + 30 * 86400000).toISOString();
       patch = {
         status: 'active',
         subscription_started_at: now,
+        subscription_ends_at: endsAt,
         mp_preapproval_id: 'admin-simulated-' + Date.now(),
       };
     } else {

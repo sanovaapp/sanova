@@ -220,20 +220,25 @@ jobs:
           2) BUGS / INCONSISTENCIAS visuais ou de copy (texto cortado, alinhamento ruim, contraste WCAG, valores —, labels truncados, lib mock, etc — em portugues do BR)
           3) SUGESTOES de UX/clinica (1-3 bullets curtos)
           Seja DIRETO. Sem preambulo. Foque em problemas acionaveis.'
+          # Salva prompt num arquivo pra jq usar --rawfile (evita argv limit)
+          printf '%s' "$PROMPT" > /tmp/prompt.txt
           for img in screenshots/*.png; do
             [ -f "$img" ] || continue
             name=$(basename "$img")
             echo "## $name" >> visual-analysis.md
-            B64=$(base64 -w0 "$img")
-            BODY=$(jq -n --arg prompt "$PROMPT" --arg b64 "$B64" '{
+            # Base64 da imagem num arquivo (img pode ter ~500KB → base64 ~700KB)
+            base64 -w0 "$img" > /tmp/b64.txt
+            # Usa --rawfile pra ler conteudo do arquivo dentro do jq sem argv
+            jq -n --rawfile prompt /tmp/prompt.txt --rawfile b64 /tmp/b64.txt '{
               contents:[{role:"user",parts:[{text:$prompt},{inlineData:{mimeType:"image/png",data:$b64}}]}],
               generationConfig:{temperature:0.2,maxOutputTokens:600}
-            }')
-            RESP=$(curl -sS -X POST \
+            }' > /tmp/body.json
+            curl -sS -X POST \
               -H "Content-Type: application/json" \
-              -d "$BODY" \
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY")
-            TEXT=$(echo "$RESP" | jq -r '.candidates[0].content.parts[0].text // .error.message // "(sem resposta)"')
+              --data-binary @/tmp/body.json \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
+              > /tmp/resp.json
+            TEXT=$(jq -r '.candidates[0].content.parts[0].text // .error.message // "(sem resposta)"' /tmp/resp.json)
             echo "$TEXT" >> visual-analysis.md
             echo "" >> visual-analysis.md
           done
