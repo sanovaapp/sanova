@@ -589,7 +589,11 @@ async function handleAdminSeedProfile(env) {
         exercicioResistido: true,
         startDate: '2025-12-01',
       },
-      caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10', freq: 'semanal' },
+      caneta: {
+        tipo: 'frasco', farmaco: 'Tirzepatida', dose: '5', freq: 'semanal',
+        concRotuloMg: 10, concRotuloMl: 1, volumeFrasco: 2,
+        // 10mg/mL conc, dose 5mg → 50 UI · frasco de 2mL = 20mg cobre 4 doses
+      },
       daily: [],
       weights: [],
       _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString() },
