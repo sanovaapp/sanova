@@ -43,6 +43,11 @@ jobs:
           echo "Chamando $ACTION"
           curl -sS "https://sanova-api.contatosanovaapp.workers.dev/api/$ACTION" | head -c 500
           echo
+          # v3.9.10: seeda app_state com profile completo no Supabase
+          # (evita anamnese + race do localStorage)
+          echo "Seedando profile..."
+          curl -sS "https://sanova-api.contatosanovaapp.workers.dev/api/admin-seed-bruno-profile" | head -c 500
+          echo
 
       - name: Obter magic link do Bruno
         id: link
@@ -262,7 +267,10 @@ jobs:
               "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
               > /tmp/resp.json
             TEXT=$(jq -r '.candidates[0].content.parts[0].text // .error.message // "(sem resposta)"' /tmp/resp.json)
+            FINISH=$(jq -r '.candidates[0].finishReason // "?"' /tmp/resp.json)
             echo "$TEXT" >> visual-analysis.md
+            echo "" >> visual-analysis.md
+            echo "_finishReason: $FINISH_" >> visual-analysis.md
             echo "" >> visual-analysis.md
           done
           cat visual-analysis.md
