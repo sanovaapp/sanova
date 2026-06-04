@@ -79,7 +79,7 @@
 <!-- v3.1.56: CSP defensivo. 'unsafe-inline' é necessário porque PWA single-file
      tem todo JS/CSS inline. connect-src libera Gemini API + Google Forms.
      img-src libera data: pra base64 de fotos do paciente. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://eu-assets.i.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://sanova-api.contatosanovaapp.workers.dev https://generativelanguage.googleapis.com https://docs.google.com https://forms.gle https://*.googleusercontent.com https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com; font-src 'self' data:; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://eu-assets.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https://sanova-api.contatosanovaapp.workers.dev https://generativelanguage.googleapis.com https://docs.google.com https://forms.gle https://*.googleusercontent.com https://*.supabase.co wss://*.supabase.co https://eu.i.posthog.com https://eu-assets.i.posthog.com; font-src 'self' data: https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://docs.google.com;">
 <title>Sanova</title>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -3516,7 +3516,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <div class="hdr-in">
     <div class="logo" onclick="logoClicked()">
       <div class="logo-ic">🌿</div>
-      <div><div class="logo-nm">Sanova</div><div class="logo-vr" id="logoVr">v3.9.8</div></div>
+      <div><div class="logo-nm">Sanova</div><div class="logo-vr" id="logoVr">v3.9.9</div></div>
     </div>
     <!-- Saudação personalizada -->
     <div id="hdrSaudacao" style="display:none;flex:1;padding-left:10px;font-size:12px;font-weight:600;color:var(--g300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
@@ -5876,7 +5876,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         <text x="60" y="82" font-family="sans-serif" font-size="6" font-weight="700" fill="white" text-anchor="middle">15 mg/0.5 mL</text>
         <text x="60" y="93" font-family="sans-serif" font-size="5.5" fill="#555" text-anchor="middle">0.5 mL vial</text>
         <!-- Líquido interno -->
-        <rect x="32" y="85" width="56" height="23" rx="0 0 6 6" fill="rgba(200,230,255,0.6)"/>
+        <rect x="32" y="85" width="56" height="23" rx="3" fill="rgba(200,230,255,0.6)"/>
 
         <!-- SERINGA -->
         <!-- Corpo transparente -->
@@ -5981,7 +5981,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.8';
+var SANOVA_VERSION = '3.9.9';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13874,7 +13874,8 @@ function render(){
   }else{var _pc2=el('proxCard');if(_pc2)_pc2.style.display='none';}
   var maMapR={};ma.forEach(function(x){maMapR[x.date]=x.avg;});
   renderChartSemanal();
-  atualizarSaudacaoHeader();
+  // v3.9.9: guarda contra atualizarSaudacaoHeader chamada antes de definida
+  try{ if(typeof atualizarSaudacaoHeader === 'function') atualizarSaudacaoHeader(); }catch(e){}
   setTimeout(function(){if(typeof renderHero==='function') renderHero();},30);
   var tp=el('tPesos');tp.innerHTML='';S.weights.slice().sort(porData).reverse().forEach(function(w){var tr=document.createElement('tr');tr.innerHTML='<td>'+dataBR(w.date)+'</td><td class="r">'+rd(w.weight,1)+'</td><td class="r">'+(maMapR[w.date]?rd(maMapR[w.date],1):'—')+'</td>';tp.appendChild(tr);});
   var td=el('tDias');td.innerHTML='';S.daily.slice().sort(porData).reverse().forEach(function(d){var tr=document.createElement('tr');var sl=d.saciedade==='saciado'?'😌 Saciado':d.saciedade==='fome'?'😮‍💨 Fome':'—';tr.innerHTML='<td>'+dataBR(d.date)+'</td><td>'+sl+'</td><td class="r">'+(d.waterMl?Math.round(d.waterMl/1000*10)/10+'L':'—')+'</td><td>'+(d.symptom||'—')+'</td><td class="r">'+(d.proteinG?d.proteinG+'g':'—')+'</td>';td.appendChild(tr);});
