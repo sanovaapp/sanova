@@ -129,7 +129,7 @@ jobs:
                   objetivo: 'reconstruir', exercicioResistido: true,
                   startDate: '2025-12-01',
                 },
-                caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10 mg', freq: 'semanal' },
+                caneta: { tipo: 'caneta', farmaco: 'Tirzepatida', dose: '10', freq: 'semanal' },
                 daily: [], weights: [], applications: [], insights: [],
                 _meta: { schemaVersion: 31, seededByE2E: true },
               };
