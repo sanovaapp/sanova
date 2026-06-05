@@ -6006,7 +6006,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.33';
+var SANOVA_VERSION = '3.9.34';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -10693,7 +10693,7 @@ function _leituraClinicaSemana(M){
   // CENÁRIO 1: VITÓRIA — perdeu peso preservando músculo
   if(perdaKg !== null && perdaKg >= 0.3 && protPctMedio >= 80 && exercSem >= 2){
     tipo = 'VITORIA_SEM';
-    narrativa = 'Semana excelente! 🌿 Você perdeu ' + rd(perdaKg, 1) + ' kg, manteve proteína em ' + protPctMedio + '% (média) e fez ' + exercSem + (exercSem === 1 ? ' sessão' : ' sessões') + ' de exercício. Esse é o tripé do "emagreça sem murchar" — provavelmente foi gordura que saiu, não músculo.';
+    narrativa = 'Semana excelente! 🌿 Você perdeu ' + rd(perdaKg, 1) + ' kg, manteve proteína em ' + protPctMedio + '% (média) e fez ' + exercSem + (exercSem === 1 ? ' treino' : ' treinos') + ' de força. Esse é o tripé do "emagreça sem murchar" — provavelmente foi gordura que saiu, não músculo.';
     recomendacao = 'Continua exatamente assim. Esse padrão preserva massa magra e mantém o metabolismo ativo.';
   }
   // CENÁRIO 2: ALERTA — perdeu peso mas com proteína baixa (provável perda de músculo)
@@ -10705,7 +10705,7 @@ function _leituraClinicaSemana(M){
   // CENÁRIO 3: ALERTA — perdeu peso e proteína OK, mas sem exercício (perda muscular sutil)
   else if(perdaKg !== null && perdaKg >= 0.3 && protPctMedio >= 70 && exercSem === 0){
     tipo = 'ALERTA_SEM';
-    narrativa = 'Você perdeu ' + rd(perdaKg, 1) + ' kg, proteína em ' + protPctMedio + '% — bom! Mas zero sessões de exercício resistido essa semana. Sem estímulo muscular, mesmo com proteína boa, o corpo pode começar a soltar massa magra.';
+    narrativa = 'Você perdeu ' + rd(perdaKg, 1) + ' kg, proteína em ' + protPctMedio + '% — bom! Mas zero treinos de força essa semana. Sem estímulo muscular, mesmo com proteína boa, o corpo pode começar a soltar massa magra.';
     recomendacao = 'Tenta encaixar 2-3 sessões na próxima semana. Pode ser musculação, calistenia, até elásticos em casa.';
   }
   // CENÁRIO 4: REGRESSÃO — ganhou peso
@@ -10730,13 +10730,13 @@ function _leituraClinicaSemana(M){
   // CENÁRIO 6: VITÓRIA PARCIAL — perdeu peso, proteína OK, exercício OK mas perda pequena
   else if(perdaKg !== null && perdaKg >= 0.1 && protPctMedio >= 70){
     tipo = 'VITORIA_SEM';
-    narrativa = 'Você perdeu ' + rd(perdaKg, 1) + ' kg, proteína em ' + protPctMedio + '%, ' + exercSem + (exercSem === 1 ? ' sessão' : ' sessões') + ' de exercício. Não foi uma queda grande, mas foi do jeito certo — músculo protegido.';
+    narrativa = 'Você perdeu ' + rd(perdaKg, 1) + ' kg, proteína em ' + protPctMedio + '%, ' + exercSem + (exercSem === 1 ? ' treino' : ' treinos') + ' de força. Não foi uma queda grande, mas foi do jeito certo — músculo protegido.';
     recomendacao = 'Mantém o padrão. Em GLP-1, sustentável > rápido.';
   }
   // FALLBACK
   else {
     tipo = 'ESTABILIDADE_SEM';
-    narrativa = 'Semana com sinais mistos: ' + (perdaKg !== null ? (perdaKg >= 0 ? '−' : '+') + rd(Math.abs(perdaKg), 1) + ' kg, ' : '') + 'proteína em ' + protPctMedio + '% (média), ' + exercSem + (exercSem === 1 ? ' sessão' : ' sessões') + ' de exercício.';
+    narrativa = 'Semana com sinais mistos: ' + (perdaKg !== null ? (perdaKg >= 0 ? '−' : '+') + rd(Math.abs(perdaKg), 1) + ' kg, ' : '') + 'proteína em ' + protPctMedio + '% (média), ' + exercSem + (exercSem === 1 ? ' treino' : ' treinos') + ' de força.';
     recomendacao = 'Sem alarme, mas vale revisar consistência: proteína, água, exercício resistido.';
   }
 
@@ -13164,6 +13164,17 @@ function _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant){
 function _aplicarCalBarConfig(cfg, kcalHoje){
   var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
   var escalaMax = cfg.escalaMax || 1;
+  // v3.9.34: dicionario de abreviacoes pra faixas estreitas.
+  // Antes a label podia transbordar (ex: 'Manutenção' em 11% da barra
+  // visual colava em 'Ganho' formando 'ManutençaGanho').
+  var _calBarAbrev = {
+    'Manutenção':'Mant.','Manutencao':'Mant.',
+    '✅ Manutenção':'✅ Mant.',
+    '⚠️ Manutenção':'⚠️ Mant.',
+    'Emagrecimento':'Emagrec.','✅ Emagrecimento':'✅ Emagrec.',
+    'Muito baixo':'Baixo','Subótimo':'Subót.',
+    '✅ Ideal':'✅ Ideal'
+  };
   // Larguras proporcionais das 4 faixas
   for(var i = 0; i < 4; i++){
     var faixa = el('calBarFaixa'+i);
@@ -13173,10 +13184,15 @@ function _aplicarCalBarConfig(cfg, kcalHoje){
     var w = Math.max(0, ((pFim - pIni) / escalaMax) * 100);
     faixa.style.width = w + '%';
     lbl.style.width = w + '%';
+    lbl.style.overflow = 'hidden';
+    lbl.style.whiteSpace = 'nowrap';
+    lbl.style.textOverflow = 'ellipsis';
     faixa.style.background = cfg.faixaCor[i];
     lbl.style.color = cfg.lblCor[i];
     lbl.style.fontWeight = (i === 1) ? '800' : '700';
-    lbl.textContent = cfg.labels[i];
+    // Abreviar quando faixa for estreita (< 18% da barra).
+    var txtRaw = cfg.labels[i];
+    lbl.textContent = (w < 18 && _calBarAbrev[txtRaw]) ? _calBarAbrev[txtRaw] : txtRaw;
   }
   // Labels da escala (5 pontos)
   for(var k = 0; k < 5; k++){
