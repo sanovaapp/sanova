@@ -1,4 +1,14 @@
 🌿 SANOVA — HANDOFF (documento-mestre do projeto)
+
+⚠️ PENDENTE BRUNO (06/06/2026): Gemini API credits depletados.
+   E2E #15 acusou: "Your prepayment credits are depleted. Please go
+   to AI Studio at https://ai.studio/projects to manage your project
+   and billing." Validação visual automatizada (Gemini Vision lendo
+   screenshots) parou de funcionar. E2E ainda gera screenshots e
+   estado interno OK — Bruno pode olhar manual. Pra restaurar o loop
+   automatizado: recarregar billing no Google AI Studio.
+
+
 Para o Claude Code (executor) e qualquer Claude futuro. Bruno é o dono do produto. Leia tudo antes de tocar no código.
 ⚡ COMECE POR AQUI
 Estado atual: v3.9.7 (no GitHub: sanovaapp.github.io/sanova).
