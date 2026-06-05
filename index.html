@@ -4104,6 +4104,45 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     </div>
   </div>
 
+  <!-- v3.10.3: Barra de PROTEÍNA — mesmo padrão visual da calBar.
+       Zonas clínicas GLP-1:
+       <1,2 g/kg = risco sarcopenia · 1,2-1,6 = manutenção massa magra
+       · 1,6-2,4 = ganho · >2,4 = excesso. -->
+  <div id="protBarCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:16px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(74,222,128,.18)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(74,222,128,.7)">🥩 PROTEÍNA DO DIA</div>
+      <div id="protBarStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(74,222,128,.15);color:#4ade80">Zona ideal</div>
+    </div>
+    <div style="position:relative;height:28px;border-radius:10px;overflow:hidden;margin-bottom:8px">
+      <div style="position:absolute;inset:0;display:flex">
+        <div id="protBarFaixa0" style="width:30%;background:rgba(243,168,138,.3)"></div>
+        <div id="protBarFaixa1" style="width:15%;background:rgba(232,200,120,.3)"></div>
+        <div id="protBarFaixa2" style="width:25%;background:rgba(74,222,128,.35)"></div>
+        <div id="protBarFaixa3" style="width:30%;background:rgba(232,200,120,.3)"></div>
+      </div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center">
+        <div id="protBarLbl0" style="width:30%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
+        <div id="protBarLbl1" style="width:15%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manut.</div>
+        <div id="protBarLbl2" style="width:25%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
+        <div id="protBarLbl3" style="width:30%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.8);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Excesso</div>
+      </div>
+      <div id="protBarMarker" style="position:absolute;top:-3px;bottom:-3px;width:5px;background:#fff;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 12px rgba(255,255,255,1);transition:left .5s ease;left:0%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <div id="protBarEscala0" style="font-size:10px;color:rgba(255,255,255,.35)">0</div>
+      <div id="protBarEscala1" style="font-size:10px;color:rgba(239,68,68,.6)">—</div>
+      <div id="protBarEscala2" style="font-size:10px;color:rgba(232,200,120,.7)">—</div>
+      <div id="protBarEscala3" style="font-size:10px;color:rgba(74,222,128,.7)">—</div>
+      <div id="protBarEscala4" style="font-size:10px;color:rgba(255,255,255,.35)">—</div>
+    </div>
+    <div style="text-align:center">
+      <span id="protBarConsumed" style="font-size:22px;font-weight:900;color:#4ade80">0</span>
+      <span style="font-size:13px;color:rgba(255,255,255,.4)"> / </span>
+      <span id="protBarMeta" style="font-size:13px;color:rgba(255,255,255,.4)">— g</span>
+      <div id="protBarMsg" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-style:italic"></div>
+    </div>
+  </div>
+
   <!-- v3.9.35: Saldo Energético (Balanço) agora aparece DEPOIS das Calorias do dia. -->
   <div id="saldoCard" style="display:none;margin-bottom:10px"></div>
 
@@ -5250,23 +5289,22 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div class="cs" style="margin-bottom:0" id="esqTxt"></div>
   </div>
 
-  <!-- v3.10.0: Histórico de aplicações + peso na época + gráfico mini -->
+  <!-- v3.10.3: Histórico — gráfico GRANDE protagonista + tabela compacta
+       (data | dose | peso). Antes (v3.10.0): card cheio com cards por linha
+       era denso e roubava destaque do gráfico. Bruno reportou 'ficou muito
+       ruim'. Refeito: 1 hero gráfico + 1 tabela enxuta de 3 colunas. -->
   <div class="card" id="histAplicCard" style="display:none">
-    <div class="ct">📋 Histórico de aplicações</div>
-    <div class="cs">Doses já registradas, com seu peso na época de cada uma.</div>
+    <div class="ct">📈 Histórico de aplicações</div>
+    <div class="cs">Sua progressão: doses aplicadas × peso ao longo do tempo.</div>
 
-    <!-- Gráfico mini: peso ao longo do tempo + barras de doses -->
-    <div id="histGraficoMini" style="display:none;margin:14px 0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:rgba(187,247,208,.7)">Progressão</div>
-        <div style="font-size:10px;color:rgba(255,255,255,.4)">⚖️ peso · 💉 doses</div>
-      </div>
-      <canvas id="histCanvas" width="600" height="180" style="width:100%;max-width:100%;height:auto"></canvas>
-      <div id="histGraficoLegenda" style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:10.5px;color:rgba(255,255,255,.5)"></div>
+    <!-- Gráfico GRANDE (era mini) -->
+    <div id="histGraficoMini" style="display:none;margin:14px 0;background:rgba(255,255,255,.04);border:1px solid rgba(187,247,208,.12);border-radius:14px;padding:14px 12px 12px">
+      <canvas id="histCanvas" width="600" height="240" style="width:100%;max-width:100%;height:auto;display:block"></canvas>
+      <div id="histGraficoLegenda" style="display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:11px;color:rgba(255,255,255,.65)"></div>
     </div>
 
-    <!-- Lista de aplicações -->
-    <div id="histAplicLista" style="margin-top:8px"></div>
+    <!-- Tabela compacta: Data | Dose | Peso -->
+    <div id="histAplicLista" style="margin-top:6px"></div>
 
     <!-- Vazio -->
     <div id="histAplicVazio" style="display:none;padding:20px 14px;text-align:center;font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.55">
@@ -6114,7 +6152,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.2';
+var SANOVA_VERSION = '3.10.3';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13259,6 +13297,104 @@ function renderQuatroGauges(){
   // v3.8.8: barra dinâmica por objetivo (emagrecer/reconstruir/manter)
   var cfg = _configCalBarPorObjetivo(M, kcalHoje, kcalMeta, kcalMant);
   _aplicarCalBarConfig(cfg, kcalHoje);
+
+  // v3.10.3: barra de PROTEÍNA com 4 zonas clínicas GLP-1
+  try{
+    var cfgP = _configProtBarPorPeso(M, protHoje);
+    _aplicarProtBarConfig(cfgP, protHoje);
+  }catch(e){ console.warn('[protBar]', e); }
+}
+
+// v3.10.3: Configura zonas da barra de proteína baseado em g/kg/dia.
+// Literatura GLP-1 (Helms 2014, ISSN 2017, STEP 2021, Slater 2019):
+//   <1,2 g/kg  · risco sarcopenia (vermelho)
+//   1,2-1,6   · manutenção massa magra (amarelo)
+//   1,6-2,4   · ✅ ganho / reconstrução (verde) — zona terapêutica em GLP-1
+//   >2,4       · excesso (não prejudicial, mas inútil)
+function _configProtBarPorPeso(M, protHoje){
+  var peso = (M && M.w) ? M.w : (S.profile && S.profile.weightKg) || 70;
+  // Pontos em gramas absolutos
+  var zSarc = Math.round(peso * 1.2);  // ate aqui = sarcopenia
+  var zManu = Math.round(peso * 1.6);  // ate aqui = manutencao
+  var zGanho = Math.round(peso * 2.4); // ate aqui = ganho
+  var escalaMax = Math.round(peso * 3.0); // topo da barra
+  var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
+
+  var st;
+  if(protHoje === 0){
+    st = { txt:'Bom dia! 🌿', bg:'rgba(74,222,128,.1)', cor:'rgba(74,222,128,.7)',
+      msg:'Registre sua primeira refeição. Meta hoje: '+fmt(zManu)+'–'+fmt(zGanho)+' g.' };
+  } else if(protHoje < zSarc){
+    st = { txt:'🔴 Risco sarcopenia', bg:'rgba(232,168,138,.18)', cor:'#f3a88a',
+      msg:'Abaixo de '+fmt(zSarc)+' g. Em GLP-1 + perda rápida = corpo busca energia no músculo. Priorize proteína.' };
+  } else if(protHoje < zManu){
+    st = { txt:'⚠️ Manutenção', bg:'rgba(232,200,120,.15)', cor:'#e8c878',
+      msg:'Suficiente pra manter músculo. Pra reconstruir, mire '+fmt(zManu)+'–'+fmt(zGanho)+' g.' };
+  } else if(protHoje <= zGanho){
+    st = { txt:'✅ Zona de ganho', bg:'rgba(74,222,128,.15)', cor:'#4ade80',
+      msg:'Aporte proteico ideal pra reconstruir massa magra na janela GLP-1.' };
+  } else {
+    st = { txt:'Excesso (ok)', bg:'rgba(232,200,120,.12)', cor:'#e8c878',
+      msg:'Acima de '+fmt(zGanho)+' g. Não prejudica, mas não acrescenta — corpo usa o excedente como calorias.' };
+  }
+
+  return {
+    escalaMax: escalaMax,
+    pontos:  [0, zSarc, zManu, zGanho, escalaMax],
+    labels:  ['Sarcopenia', 'Manut.', '✅ Ganho', 'Excesso'],
+    lblCor:  ['rgba(220,150,130,.85)', 'rgba(232,200,120,.85)', 'rgba(74,222,128,.95)', 'rgba(232,200,120,.8)'],
+    faixaCor:['rgba(243,168,138,.30)', 'rgba(232,200,120,.30)', 'rgba(74,222,128,.35)', 'rgba(232,200,120,.30)'],
+    escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(232,200,120,.8)','rgba(74,222,128,.85)','rgba(255,255,255,.35)'],
+    status: st,
+    metaTxt: fmt(zManu)+'–'+fmt(zGanho)+' g · ganho'
+  };
+}
+
+function _aplicarProtBarConfig(cfg, protHoje){
+  var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
+  var escalaMax = cfg.escalaMax || 1;
+  var abrev = { 'Sarcopenia':'🔴 Sarc.','Manut.':'Manut.','✅ Ganho':'✅ Ganho','Excesso':'Excesso' };
+  for(var i = 0; i < 4; i++){
+    var faixa = el('protBarFaixa'+i);
+    var lbl   = el('protBarLbl'+i);
+    if(!faixa || !lbl) continue;
+    var pIni = cfg.pontos[i], pFim = cfg.pontos[i+1];
+    var w = Math.max(0, ((pFim - pIni) / escalaMax) * 100);
+    faixa.style.width = w + '%';
+    lbl.style.width = w + '%';
+    lbl.style.overflow = 'hidden';
+    lbl.style.whiteSpace = 'nowrap';
+    lbl.style.textOverflow = 'ellipsis';
+    faixa.style.background = cfg.faixaCor[i];
+    lbl.style.color = cfg.lblCor[i];
+    lbl.style.fontWeight = (i === 2) ? '800' : '700';
+    var txt = cfg.labels[i];
+    lbl.textContent = (w < 18 && abrev[txt]) ? abrev[txt] : txt;
+  }
+  for(var k = 0; k < 5; k++){
+    var elL = el('protBarEscala'+k);
+    if(elL){
+      elL.textContent = (k === 0 ? '0' : (fmt(cfg.pontos[k]) + 'g'));
+      elL.style.color = cfg.escalaCor[k];
+    }
+  }
+  var marker = el('protBarMarker');
+  if(marker){
+    var pct = Math.min(98, Math.max(0, (protHoje / escalaMax) * 100));
+    marker.style.left = pct + '%';
+  }
+  var consumed = el('protBarConsumed');
+  var metaLbl = el('protBarMeta');
+  var status = el('protBarStatus');
+  var msg = el('protBarMsg');
+  if(consumed) consumed.textContent = protHoje;
+  if(metaLbl) metaLbl.textContent = cfg.metaTxt || (fmt(cfg.pontos[2]) + ' g meta');
+  if(status){
+    status.textContent = cfg.status.txt;
+    status.style.background = cfg.status.bg;
+    status.style.color = cfg.status.cor;
+  }
+  if(msg) msg.textContent = cfg.status.msg;
 }
 
 // v3.8.8: Configura faixas/labels/textos da barra de calorias baseado no objetivo ativo.
@@ -18503,36 +18639,35 @@ function renderHistoricoAplicacoes(){
 
   if(vazio) vazio.style.display = 'none';
 
-  // Render lista
+  // v3.10.3: tabela compacta (Data | Dose | Peso) substitui os cards
+  // grandes que estavam ocupando muito espaço. Bruno: 'ficou ruim'.
   if(lista){
-    var diasSem = ['dom','seg','ter','qua','qui','sex','sáb'];
     var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    var html = '';
+    var html =
+      '<div style="display:grid;grid-template-columns:64px 1fr 64px 72px;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(187,247,208,.18);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(187,247,208,.55)">' +
+        '<div>Data</div><div>Dose</div><div style="text-align:right">Peso</div><div style="text-align:right">Ações</div>' +
+      '</div>';
     apps.forEach(function(rec){
       if(!rec || !rec.date) return;
       var d = parseLocalDate(rec.date);
       var dataTxt = d && !isNaN(d.getTime())
-        ? (diasSem[d.getDay()] + ', ' + d.getDate() + '/' + meses[d.getMonth()])
+        ? (d.getDate() + '/' + meses[d.getMonth()])
         : rec.date;
-      var sem = _semanasDesdeInicio(rec.date);
       var peso = _pesoNaEpoca(rec.date);
       var pesoTxt = peso
-        ? ('<span style="color:#86efac">⚖️ ' + (Math.round(peso.kg*10)/10).toString().replace('.',',') + ' kg</span>' +
-           (peso.diasDelta > 0 ? '<span style="color:rgba(255,255,255,.4);font-size:10.5px"> · aproximado</span>' : ''))
-        : '<span style="color:rgba(255,255,255,.35);font-style:italic">sem peso registrado próximo</span>';
-      var doseStr = rec.dose ? (String(rec.dose).replace(',','.').replace('.',',') + ' mg') : '— mg';
-      var farmaco = rec.farmaco || S.caneta.farmaco || '—';
-      var editIco = rec.editedAt ? '<span title="editada" style="color:rgba(232,200,120,.7);font-size:10px;margin-left:6px">✎</span>' : '';
+        ? ((Math.round(peso.kg*10)/10).toString().replace('.',',') + ' kg' + (peso.diasDelta > 0 ? '*' : ''))
+        : '—';
+      var pesoCor = peso ? '#86efac' : 'rgba(255,255,255,.35)';
+      var doseStr = rec.dose ? (String(rec.dose).replace('.',',') + ' mg') : '— mg';
+      var editIco = rec.editedAt ? '<span title="editada" style="color:rgba(232,200,120,.7);font-size:9px;margin-left:4px">✎</span>' : '';
       html +=
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,.06)">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:12px;font-weight:700;color:#fff;line-height:1.3">🗓️ ' + dataTxt + (sem ? ' · semana ' + sem : '') + editIco + '</div>' +
-            '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:3px">💉 ' + farmaco + ' ' + doseStr + '</div>' +
-            '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px">' + pesoTxt + '</div>' +
-          '</div>' +
-          '<div style="display:flex;gap:6px;flex-shrink:0">' +
-            '<button type="button" onclick="abrirEditAplic(\'' + rec.id + '\')" aria-label="Editar" title="Editar" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(187,247,208,.2);background:transparent;color:rgba(187,247,208,.7);cursor:pointer;font-size:13px">✏️</button>' +
-            '<button type="button" onclick="removerAplicacao(\'' + rec.id + '\')" aria-label="Remover" title="Remover" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(232,168,138,.25);background:transparent;color:rgba(232,168,138,.7);cursor:pointer;font-size:13px">🗑</button>' +
+        '<div style="display:grid;grid-template-columns:64px 1fr 64px 72px;gap:8px;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.05)">' +
+          '<div style="font-size:12px;font-weight:700;color:#fff">' + dataTxt + editIco + '</div>' +
+          '<div style="font-size:12.5px;color:rgba(255,255,255,.85)">💉 ' + doseStr + '</div>' +
+          '<div style="text-align:right;font-size:12px;color:' + pesoCor + ';font-weight:600">' + pesoTxt + '</div>' +
+          '<div style="display:flex;gap:4px;justify-content:flex-end;flex-shrink:0">' +
+            '<button type="button" onclick="abrirEditAplic(\'' + rec.id + '\')" aria-label="Editar" title="Editar" style="width:28px;height:28px;border-radius:7px;border:1px solid rgba(187,247,208,.22);background:transparent;color:rgba(187,247,208,.75);cursor:pointer;font-size:11px;padding:0">✏️</button>' +
+            '<button type="button" onclick="removerAplicacao(\'' + rec.id + '\')" aria-label="Remover" title="Remover" style="width:28px;height:28px;border-radius:7px;border:1px solid rgba(232,168,138,.28);background:transparent;color:rgba(232,168,138,.78);cursor:pointer;font-size:11px;padding:0">🗑</button>' +
           '</div>' +
         '</div>';
     });
@@ -18695,7 +18830,9 @@ function _desenharGraficoHistorico(apps){
   if(tMax === tMin){ tMax = tMin + 86400000; } // dia mínimo
 
   // Padding interno
-  var padL = 40, padR = 12, padT = 14, padB = 22;
+  // v3.10.3: gráfico agora 600×240 (era 600×180). Padding interno também
+  // generoso pra dar respiro em mobile.
+  var padL = 44, padR = 14, padT = 18, padB = 28;
   var pw = W - padL - padR;
   var ph = H - padT - padB;
 
