@@ -4883,22 +4883,35 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div id="tratFormWrap" style="border-top:1px solid rgba(74,222,128,.1);padding:16px 20px">
       <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Informações da prescrição</div>
 
-      <!-- v3.3.0: seletor de tipo de apresentação — separa caneta industrial de frasco manipulado.
-           v3.3.2: layout de altura fixa, conteúdo centralizado, textos enxutos pra não quebrar. -->
+      <!-- v3.10.0: 4 apresentações Mounjaro (ANVISA 2026): caneta dose única,
+           KwikPen multidose, frasco Lilly oficial, frasco manipulado.
+           Layout 2×2 em grid pra caber em mobile 412px. -->
       <div class="fi" style="margin-bottom:14px">
         <label>Como você aplica sua medicação?</label>
-        <div style="display:flex;gap:8px;margin-top:6px;align-items:stretch">
-          <button type="button" id="cTipoCaneta" onclick="setTipoCaneta('caneta')"
-            style="flex:1;min-height:74px;padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.25">
-            <div style="font-size:18px;margin-bottom:4px">🖊️</div>
-            <div style="font-size:12.5px;font-weight:700">Caneta industrial</div>
-            <div style="font-size:10.5px;font-weight:500;opacity:.75;margin-top:2px">pronta para usar</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+          <button type="button" id="cTipoCanetaUnica" onclick="setTipoCaneta('caneta_unica')"
+            style="min-height:80px;padding:9px 7px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.22">
+            <div style="font-size:18px;margin-bottom:3px">🖊️</div>
+            <div style="font-size:12px;font-weight:700">Caneta dose única</div>
+            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">descarta após</div>
           </button>
-          <button type="button" id="cTipoFrasco" onclick="setTipoCaneta('frasco')"
-            style="flex:1;min-height:74px;padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.25">
-            <div style="font-size:18px;margin-bottom:4px">💉</div>
-            <div style="font-size:12.5px;font-weight:700">Frasco manipulado</div>
-            <div style="font-size:10.5px;font-weight:500;opacity:.75;margin-top:2px">aspirar c/ seringa</div>
+          <button type="button" id="cTipoKwikPen" onclick="setTipoCaneta('kwikpen')"
+            style="min-height:80px;padding:9px 7px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.22">
+            <div style="font-size:18px;margin-bottom:3px">💎</div>
+            <div style="font-size:12px;font-weight:700">KwikPen</div>
+            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">4 doses/caneta</div>
+          </button>
+          <button type="button" id="cTipoFrascoLilly" onclick="setTipoCaneta('frasco_lilly')"
+            style="min-height:80px;padding:9px 7px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.22">
+            <div style="font-size:18px;margin-bottom:3px">🏺</div>
+            <div style="font-size:12px;font-weight:700">Frasco Lilly</div>
+            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">0,5 mL pronto</div>
+          </button>
+          <button type="button" id="cTipoFrascoManipulado" onclick="setTipoCaneta('frasco_manipulado')"
+            style="min-height:80px;padding:9px 7px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.22">
+            <div style="font-size:18px;margin-bottom:3px">⚗️</div>
+            <div style="font-size:12px;font-weight:700">Frasco manipulado</div>
+            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">calc. UI seringa</div>
           </button>
         </div>
       </div>
@@ -5235,6 +5248,54 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <div class="card" id="esqCard" style="display:none">
     <div class="ct">⚠️ Dose esquecida</div>
     <div class="cs" style="margin-bottom:0" id="esqTxt"></div>
+  </div>
+
+  <!-- v3.10.0: Histórico de aplicações + peso na época + gráfico mini -->
+  <div class="card" id="histAplicCard" style="display:none">
+    <div class="ct">📋 Histórico de aplicações</div>
+    <div class="cs">Doses já registradas, com seu peso na época de cada uma.</div>
+
+    <!-- Gráfico mini: peso ao longo do tempo + barras de doses -->
+    <div id="histGraficoMini" style="display:none;margin:14px 0;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:rgba(187,247,208,.7)">Progressão</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.4)">⚖️ peso · 💉 doses</div>
+      </div>
+      <canvas id="histCanvas" width="600" height="180" style="width:100%;max-width:100%;height:auto"></canvas>
+      <div id="histGraficoLegenda" style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:10.5px;color:rgba(255,255,255,.5)"></div>
+    </div>
+
+    <!-- Lista de aplicações -->
+    <div id="histAplicLista" style="margin-top:8px"></div>
+
+    <!-- Vazio -->
+    <div id="histAplicVazio" style="display:none;padding:20px 14px;text-align:center;font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.55">
+      Você ainda não registrou nenhuma aplicação.<br>
+      As doses que você marcar como "Apliquei hoje" aparecem aqui com seu peso na época.
+    </div>
+  </div>
+</div>
+
+<!-- v3.10.0: modal de editar aplicação (data + dose) -->
+<div id="editAplicOv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)fecharEditAplic()">
+  <div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1.5px solid rgba(187,247,208,.25);border-radius:18px;padding:22px;max-width:380px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:15px;font-weight:800;color:#fff">✏️ Editar aplicação</div>
+      <button onclick="fecharEditAplic()" style="background:transparent;border:0;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;margin-bottom:14px">Ajustar dose ou data afeta o estoque e o cronograma da próxima aplicação.</div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:11px;font-weight:700;color:rgba(187,247,208,.8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Data da aplicação</label>
+      <input id="editAplicData" type="date" style="width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid rgba(187,247,208,.25);background:rgba(255,255,255,.04);color:#fff;font-family:var(--ss);font-size:14px;outline:none">
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:11px;font-weight:700;color:rgba(187,247,208,.8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Dose (mg)</label>
+      <input id="editAplicDose" type="text" inputmode="decimal" placeholder="ex: 7,5" style="width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid rgba(187,247,208,.25);background:rgba(255,255,255,.04);color:#fff;font-family:var(--ss);font-size:16px;font-weight:700;outline:none;text-align:center">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="fecharEditAplic()" style="flex:1;padding:13px;border-radius:10px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.65);font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>
+      <button onclick="salvarEditAplic()" style="flex:2;padding:13px;border-radius:10px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:13px;font-weight:800;cursor:pointer">Salvar mudanças</button>
+    </div>
   </div>
 </div>
 
@@ -6052,7 +6113,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.38';
+var SANOVA_VERSION = '3.10.0';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -6061,7 +6122,7 @@ var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDat
    Compatível com migração futura para Supabase/Postgres sem reescrita.
    ═══════════════════════════════════════════════════════ */
 
-var SCHEMA_VERSION = 31; // v3.1
+var SCHEMA_VERSION = 32; // v3.10.0 — 3 apresentações Mounjaro + frasco Lilly oficial
 
 function uuid(){
   // RFC4122 v4 simplificado, suficiente para registros locais
@@ -6133,6 +6194,23 @@ function migrarDados(){
     // v3.1.7: estrutura de ciclo menstrual (opcional)
     if(typeof S.ciclo === 'undefined' || S.ciclo === null) S.ciclo = null;
 
+    migrou = true;
+  }
+
+  // v3.10.0 (schema 32): expande S.caneta.tipo de {caneta, frasco} pra
+  // 4 categorias clinicamente distintas. Mounjaro/Lilly ANVISA 2026:
+  //   - caneta_unica   (Mounjaro descartável, 1 dose)
+  //   - kwikpen        (Mounjaro multidose, 4 doses por caneta)
+  //   - frasco_lilly   (vidro oficial Lilly 0,5 mL, dose fixa)
+  //   - frasco_manipulado (concentração variável, requer calculadora UI)
+  if(versaoAtual < 32){
+    if(S.caneta && S.caneta.tipo){
+      var tOld = S.caneta.tipo;
+      if(tOld === 'caneta') S.caneta.tipo = 'caneta_unica';      // default conservador
+      else if(tOld === 'frasco') S.caneta.tipo = 'frasco_manipulado'; // default no Brasil
+      // outros valores ja novos: mantem
+    }
+    if(S._meta) S._meta.schemaVersion = SCHEMA_VERSION;
     migrou = true;
   }
 
@@ -7663,7 +7741,7 @@ function _anaSalvar(){
   if(d.farmaco && S.caneta){
     S.caneta.farmaco = d.farmaco;
     S.caneta.freq = d.farmaco === 'Liraglutida' ? 'diaria' : 'semanal';
-    if(!S.caneta.tipo) S.caneta.tipo = 'caneta';
+    if(!S.caneta.tipo) S.caneta.tipo = 'caneta_unica';
   }
   if(d.dose && S.caneta)   S.caneta.dose = parseFloat(d.dose);
   if(d.inicio && S.caneta){ S.caneta.inicio = d.inicio; S.profile.startDate = d.inicio; }
@@ -8666,7 +8744,7 @@ function anaAbrir(){
     // Quem usa frasco manipulado configura manualmente em Medicacao depois.
     // Sem isso, o card "Aplicar dose" mostrava "Configure sua medicacao..."
     // mesmo apos a anamnese estar completa.
-    if(!S.caneta.tipo) S.caneta.tipo = 'caneta';
+    if(!S.caneta.tipo) S.caneta.tipo = 'caneta_unica';
   }
   if(ANA.data.dose)   S.caneta.dose=parseFloat(ANA.data.dose);
   if(ANA.data.inicio){S.caneta.inicio=ANA.data.inicio;S.profile.startDate=ANA.data.inicio;}
@@ -10193,6 +10271,8 @@ function registrarAplicacaoHoje(){
     } catch(e){ console.warn('[Sanova/lembretes] reagendar:', e); }
   }
   atualizarBotaoDoseHero();
+  // v3.10.0: histórico atualizado depois de cada aplicação registrada
+  if(typeof renderHistoricoAplicacoes === 'function') renderHistoricoAplicacoes();
 }
 
 function lembrarMaisTarde(){
@@ -10234,19 +10314,35 @@ function buildNarr(M,rl,perd,dh,pd){
    Frasco manipulado → calculadora mg → UI completa. */
 
 function setTipoCaneta(t){
+  // v3.10.0: aceita 4 tipos novos. Compatibilidade legada:
+  // 'caneta' (antigo) → 'caneta_unica'; 'frasco' (antigo) → 'frasco_manipulado'.
+  if(t === 'caneta') t = 'caneta_unica';
+  else if(t === 'frasco') t = 'frasco_manipulado';
   window._tipoCanetaForm = t;
-  var btnC = el('cTipoCaneta'), btnF = el('cTipoFrasco');
+  // v3.10.0: 4 botoes em vez de 2.
+  var btnCu = el('cTipoCanetaUnica'),
+      btnKp = el('cTipoKwikPen'),
+      btnFl = el('cTipoFrascoLilly'),
+      btnFm = el('cTipoFrascoManipulado'),
+      // legado (compat com PR antigos enquanto fluxo nao foi totalmente refatorado):
+      btnC = el('cTipoCaneta'), btnF = el('cTipoFrasco');
   function aplicar(btn, ativo){
     if(!btn) return;
     btn.style.borderColor = ativo ? 'var(--g500)' : 'rgba(255,255,255,.15)';
     btn.style.background  = ativo ? 'var(--g700)' : 'transparent';
     btn.style.color       = ativo ? '#fff'       : 'rgba(255,255,255,.6)';
   }
-  aplicar(btnC, t==='caneta');
-  aplicar(btnF, t==='frasco');
-  // v3.4.0: mostra/oculta blocos específicos de frasco
-  var conc = el('cConcWrap'); if(conc) conc.style.display = (t==='frasco') ? 'block' : 'none';
-  var vol  = el('cVolWrap');  if(vol)  vol.style.display  = (t==='frasco') ? 'block' : 'none';
+  aplicar(btnCu, t==='caneta_unica');
+  aplicar(btnKp, t==='kwikpen');
+  aplicar(btnFl, t==='frasco_lilly');
+  aplicar(btnFm, t==='frasco_manipulado');
+  aplicar(btnC, isCaneta(t));   // legado
+  aplicar(btnF, isFrasco(t));   // legado
+  // v3.4.0 / v3.10.0: mostra/oculta blocos. Concentracao+volume so pra
+  // frasco MANIPULADO (Lilly oficial tem dose fixa, nao precisa).
+  var mostrarConcVol = isFrascoManipulado(t);
+  var conc = el('cConcWrap'); if(conc) conc.style.display = mostrarConcVol ? 'block' : 'none';
+  var vol  = el('cVolWrap');  if(vol)  vol.style.display  = mostrarConcVol ? 'block' : 'none';
   // v3.9.37: BUG CLÍNICO grave reportado pelo Bruno — paciente troca tipo
   // 'caneta industrial' mas a CALCULADORA de UI continuava visível abaixo
   // (renderCalc lê S.caneta.tipo, que so era atualizado por salvarCaneta).
@@ -10317,13 +10413,23 @@ function renderCalc(){
   if(elDataReg) elDataReg.style.display = 'block';
   if(typeof _renderBadgeData === 'function') _renderBadgeData('dose');
 
-  if(tipo === 'caneta'){
-    if(elTag)   elTag.textContent   = '🖊️ REGISTRAR APLICAÇÃO';
+  // v3.10.0: 3 tipos NAO-frasco-manipulado renderizam o card 'calcCaneta'
+  // (instrucao + botao de registrar simples, SEM calculadora UI):
+  //   - caneta_unica · kwikpen · frasco_lilly
+  // So 'frasco_manipulado' (concentracao variavel) abre a calculadora completa.
+  if(!precisaCalculadoraUI(tipo)){
+    var tagPorTipo = isKwikPen(tipo) ? '💎 REGISTRAR APLICAÇÃO (KWIKPEN)'
+                   : isFrascoLilly(tipo) ? '🏺 REGISTRAR APLICAÇÃO (FRASCO LILLY)'
+                   : '🖊️ REGISTRAR APLICAÇÃO';
+    if(elTag)   elTag.textContent   = tagPorTipo;
     if(elTitle) elTitle.textContent = 'Registre sua aplicação';
     elSem.style.display = 'none';
     elFra.style.display = 'none';
     elCan.style.display = 'block';
-    var nome = S.caneta.apresentacao || (S.caneta.farmaco + ' — caneta industrial');
+    var rotulo = isKwikPen(tipo) ? ' — KwikPen (4 doses)'
+               : isFrascoLilly(tipo) ? ' — Frasco Lilly (0,5 mL)'
+               : ' — caneta industrial';
+    var nome = S.caneta.apresentacao || (S.caneta.farmaco + rotulo);
     var dose = S.caneta.dose ? (String(S.caneta.dose).replace(',','.') + ' mg') : '— mg';
     if(el('calcCanetaNome')) el('calcCanetaNome').textContent = nome;
     if(el('calcCanetaDose')) el('calcCanetaDose').textContent = dose;
@@ -10335,7 +10441,7 @@ function renderCalc(){
     return;
   }
 
-  // tipo === 'frasco'
+  // tipo === 'frasco_manipulado' (ou legado 'frasco')
   if(elTag)   elTag.textContent   = '🧪 CÁLCULO DE DOSE';
   if(elTitle) elTitle.textContent = 'Converta aqui sua dose da medicação em unidades de insulina antes de aplicar';
   elSem.style.display = 'none';
@@ -10447,7 +10553,8 @@ function atualizarFrascoCompactoView(){
 
 function calcDil(){
   // v3.6.5: restaurado leitura dos inputs inline (era v3.3.4). Auto-save em S.caneta.
-  if(!S.caneta || S.caneta.tipo !== 'frasco' || !S.caneta.farmaco) return;
+  // v3.10.0: calculadora UI roda só pra frasco MANIPULADO.
+  if(!S.caneta || !isFrascoManipulado(S.caneta.tipo) || !S.caneta.farmaco) return;
   var f = S.caneta.farmaco;
   var _norm = function(v){ return (v||'').toString().replace(',','.'); };
   var iMg = el('calcMg'), iMl = el('calcMl'), iDose = el('calcDose');
@@ -16009,17 +16116,29 @@ function aplicarDecrementoEstoque(){
   S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
 }
 
-// v3.4.0: helper — quantos mg vêm em 1 unidade (frasco cheio ou caneta cheia)
+// v3.4.0 / v3.10.0: helper — quantos mg vêm em 1 unidade. Reescrito pra
+// suportar os 4 tipos novos (caneta_unica, kwikpen, frasco_lilly,
+// frasco_manipulado). Mantém compat com legado 'caneta'/'frasco'.
 function _mgPorUnidade(){
   if(!S.caneta) return 0;
-  if(S.caneta.tipo === 'frasco'){
+  var tipo = S.caneta.tipo;
+  if(isFrascoManipulado(tipo)){
     var mg = parseFloat(S.caneta.concRotuloMg)||0, ml = parseFloat(S.caneta.concRotuloMl)||0, vol = parseFloat(S.caneta.volumeFrasco)||0;
     if(!mg || !ml || !vol) return 0;
     return (mg/ml) * vol;
   }
-  if(S.caneta.tipo === 'caneta'){
-    // Caneta industrial: 1 caneta = 4 doses (semanal) ou ~30 (Liraglutida diária)
-    var dosesPorCaneta = (S.caneta.farmaco === 'Liraglutida') ? 30 : 4;
+  if(isFrascoLilly(tipo)){
+    // Frasco Lilly oficial: 0,5 mL com dose fixa — 1 unidade = 1 dose
+    return parseFloat(S.caneta.dose) || 0;
+  }
+  if(isKwikPen(tipo)){
+    // KwikPen multidose: 4 doses por caneta (Tirzepatida, ANVISA 2026)
+    return (parseFloat(S.caneta.dose)||0) * 4;
+  }
+  if(isCaneta(tipo)){
+    // Caneta dose única: 1 dose por caneta. Exceção: Liraglutida diária
+    // (Saxenda) — 1 caneta cobre ~30 dias.
+    var dosesPorCaneta = (S.caneta.farmaco === 'Liraglutida') ? 30 : 1;
     return (parseFloat(S.caneta.dose)||0) * dosesPorCaneta;
   }
   return 0;
@@ -16034,17 +16153,29 @@ function atualizarPrevisaoEstoque(){
   var dica = el('cEstoqueDica');
   if(!box || !inp) return;
   var tipo = window._tipoCanetaForm || (S.caneta && S.caneta.tipo) || '';
-  // Label + subtitle + placeholder dinâmicos por tipo
-  if(tipo === 'frasco'){
-    if(lblUnid) lblUnid.textContent = 'frascos cheios';
+  // v3.10.0: Label + subtitle adaptados aos 4 tipos novos.
+  if(isFrasco(tipo)){
+    var ehLilly = isFrascoLilly(tipo);
+    if(lblUnid) lblUnid.textContent = ehLilly ? 'frascos Lilly cheios' : 'frascos cheios';
     if(subt) subt.textContent = 'Conte os frascos cheios (sem usar) em casa — o app calcula quanto dura.';
-    if(dica) dica.innerHTML = '💡 Frasco aberto não conta. Quando comprar mais, use o botão <strong>Repor estoque</strong>.';
+    if(dica) dica.innerHTML = ehLilly
+      ? '💡 Frasco Lilly oficial: 1 frasco = 1 dose. Cada um vem com 0,5 mL prontos.'
+      : '💡 Frasco aberto não conta. Quando comprar mais, use o botão <strong>Repor estoque</strong>.';
     inp.placeholder = 'ex: 3';
-  } else if(tipo === 'caneta'){
-    if(lblUnid) lblUnid.textContent = 'canetas cheias';
+  } else if(isCaneta(tipo)){
+    var ehKp = isKwikPen(tipo);
+    if(lblUnid) lblUnid.textContent = ehKp ? 'KwikPens cheias' : 'canetas cheias';
     if(subt) subt.textContent = 'Conte as canetas inteiras (sem usar) em casa — o app calcula quanto dura.';
-    if(dica) dica.innerHTML = '💡 Cada caneta cobre ~' + (S.caneta && S.caneta.farmaco === 'Liraglutida' ? '30 aplicações diárias' : '4 aplicações semanais') + '.';
-    inp.placeholder = 'ex: 2';
+    if(dica){
+      if(ehKp){
+        dica.innerHTML = '💡 KwikPen: 1 caneta = <strong>4 aplicações semanais</strong>. Guarde na geladeira entre doses.';
+      } else if(S.caneta && S.caneta.farmaco === 'Liraglutida'){
+        dica.innerHTML = '💡 Caneta diária: cobre ~30 aplicações.';
+      } else {
+        dica.innerHTML = '💡 Caneta de dose única: descarta após cada aplicação.';
+      }
+    }
+    inp.placeholder = ehKp ? 'ex: 1' : 'ex: 4';
   } else {
     if(lblUnid) lblUnid.textContent = 'unidades';
     if(subt) subt.textContent = 'Escolha primeiro como você aplica (caneta ou frasco).';
@@ -16091,13 +16222,18 @@ function atualizarPrevisaoEstoque(){
 // v3.4.0: paciente diz quantos FRASCOS ou CANETAS comprou — app converte pra mg
 function reporEstoque(){
   if(!S.caneta || !S.caneta.tipo){ toast('Configure sua medicação primeiro.', 2500); return; }
-  var unid = (S.caneta.tipo === 'frasco') ? 'frasco(s)' : 'caneta(s)';
+  var unid = isFrasco(S.caneta.tipo) ? 'frasco(s)' : (isKwikPen(S.caneta.tipo) ? 'KwikPen(s)' : 'caneta(s)');
   var qtd = prompt('Quantos ' + unid + ' você comprou agora?');
   if(qtd===null) return;
   var n = parseFloat((qtd||'').replace(',','.'));
   if(!n || n <= 0){ toast('Valor inválido.', 2000); return; }
   var mgPorUnidade = _mgPorUnidade();
-  if(!mgPorUnidade){ toast('Configure concentração e volume do frasco primeiro.', 3000); return; }
+  if(!mgPorUnidade){
+    var msgErr = isFrascoManipulado(S.caneta.tipo)
+      ? 'Configure concentração e volume do frasco primeiro.'
+      : 'Configure a dose prescrita primeiro.';
+    toast(msgErr, 3000); return;
+  }
   S.caneta.estoqueAtual = (parseFloat(S.caneta.estoqueAtual)||0) + (n * mgPorUnidade);
   S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
   salvar();
@@ -16115,11 +16251,11 @@ function configurarEstoque(){
   }
   var mgPorUnidade = _mgPorUnidade();
   if(!mgPorUnidade){
-    toast(S.caneta.tipo==='frasco' ? 'Defina concentração e volume do frasco primeiro.' : 'Defina a dose primeiro.', 3200);
+    toast(isFrascoManipulado(S.caneta.tipo) ? 'Defina concentração e volume do frasco primeiro.' : 'Defina a dose primeiro.', 3200);
     if(typeof go==='function') go('caneta');
     return;
   }
-  var unid = (S.caneta.tipo === 'frasco') ? 'frasco(s)' : 'caneta(s)';
+  var unid = isFrasco(S.caneta.tipo) ? 'frasco(s)' : (isKwikPen(S.caneta.tipo) ? 'KwikPen(s)' : 'caneta(s)');
   var qtd = prompt('Quantos ' + unid + ' você tem em casa agora?\n(conte as unidades inteiras, sem usar)');
   if(qtd===null) return;
   var n = parseFloat((qtd||'').replace(',','.'));
@@ -16137,13 +16273,18 @@ function salvarCaneta(){
   S.caneta.tipo=tipo;
   S.caneta.farmaco=f;S.caneta.dose=el('cDose').value;S.caneta.freq=el('cFreq').value;S.caneta.inicio=el('cIni').value;S.caneta.ultima=el('cUlt').value;
   if(el('cHora')) S.caneta.horario=el('cHora').value || '08:00';S.caneta.diaSem=nv(el('cDia').value,1);S.caneta.obs=el('cObs').value;
-  if(tipo==='caneta'){
-    S.caneta.apresentacao = f + ' ' + (S.caneta.dose || '') + ' mg';
+  if(isCaneta(tipo) || isFrascoLilly(tipo)){
+    // v3.10.0: caneta_unica, kwikpen, frasco_lilly nao usam calculadora
+    // (dose fixa direto do dispositivo). Concentracao/volume ficam null.
+    var rotuloApres = isKwikPen(tipo) ? ' (KwikPen)'
+                    : isFrascoLilly(tipo) ? ' (frasco Lilly)'
+                    : '';
+    S.caneta.apresentacao = f + ' ' + (S.caneta.dose || '') + ' mg' + rotuloApres;
     S.caneta.concRotuloMg = null;
     S.caneta.concRotuloMl = null;
     S.caneta.volumeFrasco = null;
   } else {
-    // v3.4.0: tipo='frasco' — concentração (X mg em Y mL do rótulo) + volume total do frasco
+    // v3.4.0: tipo='frasco_manipulado' — concentração + volume total do frasco
     var mgF  = el('cConcMg')   ? parseFloat((el('cConcMg').value||'').replace(',','.')) : null;
     var mlF  = el('cConcMl')   ? parseFloat((el('cConcMl').value||'').replace(',','.')) : null;
     var volF = el('cVolFrasco')? parseFloat((el('cVolFrasco').value||'').replace(',','.')) : null;
@@ -16175,11 +16316,28 @@ function salvarCaneta(){
 function normDose(v){ return String(v==null?'':v).replace(/mg/i,'').replace(',','.').trim(); }
 function fmtDoseMg(v){ var n = normDose(v); return n ? n.replace('.',',') + ' mg' : ''; }
 
+// v3.10.0: helpers de tipo agrupam as 4 apresentacoes novas + legado.
+// Caneta = dispositivo pronto (dial + subcutaneo, SEM seringa/calc UI).
+// Frasco = liquido em ampola (precisa seringa). Manipulado tem calculadora;
+// Lilly oficial vem em dose fixa pronta.
+function tipoCaneta(){ return S && S.caneta ? S.caneta.tipo : ''; }
+function isCaneta(t){ t = t || tipoCaneta(); return t === 'caneta_unica' || t === 'kwikpen' || t === 'caneta' /* legado */; }
+function isKwikPen(t){ t = t || tipoCaneta(); return t === 'kwikpen'; }
+function isFrasco(t){ t = t || tipoCaneta(); return t === 'frasco_manipulado' || t === 'frasco_lilly' || t === 'frasco' /* legado */; }
+function isFrascoManipulado(t){ t = t || tipoCaneta(); return t === 'frasco_manipulado' || t === 'frasco' /* legado: frasco antigo presume manipulado */; }
+function isFrascoLilly(t){ t = t || tipoCaneta(); return t === 'frasco_lilly'; }
+// Calculadora mg→UI so faz sentido pra frasco manipulado (concentracao variavel)
+function precisaCalculadoraUI(t){ return isFrascoManipulado(t); }
+// Doses por unidade de estoque: KwikPen tem 4, resto tem 1.
+function dosesPorUnidade(t){ t = t || tipoCaneta(); return isKwikPen(t) ? 4 : 1; }
+
 // v3.9.16: calcula UI da seringa de insulina U-100 a partir de S.caneta
 // Retorna nº inteiro de unidades OU null se config incompleta / tipo != frasco.
 // Mesma formula da calculadora dedicada (calcDil): uni = (dose/conc)*100
 function calcUIFromCaneta(){
-  if(!S.caneta || S.caneta.tipo !== 'frasco') return null;
+  // v3.10.0: so retorna UI pra frasco MANIPULADO (concentracao variavel).
+  // Lilly oficial vem com dose fixa; canetas nao usam seringa.
+  if(!S.caneta || !isFrascoManipulado(S.caneta.tipo)) return null;
   var dose = parseFloat(normDose(S.caneta.dose));
   var mg = parseFloat(S.caneta.concRotuloMg);
   var ml = parseFloat(S.caneta.concRotuloMl);
@@ -18270,6 +18428,309 @@ function renderPainelHojeBar(){
   elD.textContent = 'Hoje, ' + diasSem[d.getDay()] + ' ' + d.getDate() + ' ' + meses[d.getMonth()];
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   v3.10.0 — HISTÓRICO DE APLICAÇÕES (editável)
+   ══════════════════════════════════════════════════════════════════════════
+   Lista S.applications ordenada desc + peso "na época" (mais próximo em
+   S.weights, ±3 dias) + gráfico mini com 2 séries (peso linha, doses
+   pontos). Edição reabre modal #editAplicOv. */
+var _editAplicId = null;
+
+function _pesoNaEpoca(dataIso){
+  if(!dataIso || !Array.isArray(S.weights) || S.weights.length === 0) return null;
+  var alvo = parseLocalDate(dataIso);
+  if(!alvo || isNaN(alvo.getTime())) return null;
+  var melhor = null, melhorDiff = Infinity;
+  S.weights.forEach(function(w){
+    if(!w || !w.date) return;
+    var d = parseLocalDate(w.date);
+    if(!d || isNaN(d.getTime())) return;
+    var diff = Math.abs((d - alvo) / 86400000); // dias
+    if(diff < melhorDiff){ melhorDiff = diff; melhor = w; }
+  });
+  if(!melhor || melhorDiff > 3) return null; // +/- 3 dias
+  return { kg: melhor.weight, diasDelta: melhorDiff };
+}
+
+function _semanasDesdeInicio(dataIso){
+  var ini = S.caneta && S.caneta.inicio;
+  if(!ini || !dataIso) return null;
+  var d1 = parseLocalDate(ini), d2 = parseLocalDate(dataIso);
+  if(!d1 || !d2 || isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+  return Math.max(1, Math.ceil((d2 - d1) / (7 * 86400000)));
+}
+
+function renderHistoricoAplicacoes(){
+  var card = el('histAplicCard');
+  if(!card) return;
+  // Esconder se nao tem fármaco configurado
+  if(!S.caneta || !S.caneta.farmaco){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  var apps = Array.isArray(S.applications) ? S.applications.slice() : [];
+  apps.sort(function(a,b){ return (b.date || '').localeCompare(a.date || ''); });
+
+  var lista = el('histAplicLista');
+  var vazio = el('histAplicVazio');
+  var grafWrap = el('histGraficoMini');
+
+  if(apps.length === 0){
+    if(lista) lista.innerHTML = '';
+    if(vazio) vazio.style.display = 'block';
+    if(grafWrap) grafWrap.style.display = 'none';
+    return;
+  }
+
+  if(vazio) vazio.style.display = 'none';
+
+  // Render lista
+  if(lista){
+    var diasSem = ['dom','seg','ter','qua','qui','sex','sáb'];
+    var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    var html = '';
+    apps.forEach(function(rec){
+      if(!rec || !rec.date) return;
+      var d = parseLocalDate(rec.date);
+      var dataTxt = d && !isNaN(d.getTime())
+        ? (diasSem[d.getDay()] + ', ' + d.getDate() + '/' + meses[d.getMonth()])
+        : rec.date;
+      var sem = _semanasDesdeInicio(rec.date);
+      var peso = _pesoNaEpoca(rec.date);
+      var pesoTxt = peso
+        ? ('<span style="color:#86efac">⚖️ ' + (Math.round(peso.kg*10)/10).toString().replace('.',',') + ' kg</span>' +
+           (peso.diasDelta > 0 ? '<span style="color:rgba(255,255,255,.4);font-size:10.5px"> ·*aprox.</span>' : ''))
+        : '<span style="color:rgba(255,255,255,.35);font-style:italic">sem peso registrado próximo</span>';
+      var doseStr = rec.dose ? (String(rec.dose).replace(',','.').replace('.',',') + ' mg') : '— mg';
+      var farmaco = rec.farmaco || S.caneta.farmaco || '—';
+      var editIco = rec.editedAt ? '<span title="editada" style="color:rgba(232,200,120,.7);font-size:10px;margin-left:6px">✎</span>' : '';
+      html +=
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,.06)">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:12px;font-weight:700;color:#fff;line-height:1.3">🗓️ ' + dataTxt + (sem ? ' · semana ' + sem : '') + editIco + '</div>' +
+            '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:3px">💉 ' + farmaco + ' ' + doseStr + '</div>' +
+            '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px">' + pesoTxt + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;flex-shrink:0">' +
+            '<button type="button" onclick="abrirEditAplic(\'' + rec.id + '\')" aria-label="Editar" title="Editar" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(187,247,208,.2);background:transparent;color:rgba(187,247,208,.7);cursor:pointer;font-size:13px">✏️</button>' +
+            '<button type="button" onclick="removerAplicacao(\'' + rec.id + '\')" aria-label="Remover" title="Remover" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(232,168,138,.25);background:transparent;color:rgba(232,168,138,.7);cursor:pointer;font-size:13px">🗑</button>' +
+          '</div>' +
+        '</div>';
+    });
+    lista.innerHTML = html;
+  }
+
+  // Render gráfico (só se tiver pelo menos 1 aplicação E 1 peso)
+  if(grafWrap){
+    if(apps.length >= 1 && Array.isArray(S.weights) && S.weights.length >= 1){
+      grafWrap.style.display = 'block';
+      try{ _desenharGraficoHistorico(apps); }catch(e){ console.warn('[hist] grafico:', e); }
+    } else {
+      grafWrap.style.display = 'none';
+    }
+  }
+}
+
+function abrirEditAplic(id){
+  if(!Array.isArray(S.applications)) return;
+  var rec = null;
+  for(var i = 0; i < S.applications.length; i++){
+    if(S.applications[i] && S.applications[i].id === id){ rec = S.applications[i]; break; }
+  }
+  if(!rec){ if(typeof toast === 'function') toast('Aplicação não encontrada', 2200); return; }
+  _editAplicId = id;
+  var inData = el('editAplicData');
+  var inDose = el('editAplicDose');
+  if(inData) inData.value = rec.date || '';
+  if(inDose) inDose.value = rec.dose ? String(rec.dose).replace('.',',') : '';
+  var ov = el('editAplicOv');
+  if(ov) ov.style.display = 'flex';
+}
+
+function fecharEditAplic(){
+  _editAplicId = null;
+  var ov = el('editAplicOv');
+  if(ov) ov.style.display = 'none';
+}
+
+function salvarEditAplic(){
+  if(!_editAplicId || !Array.isArray(S.applications)) { fecharEditAplic(); return; }
+  var idx = -1;
+  for(var i = 0; i < S.applications.length; i++){
+    if(S.applications[i] && S.applications[i].id === _editAplicId){ idx = i; break; }
+  }
+  if(idx < 0){ fecharEditAplic(); return; }
+  var rec = S.applications[idx];
+  var doseAnt = parseFloat(normDose(rec.dose));
+  var dataNova = (el('editAplicData')||{}).value || rec.date;
+  var doseNovaStr = (el('editAplicDose')||{}).value || rec.dose;
+  var doseNova = parseFloat(normDose(doseNovaStr));
+  if(!doseNova || doseNova <= 0){ if(typeof toast === 'function') toast('Dose inválida', 2200); return; }
+  if(!dataNova){ if(typeof toast === 'function') toast('Data inválida', 2200); return; }
+
+  // Devolve estoque da dose antiga (em mg) — paciente pode estar mudando dose retroativa.
+  if(typeof S.caneta.estoqueAtual === 'number' && doseAnt > 0){
+    S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual + doseAnt);
+  }
+  rec.date = dataNova;
+  rec.dose = String(doseNova).replace('.',',');
+  rec.appliedAt = dataNova + 'T12:00:00';
+  rec.editedAt = nowISO();
+  // Decrementa a dose nova
+  if(typeof S.caneta.estoqueAtual === 'number'){
+    S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual - doseNova);
+    S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
+  }
+  // Atualiza S.caneta.ultima pra mais recente em historico
+  _atualizarUltimaAplicacao();
+  salvar();
+  fecharEditAplic();
+  if(typeof toast === 'function') toast('✏️ Aplicação atualizada · estoque recalculado', 2800);
+  if(typeof renderHistoricoAplicacoes === 'function') renderHistoricoAplicacoes();
+  if(typeof renderHero === 'function') renderHero();
+  if(typeof atualizarBotaoDoseHero === 'function') atualizarBotaoDoseHero();
+}
+
+function removerAplicacao(id){
+  if(!Array.isArray(S.applications)) return;
+  if(!confirm('Remover esta aplicação?\n\nA dose volta pro estoque e o cronograma de próxima dose é recalculado.')) return;
+  var idx = -1;
+  for(var i = 0; i < S.applications.length; i++){
+    if(S.applications[i] && S.applications[i].id === id){ idx = i; break; }
+  }
+  if(idx < 0) return;
+  var rec = S.applications[idx];
+  var doseMg = parseFloat(normDose(rec.dose));
+  S.applications.splice(idx, 1);
+  if(typeof S.caneta.estoqueAtual === 'number' && doseMg > 0){
+    S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual + doseMg);
+    S.caneta.estoqueAtual = Math.round(S.caneta.estoqueAtual * 100) / 100;
+  }
+  _atualizarUltimaAplicacao();
+  salvar();
+  if(typeof toast === 'function') toast('🗑 Aplicação removida · estoque devolvido', 2500);
+  if(typeof renderHistoricoAplicacoes === 'function') renderHistoricoAplicacoes();
+  if(typeof renderHero === 'function') renderHero();
+  if(typeof atualizarBotaoDoseHero === 'function') atualizarBotaoDoseHero();
+}
+
+function _atualizarUltimaAplicacao(){
+  if(!Array.isArray(S.applications) || S.applications.length === 0){
+    S.caneta.ultima = '';
+    delete S.caneta.ultimaISO;
+    return;
+  }
+  var ult = null;
+  S.applications.forEach(function(a){
+    if(!a || !a.date) return;
+    if(!ult || a.date > ult.date) ult = a;
+  });
+  if(ult){
+    S.caneta.ultima = ult.date;
+    S.caneta.ultimaISO = ult.appliedAt || (ult.date + 'T12:00:00');
+  }
+}
+
+// v3.10.0: gráfico mini — peso ao longo do tempo + barras de doses no mesmo
+// eixo temporal. Canvas 600x180, escalado por CSS.
+function _desenharGraficoHistorico(apps){
+  var cv = el('histCanvas');
+  if(!cv || !cv.getContext) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Coleta pesos válidos
+  var pesos = (S.weights || []).filter(function(w){ return w && w.date && typeof w.weight === 'number'; })
+    .sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  if(pesos.length === 0 || apps.length === 0) return;
+
+  // Calcula janela temporal
+  var datas = pesos.map(function(w){ return parseLocalDate(w.date).getTime(); })
+    .concat(apps.map(function(a){ var d = parseLocalDate(a.date); return d ? d.getTime() : null; }).filter(Boolean));
+  var tMin = Math.min.apply(null, datas);
+  var tMax = Math.max.apply(null, datas);
+  if(tMax === tMin){ tMax = tMin + 86400000; } // dia mínimo
+
+  // Padding interno
+  var padL = 40, padR = 12, padT = 14, padB = 22;
+  var pw = W - padL - padR;
+  var ph = H - padT - padB;
+
+  function xAt(t){ return padL + ((t - tMin) / (tMax - tMin)) * pw; }
+
+  // Escala peso (eixo Y esquerdo)
+  var minPeso = Math.min.apply(null, pesos.map(function(w){ return w.weight; }));
+  var maxPeso = Math.max.apply(null, pesos.map(function(w){ return w.weight; }));
+  if(maxPeso === minPeso){ maxPeso = minPeso + 1; }
+  var margemP = (maxPeso - minPeso) * 0.15;
+  minPeso -= margemP; maxPeso += margemP;
+  function yPeso(p){ return padT + (1 - (p - minPeso) / (maxPeso - minPeso)) * ph; }
+
+  // Grade horizontal (3 linhas)
+  ctx.strokeStyle = 'rgba(255,255,255,.08)';
+  ctx.lineWidth = 1;
+  for(var k = 0; k <= 3; k++){
+    var yy = padT + (ph * k / 3);
+    ctx.beginPath();
+    ctx.moveTo(padL, yy);
+    ctx.lineTo(W - padR, yy);
+    ctx.stroke();
+  }
+
+  // Eixo Y peso (lado esquerdo) — 3 labels
+  ctx.fillStyle = 'rgba(187,247,208,.55)';
+  ctx.font = '500 9px system-ui,sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for(var k2 = 0; k2 <= 3; k2++){
+    var p = maxPeso - (maxPeso - minPeso) * (k2 / 3);
+    ctx.fillText((Math.round(p*10)/10).toString().replace('.',',') + ' kg', padL - 4, padT + (ph * k2 / 3));
+  }
+
+  // Linha de peso (verde)
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  pesos.forEach(function(w, i){
+    var t = parseLocalDate(w.date).getTime();
+    var x = xAt(t), y = yPeso(w.weight);
+    if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Pontos de peso
+  pesos.forEach(function(w){
+    var t = parseLocalDate(w.date).getTime();
+    var x = xAt(t), y = yPeso(w.weight);
+    ctx.fillStyle = '#86efac';
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Barras de doses (dourado, na base do gráfico)
+  apps.forEach(function(a){
+    if(!a || !a.date) return;
+    var t = parseLocalDate(a.date);
+    if(!t || isNaN(t.getTime())) return;
+    var x = xAt(t.getTime());
+    var doseMg = parseFloat(normDose(a.dose)) || 0;
+    // Altura proporcional à dose (max 25% da altura)
+    var altura = Math.min(ph * 0.25, (doseMg / 15) * (ph * 0.25)); // 15 mg = topo
+    ctx.fillStyle = 'rgba(232,200,120,.7)';
+    ctx.fillRect(x - 2, H - padB - altura, 4, altura);
+  });
+
+  // Atualizar legenda com totais
+  var legenda = el('histGraficoLegenda');
+  if(legenda){
+    var perd = pesos.length >= 2 ? (pesos[0].weight - pesos[pesos.length-1].weight) : 0;
+    legenda.innerHTML =
+      '<div><span style="color:#4ade80">●</span> peso (' + (Math.round(perd*10)/10).toString().replace('.',',').replace('-','−') + ' kg)</div>' +
+      '<div><span style="color:rgba(232,200,120,.85)">▮</span> ' + apps.length + ' aplicação' + (apps.length === 1 ? '' : 'ões') + '</div>';
+  }
+}
+
 function renderHero(){
   // v3.9.22: contexto temporal vem junto pra confirmar "hoje" antes dos numeros
   try{ renderPainelHojeBar(); }catch(e){}
@@ -18340,8 +18801,11 @@ function renderHero(){
       if(mgUnid > 0){
         var unidades = S.caneta.estoqueAtual / mgUnid;
         qtdStr = (unidades >= 1) ? unidades.toFixed(1).replace('.0','').replace('.',',') : (Math.round(unidades*10)/10).toString().replace('.',',');
-        var ehFrasco = S.caneta.tipo === 'frasco';
-        unidLabel = (unidades >= 2) ? (ehFrasco ? 'frascos' : 'canetas') : (ehFrasco ? 'frasco' : 'caneta');
+        var ehFrasco = isFrasco(S.caneta.tipo);
+        var ehKp = isKwikPen(S.caneta.tipo);
+        unidLabel = (unidades >= 2)
+          ? (ehFrasco ? 'frascos' : (ehKp ? 'KwikPens' : 'canetas'))
+          : (ehFrasco ? 'frasco'  : (ehKp ? 'KwikPen'  : 'caneta'));
       } else {
         qtdStr = String(Math.round(S.caneta.estoqueAtual));
         unidLabel = 'mg restantes';
@@ -19727,6 +20191,7 @@ function go(id){
   if(id==='educacao' && typeof renderBiblioteca==='function'){ renderBiblioteca(); }
   if(id==='caneta'){
     popularCaneta();
+    if(typeof renderHistoricoAplicacoes === 'function') renderHistoricoAplicacoes();
     // v3.1.64: scroll pro topo da sec-caneta quando sem medicação configurada
     // (foto-IA aposentada — agora cai direto no banner educativo + form manual)
     if(!S.caneta||!S.caneta.farmaco){
