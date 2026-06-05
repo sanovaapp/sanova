@@ -4123,7 +4123,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <div style="position:absolute;inset:0;display:flex;align-items:center">
         <div id="protBarLbl0" style="width:30%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
         <div id="protBarLbl1" style="width:15%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manut.</div>
-        <div id="protBarLbl2" style="width:25%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
+        <div id="protBarLbl2" style="width:25%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ideal</div>
         <div id="protBarLbl3" style="width:30%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.8);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Excesso</div>
       </div>
       <div id="protBarMarker" style="position:absolute;top:-3px;bottom:-3px;width:5px;background:#fff;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 12px rgba(255,255,255,1);transition:left .5s ease;left:0%"></div>
@@ -5289,22 +5289,15 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div class="cs" style="margin-bottom:0" id="esqTxt"></div>
   </div>
 
-  <!-- v3.10.3: Histórico — gráfico GRANDE protagonista + tabela compacta
-       (data | dose | peso). Antes (v3.10.0): card cheio com cards por linha
-       era denso e roubava destaque do gráfico. Bruno reportou 'ficou muito
-       ruim'. Refeito: 1 hero gráfico + 1 tabela enxuta de 3 colunas. -->
+  <!-- v3.10.4: histórico simplificado — só tabela compacta. Bruno: 'melhor
+       não ter gráfico'. Removidos canvas + legenda + invocação de
+       _desenharGraficoHistorico (a função fica viva mas não é chamada). -->
   <div class="card" id="histAplicCard" style="display:none">
-    <div class="ct">📈 Histórico de aplicações</div>
-    <div class="cs">Sua progressão: doses aplicadas × peso ao longo do tempo.</div>
-
-    <!-- Gráfico GRANDE (era mini) -->
-    <div id="histGraficoMini" style="display:none;margin:14px 0;background:rgba(255,255,255,.04);border:1px solid rgba(187,247,208,.12);border-radius:14px;padding:14px 12px 12px">
-      <canvas id="histCanvas" width="600" height="240" style="width:100%;max-width:100%;height:auto;display:block"></canvas>
-      <div id="histGraficoLegenda" style="display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:11px;color:rgba(255,255,255,.65)"></div>
-    </div>
+    <div class="ct">📋 Histórico de aplicações</div>
+    <div class="cs">Doses já registradas, com seu peso na época de cada uma.</div>
 
     <!-- Tabela compacta: Data | Dose | Peso -->
-    <div id="histAplicLista" style="margin-top:6px"></div>
+    <div id="histAplicLista" style="margin-top:10px"></div>
 
     <!-- Vazio -->
     <div id="histAplicVazio" style="display:none;padding:20px 14px;text-align:center;font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.55">
@@ -6152,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.3';
+var SANOVA_VERSION = '3.10.4';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13305,55 +13298,67 @@ function renderQuatroGauges(){
   }catch(e){ console.warn('[protBar]', e); }
 }
 
-// v3.10.3: Configura zonas da barra de proteína baseado em g/kg/dia.
-// Literatura GLP-1 (Helms 2014, ISSN 2017, STEP 2021, Slater 2019):
-//   <1,2 g/kg  · risco sarcopenia (vermelho)
-//   1,2-1,6   · manutenção massa magra (amarelo)
-//   1,6-2,4   · ✅ ganho / reconstrução (verde) — zona terapêutica em GLP-1
-//   >2,4       · excesso (não prejudicial, mas inútil)
+// v3.10.4: zonas da barra de proteína ancoradas no CÁLCULO PERSONALIZADO
+// do paciente (M.pm e M.pi2), não em multiplicadores fixos. Bruno cravou:
+// 'valores de proteína são personalizados — depende do paciente'.
+//
+// M.pm = meta mínima já calculada com sexo/idade/peso/atividade/exercício
+//        resistido/objetivo (emagrecer 1.8, manter 1.8, reconstruir 2.0 g/kg)
+// M.pi2 = ideal alto = M.pm × 1.25 (margem pra hipertrofia)
+//
+// Zonas RELATIVAS à meta personalizada:
+//   <75% da meta            · risco sarcopenia (corpo busca músculo)
+//   75% até meta             · manutenção (suficiente, não constrói)
+//   meta até M.pi2 (~+25%)   · ✅ zona ideal (atinge a meta calculada)
+//   >M.pi2                   · excesso (ok, mas inútil)
 function _configProtBarPorPeso(M, protHoje){
-  var peso = (M && M.w) ? M.w : (S.profile && S.profile.weightKg) || 70;
-  // Pontos em gramas absolutos
-  var zSarc = Math.round(peso * 1.2);  // ate aqui = sarcopenia
-  var zManu = Math.round(peso * 1.6);  // ate aqui = manutencao
-  var zGanho = Math.round(peso * 2.4); // ate aqui = ganho
-  var escalaMax = Math.round(peso * 3.0); // topo da barra
+  if(!M || !M.pm){
+    // Sem perfil completo, mantém escala genérica conservadora
+    var peso = (S.profile && S.profile.weightKg) || 70;
+    M = { pm: Math.round(peso * 1.6), pi2: Math.round(peso * 2.0) };
+  }
+  var meta = Math.round(M.pm);
+  var ideal = Math.round(M.pi2 || (M.pm * 1.25));
+  var zSarc = Math.round(meta * 0.75);     // 75% da meta personalizada
+  var zManu = meta;                          // atingir a meta = manutencao
+  var zIdeal = ideal;                        // M.pi2 = ideal alto
+  var escalaMax = Math.round(ideal * 1.5);   // topo da barra
   var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
 
   var st;
   if(protHoje === 0){
     st = { txt:'Bom dia! 🌿', bg:'rgba(74,222,128,.1)', cor:'rgba(74,222,128,.7)',
-      msg:'Registre sua primeira refeição. Meta hoje: '+fmt(zManu)+'–'+fmt(zGanho)+' g.' };
+      msg:'Registre sua primeira refeição. Sua meta hoje: '+fmt(meta)+'–'+fmt(ideal)+' g.' };
   } else if(protHoje < zSarc){
     st = { txt:'🔴 Risco sarcopenia', bg:'rgba(232,168,138,.18)', cor:'#f3a88a',
-      msg:'Abaixo de '+fmt(zSarc)+' g. Em GLP-1 + perda rápida = corpo busca energia no músculo. Priorize proteína.' };
+      msg:'Abaixo de '+fmt(zSarc)+' g (75% da sua meta). Em GLP-1, isso acelera perda de músculo. Priorize proteína.' };
   } else if(protHoje < zManu){
     st = { txt:'⚠️ Manutenção', bg:'rgba(232,200,120,.15)', cor:'#e8c878',
-      msg:'Suficiente pra manter músculo. Pra reconstruir, mire '+fmt(zManu)+'–'+fmt(zGanho)+' g.' };
-  } else if(protHoje <= zGanho){
-    st = { txt:'✅ Zona de ganho', bg:'rgba(74,222,128,.15)', cor:'#4ade80',
-      msg:'Aporte proteico ideal pra reconstruir massa magra na janela GLP-1.' };
+      msg:'Faltam '+fmt(zManu - protHoje)+' g pra atingir sua meta de '+fmt(meta)+' g hoje.' };
+  } else if(protHoje <= zIdeal){
+    st = { txt:'✅ Zona ideal', bg:'rgba(74,222,128,.15)', cor:'#4ade80',
+      msg:'Você atingiu sua meta personalizada de proteína. Protege músculo na janela GLP-1.' };
   } else {
     st = { txt:'Excesso (ok)', bg:'rgba(232,200,120,.12)', cor:'#e8c878',
-      msg:'Acima de '+fmt(zGanho)+' g. Não prejudica, mas não acrescenta — corpo usa o excedente como calorias.' };
+      msg:'Acima de '+fmt(zIdeal)+' g. Não prejudica, mas não acrescenta — corpo usa o excedente como calorias.' };
   }
 
   return {
     escalaMax: escalaMax,
-    pontos:  [0, zSarc, zManu, zGanho, escalaMax],
-    labels:  ['Sarcopenia', 'Manut.', '✅ Ganho', 'Excesso'],
+    pontos:  [0, zSarc, zManu, zIdeal, escalaMax],
+    labels:  ['Sarcopenia', 'Manut.', '✅ Ideal', 'Excesso'],
     lblCor:  ['rgba(220,150,130,.85)', 'rgba(232,200,120,.85)', 'rgba(74,222,128,.95)', 'rgba(232,200,120,.8)'],
     faixaCor:['rgba(243,168,138,.30)', 'rgba(232,200,120,.30)', 'rgba(74,222,128,.35)', 'rgba(232,200,120,.30)'],
     escalaCor:['rgba(255,255,255,.35)','rgba(220,150,130,.7)','rgba(232,200,120,.8)','rgba(74,222,128,.85)','rgba(255,255,255,.35)'],
     status: st,
-    metaTxt: fmt(zManu)+'–'+fmt(zGanho)+' g · ganho'
+    metaTxt: fmt(meta)+'–'+fmt(ideal)+' g · sua meta'
   };
 }
 
 function _aplicarProtBarConfig(cfg, protHoje){
   var fmt = function(n){ var s = String(Math.round(n)); return s.length >= 4 ? s.slice(0,-3)+'.'+s.slice(-3) : s; };
   var escalaMax = cfg.escalaMax || 1;
-  var abrev = { 'Sarcopenia':'🔴 Sarc.','Manut.':'Manut.','✅ Ganho':'✅ Ganho','Excesso':'Excesso' };
+  var abrev = { 'Sarcopenia':'🔴 Sarc.','Manut.':'Manut.','✅ Ideal':'✅ Ideal','Excesso':'Excesso' };
   for(var i = 0; i < 4; i++){
     var faixa = el('protBarFaixa'+i);
     var lbl   = el('protBarLbl'+i);
@@ -18628,12 +18633,10 @@ function renderHistoricoAplicacoes(){
 
   var lista = el('histAplicLista');
   var vazio = el('histAplicVazio');
-  var grafWrap = el('histGraficoMini');
 
   if(apps.length === 0){
     if(lista) lista.innerHTML = '';
     if(vazio) vazio.style.display = 'block';
-    if(grafWrap) grafWrap.style.display = 'none';
     return;
   }
 
@@ -18673,16 +18676,7 @@ function renderHistoricoAplicacoes(){
     });
     lista.innerHTML = html;
   }
-
-  // Render gráfico (só se tiver pelo menos 1 aplicação E 1 peso)
-  if(grafWrap){
-    if(apps.length >= 1 && Array.isArray(S.weights) && S.weights.length >= 1){
-      grafWrap.style.display = 'block';
-      try{ _desenharGraficoHistorico(apps); }catch(e){ console.warn('[hist] grafico:', e); }
-    } else {
-      grafWrap.style.display = 'none';
-    }
-  }
+  // v3.10.4: gráfico removido (Bruno: 'melhor não ter gráfico').
 }
 
 function abrirEditAplic(id){
