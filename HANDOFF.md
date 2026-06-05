@@ -79,6 +79,7 @@
                  saudavel, 0-0.5 plato, <0 ganho). Tema STEP/SURMOUNT.
    #77 v3.9.32 — OBJETIVOS detail sem 'GET' (jargão academico). Now:
                  'meta calorica enxuta/generosa/seu gasto'.
+   #79 v3.9.33 — pesoRapidoInput cor coerente (roxo → verde paleta)
 
    Coberto antes da noite (mesmo round de UX):
    #62 v3.9.18 — 4 tipos alcool com kcal real
