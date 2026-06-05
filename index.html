@@ -4032,7 +4032,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       </div>
       <div id="resumoDiarioProgresso" style="font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;margin-bottom:10px"></div>
       <button onclick="toggleEntendaMeta()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(74,222,128,.2);background:transparent;color:rgba(74,222,128,.65);font-family:var(--ss);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-        <span id="entendaMetaArr" style="transition:transform .3s">▾</span> Entenda o porquê
+        <span id="entendaMetaArr" style="transition:transform .3s">▾</span> Como calculei suas metas
       </button>
       <div id="entendaMetaBody" style="display:none;margin-top:10px;font-size:12px;line-height:1.8;color:rgba(255,255,255,.8)"></div>
     </div>
@@ -5991,7 +5991,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.23';
+var SANOVA_VERSION = '3.9.24';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -15147,9 +15147,9 @@ var FAQ=[
   {cat:'🔄 Longo prazo',ic:'🔄',q:'Perdi o efeito do medicamento — o que pode ser?',a:'A sensação de "perda de efeito" pode ter várias causas: dose abaixo do necessário para o momento atual (o organismo pode precisar de ajuste), adaptação do corpo que exige revisar hábitos alimentares, ou uso muito prolongado sem reavaliação médica. Avise seu médico — não tente aumentar a dose por conta própria.'},
   {cat:'🔄 Longo prazo',ic:'🔄',q:'Preciso suspender o medicamento antes de cirurgia?',a:'Geralmente sim. A recomendação mais comum é suspender GLP-1 semanal 7 dias antes de cirurgias com anestesia geral, pois o esvaziamento gástrico lento aumenta o risco de broncoaspiração. Para GLP-1 diário (Saxenda), a suspensão costuma ser de 24 a 48 horas. Informe sempre ao anestesiologista e ao cirurgião que você usa esse medicamento.'},
 /* ─── 🧠 REEDUCAÇÃO ALIMENTAR ─── */
-  {cat:'🧠 Reeducação',ic:'🧠',q:'O GLP-1 é uma oportunidade única — por quê?',a:'O GLP-1 faz algo que nenhuma dieta consegue: silencia a compulsão alimentar. Essa janela é preciosa e diferente de tudo que você já tentou antes.<br><br>Com a compulsão reduzida, seu cérebro está disponível para aprender novos hábitos. Cada dia comendo bem é um dia treinando seu cérebro. Quando parar o medicamento, esses hábitos ficam — a compulsão não volta se você não alimentar ela.<br><br>Use esse período como a maior oportunidade de transformação alimentar da sua vida.'},
-  {cat:'🧠 Reeducação',ic:'🧠',q:'Posso emagrecer comendo mal com GLP-1?',a:'Sim — o GLP-1 vai te fazer emagrecer independente do que você coma, porque você come menos. Mas existe uma diferença enorme entre emagrecer e transformar sua saúde.<br><br>Quem emagrece comendo pizza e hambúrguer com GLP-1: perde peso · mas mantém os hábitos que o fizeram engordar · quando para o medicamento, a compulsão por esses alimentos volta e o peso retorna rapidamente.<br><br>Quem usa o período para reeducar: perde o mesmo peso · mas chega na meta com preferências alimentares diferentes · o cérebro aprendeu a preferir comida de verdade.'},
-  {cat:'🧠 Reeducação',ic:'🧠',q:'Como saber se estou criando hábitos ou dependendo do remédio?',a:'Boa pergunta. Alguns sinais de que a reeducação está acontecendo: você consegue fazer escolhas alimentares melhores mesmo quando não está com náusea · você prefere naturalmente porções menores · alimentos muito gordurosos ou doces estão te agradando menos · você come mais devagar espontaneamente.<br><br>Sinais de que pode estar só dependendo do medicamento: sem o remédio os velhos padrões voltam completamente · você não pensa em comida diferente · não houve mudança nos alimentos que prefere.'},
+  {cat:'🧠 Reeducação alimentar',ic:'🧠',q:'O GLP-1 é uma oportunidade única — por quê?',a:'O GLP-1 faz algo que nenhuma dieta consegue: silencia a compulsão alimentar. Essa janela é preciosa e diferente de tudo que você já tentou antes.<br><br>Com a compulsão reduzida, seu cérebro está disponível para aprender novos hábitos. Cada dia comendo bem é um dia treinando seu cérebro. Quando parar o medicamento, esses hábitos ficam — a compulsão não volta se você não alimentar ela.<br><br>Use esse período como a maior oportunidade de transformação alimentar da sua vida.'},
+  {cat:'🧠 Reeducação alimentar',ic:'🧠',q:'Posso emagrecer comendo mal com GLP-1?',a:'Sim — o GLP-1 vai te fazer emagrecer independente do que você coma, porque você come menos. Mas existe uma diferença enorme entre emagrecer e transformar sua saúde.<br><br>Quem emagrece comendo pizza e hambúrguer com GLP-1: perde peso · mas mantém os hábitos que o fizeram engordar · quando para o medicamento, a compulsão por esses alimentos volta e o peso retorna rapidamente.<br><br>Quem usa o período para reeducar: perde o mesmo peso · mas chega na meta com preferências alimentares diferentes · o cérebro aprendeu a preferir comida de verdade.'},
+  {cat:'🧠 Reeducação alimentar',ic:'🧠',q:'Como saber se estou criando hábitos ou dependendo do remédio?',a:'Boa pergunta. Alguns sinais de que a reeducação está acontecendo: você consegue fazer escolhas alimentares melhores mesmo quando não está com náusea · você prefere naturalmente porções menores · alimentos muito gordurosos ou doces estão te agradando menos · você come mais devagar espontaneamente.<br><br>Sinais de que pode estar só dependendo do medicamento: sem o remédio os velhos padrões voltam completamente · você não pensa em comida diferente · não houve mudança nos alimentos que prefere.'},
 
 /* ─── 🤢 EFEITOS COLATERAIS ─── */
   {cat:'🤢 Efeitos colaterais',ic:'🤢',q:'Náusea — o que fazer?',
@@ -17560,7 +17560,7 @@ function renderSaldoCard(){
   html += '<div style="display:flex;gap:4px" id="saldoTabs">';
   html += '<button onclick="setSaldoView(\'hoje\')" id="saldoTabHoje" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Hoje</button>';
   html += '<button onclick="setSaldoView(\'semana\')" id="saldoTabSemana" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(187,247,208,.18);color:#bbf7d0;font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Semana</button>';
-  html += '<button onclick="setSaldoView(\'quinzena\')" id="saldoTabQuinzena" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">Quinzena</button>';
+  html += '<button onclick="setSaldoView(\'quinzena\')" id="saldoTabQuinzena" style="padding:4px 9px;border-radius:99px;border:none;background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">15 dias</button>';
   html += '</div>';
   html += '</div>';
 
@@ -17742,7 +17742,7 @@ function renderSaldoQuinzena(box){
   var jan = saldoJanela(14);
 
   if(!jan || jan.diasComDados < 7){
-    box.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.55);text-align:center;padding:20px 10px;line-height:1.5">Para ver balanço quinzenal,<br>registre refeições por pelo menos <strong>7 dos últimos 14 dias</strong>.<br><span style="color:rgba(255,255,255,.45);font-size:11px">Atualmente: ' + (jan ? jan.diasComDados : 0) + ' dia(s) com dados</span></div>';
+    box.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.55);text-align:center;padding:20px 10px;line-height:1.5">Para ver o balanço de 15 dias,<br>registre refeições em pelo menos <strong>7 dos últimos 14 dias</strong>.<br><span style="color:rgba(255,255,255,.45);font-size:11px">Atualmente: ' + (jan ? jan.diasComDados : 0) + ' dia(s) com dados</span></div>';
     return;
   }
 
