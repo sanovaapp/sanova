@@ -6114,7 +6114,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.1';
+var SANOVA_VERSION = '3.10.2';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11848,8 +11848,8 @@ function toggleAlcoolCard(){
       recalcKcalConsumed(dh);
     }
     salvar();
-    try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
-    try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
+    // v3.10.2: refresh centralizado (defesa em profundidade)
+    _refreshTudoCalorias();
   } else {
     // Marcar — expande, default 1 cerveja (mais comum no BR)
     card.classList.add('active');
@@ -11872,8 +11872,8 @@ function toggleAlcoolCard(){
     recalcKcalConsumed(dh2);
     salvar();
     if(typeof renderAlcoolTipos === 'function') renderAlcoolTipos();
-    try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
-    try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
+    // v3.10.2: refresh centralizado
+    _refreshTudoCalorias();
   }
 }
 
@@ -11978,9 +11978,8 @@ function zerarAlcoolHoje(){
   if(card) card.classList.remove('active');
   var expand = el('alcoolExpand');
   if(expand) expand.style.display = 'none';
-  // Re-renderiza painel
-  try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
-  try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
+  // v3.10.2: refresh centralizado
+  _refreshTudoCalorias();
   if(typeof toast === 'function') toast('Álcool de hoje zerado · sem julgamento ✓', 2000);
 }
 
@@ -12033,9 +12032,29 @@ function ajustarAlcoolTipo(tipo, delta){
   recalcKcalConsumed(dh);
   salvar();
   renderAlcoolTipos();
-  // v3.9.19: atualiza gauge de calorias e pilares no painel.
-  try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
-  try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
+  // v3.10.2: re-render centralizado pra GARANTIR que TODA UI que mostra kcal
+  // (calBarCard 'Calorias do dia', resumoDiarioCard, pilarKcal, gauge canvas)
+  // recebe o valor atualizado com alcool. Marcia/Bruno reportaram que
+  // antes algum render era pulado em corner case.
+  _refreshTudoCalorias();
+}
+
+// v3.10.2: refresh CENTRALIZADO de toda UI que mostra kcal. Chamado por:
+// - ajustarAlcoolTipo (+/-/remover bebida)
+// - toggleAlcoolCard (ativar/desativar)
+// - zerarAlcoolHoje (botão de zerar)
+function _refreshTudoCalorias(){
+  try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){ console.warn('[cal] renderQuatroGauges:', e); }
+  try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){ console.warn('[cal] renderResumoDiario:', e); }
+  try{ if(typeof renderPilares === 'function') renderPilares(); }catch(e){ console.warn('[cal] renderPilares:', e); }
+  // Defesa em profundidade: força repintar calBarCard direto caso renderQuatroGauges
+  // tenha sido pulado por algum motivo (ex.: M = null por perfil incompleto)
+  try{
+    var dh2 = getDH();
+    var kcalHojeForce = getKcalConsumed(dh2);
+    var consumed = el('calBarConsumed');
+    if(consumed) consumed.textContent = kcalHojeForce;
+  }catch(e){ console.warn('[cal] force calBarConsumed:', e); }
 }
 
 // v3.9.18: shim de compat — chama renderAlcoolTipos pra atualizar a UI nova.
