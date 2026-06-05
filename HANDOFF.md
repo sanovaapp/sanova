@@ -8,6 +8,73 @@
    estado interno OK — Bruno pode olhar manual. Pra restaurar o loop
    automatizado: recarregar billing no Google AI Studio.
 
+📋 NOITE 06/06/2026 — 8 rounds UX paciente "Márcia"
+   v3.9.21 → v3.9.29 (PRs #62, #63, #64, #65, #66, #67, #68, #69,
+   #70, #71, #72, #73 todos squash-merged em main).
+
+   Crítica honesta de paciente fictícia (Márcia, 47, 3 semanas
+   Mounjaro, astigmatismo, abandonou 4 apps) virou 8 PRs cirúrgicos:
+
+   R1 (#66) — bugs reais + quick wins
+     · "136g G PROTEÍNA/DIA" duplicação corrigida (label embaixo já
+       diz 'g proteína/dia', valor não precisa repetir)
+     · Barra "Olá · Hoje, sex 6 jun" no topo do painel (contexto
+       temporal — paciente entende kcal é desde 00h)
+     · "Sanova V3.9.x" escondido do header em prod, volta só em
+       modo dev (suporte/debug)
+     · Botão "↺ Zerar álcool de hoje" pra recuperar de clique errado
+       (sem julgamento)
+
+   R2 (#67) — atalho clínico no painel
+     · heroBtnDose copy: "Registrar dose" → "💉 Apliquei hoje"
+       (Marcia: precisava 5-6 toques pra registrar aplicação)
+     · Mesmo botão vira "↺ Desfazer aplicação" se já registrou hoje
+       (reverte S.applications, S.caneta.ultima, devolve estoque)
+     · "1 de 3 sessões" → "1 de 3 treinos esta semana" (Marcia:
+       "1 do quê? yoga? série?")
+
+   R3 (#68) — jargão limpo
+     · "Entenda o porquê" → "Como calculei suas metas"
+     · Tab "Quinzena" → "15 dias" (Marcia: "quem fala quinzena fora
+       de boleto?")
+     · "🧠 Reeducação" → "🧠 Reeducação alimentar" (5 ocorrências)
+
+   R4 (#69) — caminhos médico unificados
+     · "📋 Médico" → "📋 Resumo" (mais curto + sem ambiguidade)
+     · Botão "📄 Gerar PDF pro médico" dentro do Resumo Clínico
+       (centraliza fluxos médico em 1 caminho)
+     · Título modal: "Relatório do Paciente" → "Resumo clínico"
+
+   R5 (#70) — contexto + zona perigosa
+     · Header "Suas metas pra hoje" antes da grid 3631/136g/2227
+       (Marcia: "parece propaganda, não meta minha")
+     · Botão "Apagar todos os dados" encapsulado em "⚠️ Zona perigosa"
+       com fundo vermelho + explicação do que apaga + reforço
+       "Não há como recuperar"
+
+   R6 (#71) — anamnese copy
+     · "Vou configurar tudo para você agora" →
+       "Vou te conhecer com algumas perguntas. Pode pular qualquer
+       pergunta tocando o 'Pular →' no canto superior"
+     · HANDOFF marca Gemini API billing pendente
+
+   R7 (#72) — desambiguar resumo + Janela
+     · ceOv tag "SEU RESUMO CLÍNICO" → "COMO VOCÊ ESTÁ HOJE"
+       (alinha com botão que abre)
+     · "JANELA TERAPÊUTICA" ganhou subtítulo inline
+       "— o tempo que o GLP-1 silencia compulsões"
+
+   R8 (#73) — subtítulo Medicação neutro
+     · "Tratamento, acompanhamento e calculadora" →
+       "Tratamento e registro de aplicações" (calculadora não se
+       aplica pra tipo='caneta', maioria dos pacientes)
+
+   Coberto antes da noite (mesmo round de UX):
+   #62 v3.9.18 — 4 tipos alcool com kcal real
+   #63 v3.9.19 — recalcKcalConsumed em ajustarAlcoolTipo
+   #64 v3.9.20 — getKcalConsumed live nos renders
+   #65 v3.9.21 — caloriasDoDia inclui alcool (Balanco Energetico)
+
 
 Para o Claude Code (executor) e qualquer Claude futuro. Bruno é o dono do produto. Leia tudo antes de tocar no código.
 ⚡ COMECE POR AQUI
