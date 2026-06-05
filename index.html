@@ -6004,7 +6004,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.30';
+var SANOVA_VERSION = '3.9.31';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9504,12 +9504,19 @@ function calcMA7(){
   return arr.map(function(r,i){var sl=arr.slice(Math.max(0,i-6),i+1),s=0;sl.forEach(function(x){s+=x.weight;});return{date:r.date,avg:s/sl.length};});
 }
 function perdaSemana(ma){if(ma.length<8) return null;return ma[ma.length-8].avg-ma[ma.length-1].avg;}
+// v3.9.31: refactor v3.1.41 zerou M.perda, mas a logica antiga usava ele
+// (1.3*est, 0.7*est). Resultado: qualquer perda virava 'Acelerado 🚀' (1.3*0=0).
+// Refeito com referencia fisiologica fixa pra GLP-1 (literatura: STEP/SURMOUNT):
+//   - >1.5kg/semana sustentado = risco de perda muscular (estudos com whey + treino)
+//   - 0.5-1.5kg/semana = faixa saudavel terapeutica
+//   - 0 a 0.5 = oscilacao/plato
+//   - <0 = ganho
 function classificar(rl,est){
-  if(rl===null||est===null) return null;
-  if(rl>=1.3*est) return{lbl:'Acelerado 🚀',cls:'tg',bar:'sbar-green',msg:'Excelente ritmo. Mantenha proteína e água.'};
-  if(rl>=0.7*est) return{lbl:'No estimado ✅',cls:'tb',bar:'sbar-green',msg:'Ritmo saudável e sustentável.'};
-  if(rl>=-0.2)    return{lbl:'Sem perda ↔️',cls:'tw',bar:'sbar-warn',msg:'Oscilação normal. Avalie consistência.'};
-  return{lbl:'Recuperando ⬆️',cls:'tr',bar:'sbar-red',msg:'Revise sal, álcool, sono e calorias.'};
+  if(rl===null) return null;
+  if(rl>=1.5)  return{lbl:'Rápido — atenção',cls:'tw',bar:'sbar-warn',msg:'Acima de 1,5 kg/semana sustentado pode acelerar perda muscular. Reforce proteína e treino resistido.'};
+  if(rl>=0.5)  return{lbl:'No ritmo saudável ✅',cls:'tg',bar:'sbar-green',msg:'Faixa terapêutica esperada em GLP-1 (0,5–1,5 kg/sem). Mantenha proteína e água.'};
+  if(rl>=-0.2) return{lbl:'Sem perda ↔️',cls:'tw',bar:'sbar-warn',msg:'Oscilação normal — pode ser água, sal, intestino ou ciclo. Mantenha consistência.'};
+  return{lbl:'Recuperando ⬆️',cls:'tr',bar:'sbar-red',msg:'Revise sal, álcool, sono e calorias da semana.'};
 }
 function dataBR(iso){if(!iso) return '—';var p=iso.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso;}
 // v3.1.48: Versão curta "DD/MM" pra tabelas compactas (Bruno cravou overflow em Minha Jornada)
