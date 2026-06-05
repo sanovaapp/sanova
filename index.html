@@ -3626,6 +3626,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
           <div class="mais-lbl">Perfil</div>
           <div class="mais-sub">Dados e metas</div>
         </button>
+        <!-- v3.9.35: Minha conta (auth + cobrança + senha) separada do Perfil -->
+        <button class="mais-btn" onclick="fecharMais();go('conta')" aria-label="Minha conta — e-mail, assinatura, senha">
+          <span class="mais-ic" aria-hidden="true">🔐</span>
+          <div class="mais-lbl">Minha conta</div>
+          <div class="mais-sub">E-mail, assinatura e senha</div>
+        </button>
         <button class="mais-btn" onclick="fecharMais();exportar()" aria-label="Backup dos dados">
           <span class="mais-ic" aria-hidden="true">⬇</span>
           <div class="mais-lbl">Backup</div>
@@ -4047,10 +4053,11 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 
   </div>
 
-  <!-- v3.1.58: Saldo energético movido pra cá (era acima do Hero) -->
-  <div id="saldoCard" style="display:none;margin-bottom:10px"></div>
+  <!-- v3.9.35: saldoCard (Balanço Energético) movido pra DEPOIS de calBarCard
+       (Calorias do Dia) — decisão Bruno: as calorias do dia sao o dado mais
+       imediato pra paciente, balanço energetico e contexto secundário. -->
 
-  <!-- ══ PARABÉNS META ══ -->
+  <!-- ══ CALORIAS DO DIA ══ -->
   <div id="calBarCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:16px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(243,168,138,.2)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(243,168,138,.7)">🔥 CALORIAS DO DIA</div>
@@ -4090,6 +4097,9 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <div id="calBarMsg" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-style:italic"></div>
     </div>
   </div>
+
+  <!-- v3.9.35: Saldo Energético (Balanço) agora aparece DEPOIS das Calorias do dia. -->
+  <div id="saldoCard" style="display:none;margin-bottom:10px"></div>
 
   <!-- v3.1.58 — JANELA TERAPÊUTICA: estatísticas + reforço visual de redução
        de álcool e food noise. Aparece logo após Calorias do Dia. Renderizado
@@ -5476,10 +5486,20 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div id="perfilCicloBody"></div>
   </div>
 
-  <!-- v3.9.6: Minha conta — sempre mostra qual e-mail está logado + Sair -->
-  <div class="card" id="cardMinhaConta">
-    <div class="ct">🔐 Minha conta</div>
-    <div class="cs">Estes dados ficam na nuvem (Supabase) e sincronizam entre seus dispositivos.</div>
+  <!-- v3.9.35: cardMinhaConta saiu daqui — agora tem secao propria sec-conta
+       acessivel por Mais → Conta → Minha conta. Padrao app: dados pessoais
+       (Perfil) vs autenticacao + cobranca + senha (Minha conta). -->
+</div>
+
+<!-- ═══ MINHA CONTA (auth + cobranca + senha) — v3.9.35 ═══ -->
+<div class="sec" id="sec-conta">
+  <div class="pg-title">Minha conta</div>
+  <div class="pg-sub">E-mail, assinatura e senha. Estes dados ficam na nuvem e sincronizam entre seus aparelhos.</div>
+
+  <!-- CONTA / E-MAIL -->
+  <div class="card" id="cardContaEmail">
+    <div class="ct">📧 E-mail e sessão</div>
+    <div class="cs">Você está logada nesta conta:</div>
     <div id="contaInfo" style="margin-top:14px;font-size:13.5px;color:var(--ink2,#444);line-height:1.7">
       <div>Carregando dados da sessão…</div>
     </div>
@@ -5487,23 +5507,31 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <button class="btn bg2" id="btnSair" onclick="sanovaSair()" style="flex:1">🚪 Sair desta conta</button>
     </div>
     <div style="font-size:11.5px;color:var(--ink3,#777);margin-top:9px;line-height:1.5">
-      Ao sair, seus dados locais ficam no celular. Pra acessar de outro aparelho, você precisará logar de novo.
-    </div>
-
-    <!-- v3.9.7: trocar senha sem precisar de e-mail de recuperacao -->
-    <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(187,247,208,.12)">
-      <div style="font-size:13px;font-weight:700;color:var(--ink,#000);margin-bottom:8px">🔑 Trocar senha</div>
-      <div style="font-size:11.5px;color:var(--ink3,#777);margin-bottom:10px;line-height:1.5">
-        Defina uma senha nova agora (mínimo 8 caracteres). Funciona porque você já está logado.
-      </div>
-      <div style="display:flex;gap:8px;align-items:stretch">
-        <input id="novaSenhaInput" type="password" placeholder="Digite a nova senha" minlength="8" autocomplete="new-password" style="flex:1;padding:11px 13px;border-radius:10px;border:1px solid rgba(187,247,208,.2);background:rgba(255,255,255,.04);color:var(--ink,#000);font-family:var(--ss,system-ui);font-size:14px">
-        <button onclick="trocarSenhaToggle()" type="button" style="padding:11px 13px;border-radius:10px;border:1px solid rgba(187,247,208,.2);background:rgba(255,255,255,.04);color:var(--ink2,#444);cursor:pointer" aria-label="Mostrar/ocultar senha">👁</button>
-      </div>
-      <button class="btn bp" onclick="trocarSenha()" style="margin-top:10px;width:100%">Salvar nova senha</button>
-      <div id="trocarSenhaMsg" style="margin-top:9px;font-size:12.5px;display:none;padding:9px 12px;border-radius:8px"></div>
+      Ao sair, seus dados locais ficam no celular. Pra acessar de outro aparelho, faça login de novo.
     </div>
   </div>
+
+  <!-- ASSINATURA / COBRANCA -->
+  <div class="card" id="cardContaAssinatura">
+    <div class="ct">💳 Assinatura</div>
+    <div class="cs">Status do seu plano e próxima cobrança.</div>
+    <div id="contaAssinaturaInfo" style="margin-top:14px;font-size:13.5px;color:var(--ink2,#444);line-height:1.7">
+      <div>Carregando…</div>
+    </div>
+  </div>
+
+  <!-- SENHA -->
+  <div class="card" id="cardContaSenha">
+    <div class="ct">🔑 Trocar senha</div>
+    <div class="cs">Defina uma senha nova (mínimo 8 caracteres). Funciona porque você já está logada.</div>
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:stretch">
+      <input id="novaSenhaInput" type="password" placeholder="Digite a nova senha" minlength="8" autocomplete="new-password" style="flex:1;padding:11px 13px;border-radius:10px;border:1px solid rgba(187,247,208,.2);background:rgba(255,255,255,.04);color:var(--ink,#000);font-family:var(--ss,system-ui);font-size:14px">
+      <button onclick="trocarSenhaToggle()" type="button" style="padding:11px 13px;border-radius:10px;border:1px solid rgba(187,247,208,.2);background:rgba(255,255,255,.04);color:var(--ink2,#444);cursor:pointer" aria-label="Mostrar/ocultar senha">👁</button>
+    </div>
+    <button class="btn bp" onclick="trocarSenha()" style="margin-top:10px;width:100%">Salvar nova senha</button>
+    <div id="trocarSenhaMsg" style="margin-top:9px;font-size:12.5px;display:none;padding:9px 12px;border-radius:8px"></div>
+  </div>
+
 </div>
 
 <!-- ═══ HISTÓRICO ═══ -->
@@ -6006,7 +6034,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.34';
+var SANOVA_VERSION = '3.9.35';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -15756,30 +15784,69 @@ function mostrarManual(tipo){
 }
 
 /* v3.9.6: Minha conta — mostra e-mail logado, status assinatura, e botão Sair.
-   Resolve UX: paciente abre app, ja loga automatico, e nao sabe qual conta
-   esta ativa nem como sair. */
+   v3.9.35: separada em DOIS cards distintos:
+   - #contaInfo → e-mail + ID (card de identidade)
+   - #contaAssinaturaInfo → status, proxima cobranca, info do plano */
 function renderMinhaConta(){
   var box = document.getElementById('contaInfo');
-  if(!box) return;
+  var boxAss = document.getElementById('contaAssinaturaInfo');
   var user = (typeof window.SanovaUser === 'function') ? window.SanovaUser() : null;
-  if(!user || !user.email){
-    box.innerHTML = '<div style="color:var(--ink3,#777)">Sem sessao ativa. Saia e entre de novo se quiser sincronizar com a nuvem.</div>';
-    return;
+
+  if(box){
+    if(!user || !user.email){
+      box.innerHTML = '<div style="color:var(--ink3,#777)">Sem sessão ativa. Saia e entre de novo se quiser sincronizar com a nuvem.</div>';
+    } else {
+      var idShort = (user.id || '').slice(0, 8) + '…' + (user.id || '').slice(-4);
+      box.innerHTML =
+        '<div><strong style="color:var(--ink,#000)">E-mail:</strong> ' + _escapeHtml(user.email) + '</div>' +
+        '<div style="margin-top:7px"><strong style="color:var(--ink,#000)">ID:</strong> <span style="font-family:monospace;font-size:12px;color:var(--ink3,#777)">' + idShort + '</span></div>';
+    }
   }
-  var idShort = (user.id || '').slice(0, 8) + '…' + (user.id || '').slice(-4);
-  var assin = (window.SanovaAssinatura && window.SanovaAssinatura.get) ? window.SanovaAssinatura.get() : null;
-  var statusTxt = '—';
-  if(assin && assin.carregado){
-    if(assin.status === 'trial')     statusTxt = '🌿 Trial · restam ' + (assin.diasRestantes || 0) + ' dia' + (assin.diasRestantes === 1 ? '' : 's');
-    else if(assin.status === 'active')   statusTxt = '✅ Assinatura ativa';
-    else if(assin.status === 'expired')  statusTxt = '⚠️ Trial expirado';
-    else if(assin.status === 'canceled') statusTxt = '🚫 Cancelada';
-    else                                  statusTxt = assin.status;
+
+  // v3.9.35: assinatura ganhou card propio com mais detalhes (data, fonte).
+  if(boxAss){
+    var assin = (window.SanovaAssinatura && window.SanovaAssinatura.get) ? window.SanovaAssinatura.get() : null;
+    if(!assin || !assin.carregado){
+      boxAss.innerHTML = '<div style="color:var(--ink3,#777)">Carregando status da assinatura…</div>';
+    } else {
+      var statusTxt, statusCor, statusBg, proximaCobr = '';
+      if(assin.status === 'trial'){
+        statusTxt = '🌿 Período de teste';
+        statusCor = '#15803d'; statusBg = 'rgba(74,222,128,.12)';
+        if(assin.trialEndsAt){
+          var dt = new Date(assin.trialEndsAt);
+          proximaCobr = 'Trial termina em <strong>' + _formatarDataPtBR(dt) + '</strong> · restam ' + (assin.diasRestantes || 0) + ' dia' + (assin.diasRestantes === 1 ? '' : 's');
+        }
+      } else if(assin.status === 'active'){
+        statusTxt = '✅ Assinatura ativa';
+        statusCor = '#15803d'; statusBg = 'rgba(74,222,128,.12)';
+        if(assin.assinaturaTermina){
+          var dt2 = new Date(assin.assinaturaTermina);
+          proximaCobr = 'Próxima cobrança em <strong>' + _formatarDataPtBR(dt2) + '</strong>';
+        }
+      } else if(assin.status === 'expired'){
+        statusTxt = '⚠️ Trial expirado';
+        statusCor = '#b86a14'; statusBg = 'rgba(232,200,120,.18)';
+        proximaCobr = 'Ative seu plano pra continuar usando os recursos pagos.';
+      } else if(assin.status === 'canceled'){
+        statusTxt = '🚫 Cancelada';
+        statusCor = '#c4412e'; statusBg = 'rgba(220,150,130,.15)';
+      } else {
+        statusTxt = assin.status;
+        statusCor = 'var(--ink2)'; statusBg = 'transparent';
+      }
+      boxAss.innerHTML =
+        '<div style="display:inline-block;padding:4px 12px;border-radius:99px;background:'+statusBg+';color:'+statusCor+';font-weight:700;font-size:12.5px">'+statusTxt+'</div>' +
+        (proximaCobr ? '<div style="margin-top:10px;font-size:13px;color:var(--ink2,#444);line-height:1.5">'+proximaCobr+'</div>' : '');
+    }
   }
-  box.innerHTML =
-    '<div><strong style="color:var(--ink,#000)">📧 E-mail:</strong> ' + _escapeHtml(user.email) + '</div>' +
-    '<div style="margin-top:7px"><strong style="color:var(--ink,#000)">🆔 ID:</strong> <span style="font-family:monospace;font-size:12px;color:var(--ink3,#777)">' + idShort + '</span></div>' +
-    '<div style="margin-top:7px"><strong style="color:var(--ink,#000)">💳 Plano:</strong> ' + statusTxt + '</div>';
+}
+
+// v3.9.35: formato 'dd/mm/yyyy' simples para o card de assinatura.
+function _formatarDataPtBR(d){
+  if(!d || isNaN(d.getTime())) return '—';
+  var p = function(n){ return String(n).padStart(2,'0'); };
+  return p(d.getDate()) + '/' + p(d.getMonth()+1) + '/' + d.getFullYear();
 }
 
 function _escapeHtml(s){
@@ -19613,7 +19680,8 @@ function go(id){
     var disp=el('aguaCoposDisplay');
     if(disp&&av>0){var copos=Math.round(av/250);disp.textContent=copos+' copo'+(copos!==1?'s':'')+' ('+(av/1000).toFixed(1)+'L)';}
   }
-  if(id==='perfil'){popularPerfil();if(typeof renderPerfilCiclo==='function') renderPerfilCiclo();if(typeof renderMinhaConta==='function') renderMinhaConta();}
+  if(id==='perfil'){popularPerfil();if(typeof renderPerfilCiclo==='function') renderPerfilCiclo();}
+  if(id==='conta'){if(typeof renderMinhaConta==='function') renderMinhaConta();}
   if(id==='saude'){if(typeof renderSaudeCicloAtalho==='function') renderSaudeCicloAtalho();}
   if(id==='educacao' && typeof renderBiblioteca==='function'){ renderBiblioteca(); }
   if(id==='caneta'){
