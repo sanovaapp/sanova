@@ -6004,7 +6004,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.31';
+var SANOVA_VERSION = '3.9.32';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7420,13 +7420,16 @@ var WBX={Sedentário:0,Leve:200,Moderada:400,Alta:700};
 
    Piso de seguranca calorico aplicado em calcMetrics(): mulher >= 1200 kcal/dia,
    homem >= 1500 kcal/dia (ANVISA/SBEM ref pra dieta supervisionada). */
+// v3.9.32: 'detail' simplificado de jargao tecnico (GET-20%, GET+15%) pra
+// linguagem direta. Marcia: '1,8 g/kg proteina · meta = GET - 20%' soava
+// formula academica. Termos clinicos relevantes ficam em '<dica>'.
 var OBJETIVOS = {
   emagrecer:   { protMin: 1.8, calMult: 0.80, icon: '🔥', label: 'Emagrecer',
-                 desc: 'Perder gordura mantendo músculo', detail: '1,8 g/kg proteína · meta = GET − 20%' },
+                 desc: 'Perder gordura mantendo músculo', detail: '1,8 g proteína / kg · meta calórica enxuta' },
   reconstruir: { protMin: 2.0, calMult: 1.15, icon: '💪', label: 'Reconstruir músculo',
-                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g/kg proteína · meta = GET + 15%' },
+                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g proteína / kg · meta calórica generosa' },
   manter:      { protMin: 1.8, calMult: 1.00, icon: '⚖️', label: 'Manter peso',
-                 desc: 'Manutenção pós-meta', detail: '1,8 g/kg proteína · meta = GET' }
+                 desc: 'Manutenção pós-meta', detail: '1,8 g proteína / kg · meta = seu gasto' }
 };
 function getObjetivoAtual(){
   var k = (window.S && S.profile && S.profile.objetivo) || 'emagrecer';
