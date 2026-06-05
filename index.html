@@ -5979,7 +5979,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.19';
+var SANOVA_VERSION = '3.9.20';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -6761,7 +6761,9 @@ function zerarDiaAtual(){
   var dh = S.daily[idx];
   var resumo = '';
   if(dh.proteinG) resumo += '\n• Proteína: ' + dh.proteinG + 'g';
-  if(dh.kcalConsumed) resumo += '\n• Calorias: ' + dh.kcalConsumed + ' kcal';
+  // v3.9.20: usa live computed pra incluir alcool
+  var _kcRes = getKcalConsumed(dh);
+  if(_kcRes) resumo += '\n• Calorias: ' + _kcRes + ' kcal';
   if(dh.waterMl) resumo += '\n• Água: ' + dh.waterMl + ' ml';
   if(dh.refeicoes && dh.refeicoes.length) resumo += '\n• ' + dh.refeicoes.length + ' refeições';
 
@@ -10527,7 +10529,8 @@ function _leituraClinicaDia(M){
   var aguaMeta = M.agua || 0;
   var aguaPct = aguaMeta > 0 ? Math.round((aguaHoje / aguaMeta) * 100) : 0;
 
-  var kcalHoje = dh.kcalConsumed || 0;
+  // v3.9.20: getKcalConsumed inclui alcool ao vivo (bypass dh.kcalConsumed defasado)
+  var kcalHoje = getKcalConsumed(dh);
   var kcalMeta = M.meta || 0;
   var kcalPct = kcalMeta > 0 ? Math.round((kcalHoje / kcalMeta) * 100) : 0;
 
@@ -10906,7 +10909,8 @@ function gerarTextoVoz(){
   var dh=getDH()||{};
   var aguaHoje=dh.waterMl||0;
   var protHoje=dh.proteinG||0;
-  var kcalHoje=dh.kcalConsumed||0;
+  // v3.9.20: getKcalConsumed pra incluir alcool ao vivo
+  var kcalHoje=getKcalConsumed(dh);
   var aguaMeta=Math.round(M.agua);
   var protMeta=Math.round(M.pm);
   var kcalMeta=Math.round(M.meta);
@@ -11738,6 +11742,15 @@ function recalcKcalConsumed(dh){
   var kAlc = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
   dh.kcalConsumed = Math.round((dh.kcalFromPhoto||0) + (dh.kcalFromProt||0) + kAlc);
   return dh.kcalConsumed;
+}
+
+// v3.9.20: leitor sempre-atual de kcal consumida. Bypassa dh.kcalConsumed
+// (que pode estar defasado se foi escrito antes do alcool ser adicionado)
+// e soma ao vivo refeicoes + proteina + alcool. USAR EM TODO RENDER.
+function getKcalConsumed(dh){
+  if(!dh) return 0;
+  var kAlc = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+  return Math.round((dh.kcalFromPhoto||0) + (dh.kcalFromProt||0) + kAlc);
 }
 
 function ajustarAlcoolTipo(tipo, delta){
@@ -12962,8 +12975,8 @@ function renderQuatroGauges(){
   var elEV = el('gaugeExercVal');
   if(elEV) elEV.textContent = feitos>0 ? feitos+' de '+getMetaExerc()+'x esta semana' : 'Toque para registrar 💪';
 
-  // CALORIAS
-  var kcalHoje = dh && dh.kcalConsumed ? dh.kcalConsumed : 0;
+  // CALORIAS — v3.9.20: usa getKcalConsumed pra sempre incluir alcool atual
+  var kcalHoje = getKcalConsumed(dh);
   var kcalMeta = M ? Math.round(M.meta) : 1800;
   var kcalMant = kcalMeta + 400;
   var kcalPct = Math.min(100, Math.round((kcalHoje / 3000) * 100));
@@ -13231,8 +13244,8 @@ function renderPilares(){
     else elValA.textContent = 'Toque para registrar';
   }
 
-  // ============ CALORIAS ============
-  var kcalHoje = dh && dh.kcalConsumed ? dh.kcalConsumed : 0;
+  // ============ CALORIAS ============ v3.9.20: usa getKcalConsumed
+  var kcalHoje = getKcalConsumed(dh);
   var kcalMeta = M ? Math.round(M.meta) : 1800;
   var kcalPct = kcalMeta > 0 ? Math.min(100, Math.round((kcalHoje/kcalMeta)*100)) : 0;
   var kcalSVG = document.querySelector('.pilar-prog-kcal');
@@ -21319,7 +21332,9 @@ window.addEventListener('beforeunload',function(){
     dados.diary.forEach(function(d){
       if(d.proteinG){ protSum += d.proteinG; diasComProt++; if(metaProt && d.proteinG >= metaProt*0.85) diasBatProt++; }
       if(d.waterMl){  aguaSum += d.waterMl;  diasComAgua++; if(metaAgua && d.waterMl  >= metaAgua*0.85) diasBatAgua++; }
-      if(d.kcalConsumed){ kcalSum += d.kcalConsumed; diasComKcal++; }
+      // v3.9.20: agrega via getKcalConsumed pra cobrir dias com alcool stale
+      var _kc = (typeof getKcalConsumed === 'function') ? getKcalConsumed(d) : (d.kcalConsumed || 0);
+      if(_kc > 0){ kcalSum += _kc; diasComKcal++; }
       if(d.refeicoes && d.refeicoes.length){
         d.refeicoes.forEach(function(r){
           if(r.carbo)   carbSum   += r.carbo;
