@@ -3516,7 +3516,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   <div class="hdr-in">
     <div class="logo" onclick="logoClicked()">
       <div class="logo-ic">🌿</div>
-      <div><div class="logo-nm">Sanova</div><div class="logo-vr" id="logoVr">v3.9.10</div></div>
+      <div><div class="logo-nm">Sanova</div><div class="logo-vr" id="logoVr" style="display:none">v3.9.10</div></div>
     </div>
     <!-- Saudação personalizada -->
     <div id="hdrSaudacao" style="display:none;flex:1;padding-left:10px;font-size:12px;font-weight:600;color:var(--g300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
@@ -3686,6 +3686,14 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 
 <!-- ═══ DASHBOARD ═══ -->
 <div class="sec on" id="sec-dashboard">
+
+  <!-- v3.9.22: contexto temporal — paciente entende que numeros sao DESDE 00h de hoje -->
+  <div id="painelHojeBar" style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;padding:0 2px">
+    <div style="font-size:13px;font-weight:700;color:#fff;letter-spacing:-.01em">
+      <span id="painelSaudacao" style="color:rgba(187,247,208,.7);font-weight:600">Olá</span> ·
+      <span id="painelHojeData">Hoje</span>
+    </div>
+  </div>
 
   <!-- v3.1.24: Disclaimer pílula compacta com contraste forte (lado claro) -->
   <div id="disclaimerPermanente" style="margin-bottom:10px;display:flex;justify-content:flex-start">
@@ -4450,6 +4458,10 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
       <div style="font-size:11px;color:#5a4a3a;margin-bottom:10px;line-height:1.4">Cada bebida tem caloria diferente — separe por tipo pra IA somar certo no painel.</div>
       <div id="alcoolTiposWrap" style="display:flex;flex-direction:column;gap:8px"></div>
       <div id="alcoolKcalTotal" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(159,32,80,.14);border:1px solid rgba(159,32,80,.28);border-radius:9px;font-size:13px;color:#7a2a3a;text-align:center;font-weight:700"></div>
+      <!-- v3.9.22: escape pra paciente que clicou errado — zerar com 1 toque -->
+      <div id="alcoolZerarWrap" style="display:none;margin-top:8px;text-align:center">
+        <button type="button" onclick="zerarAlcoolHoje()" aria-label="Zerar alcool de hoje" style="padding:6px 14px;border-radius:99px;border:1px solid rgba(159,32,80,.3);background:transparent;color:#7a2a3a;font-family:var(--ss);font-size:11.5px;font-weight:600;cursor:pointer;opacity:.75">↺ Zerar álcool de hoje</button>
+      </div>
       <div style="font-size:10.5px;color:#5a4a3a;margin-top:10px;font-style:italic;line-height:1.5;text-align:center">Outra bebida fora dessas (chope, caipiroska, gin tônica…)? Tire <strong>foto do prato</strong> com a bebida — a IA reconhece e soma as calorias automaticamente.</div>
 
       <!-- v3.1.60: Botão "O que é?" no padrão Metabolismo e Metas -->
@@ -5979,7 +5991,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.21';
+var SANOVA_VERSION = '3.9.22';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -6611,6 +6623,9 @@ function pedirSenhaDev(){
     if(ok){
       _modoDev = true;
       mostrarSecaoDiagnostico();
+      // v3.9.22: versao volta a ficar visivel no header em modo dev (suporte/debug).
+      var _lv = el('logoVr');
+      if(_lv){ _lv.style.display = 'block'; }
       if(typeof toast === 'function') toast('🔓 Modo desenvolvedor ativado · vá em Mais', 3500);
     }else{
       if(typeof toast === 'function') toast('❌ Senha incorreta', 2000);
@@ -11722,6 +11737,7 @@ function renderAlcoolTipos(){
 
 function renderAlcoolKcalTotal(){
   var totEl = el('alcoolKcalTotal');
+  var zeroEl = el('alcoolZerarWrap');
   if(!totEl) return;
   var dh = getDH();
   var kcal = calcKcalAlcool(dh);
@@ -11729,9 +11745,33 @@ function renderAlcoolKcalTotal(){
   if(kcal > 0){
     totEl.style.display = 'block';
     totEl.innerHTML = '🔥 <strong>+'+kcal+' kcal</strong> em álcool hoje · '+doses+' dose'+(doses===1?'':'s');
+    if(zeroEl) zeroEl.style.display = 'block';
   } else {
     totEl.style.display = 'none';
+    if(zeroEl) zeroEl.style.display = 'none';
   }
+}
+
+// v3.9.22: zera todo o registro de alcool de hoje em 1 toque.
+// Bug observado pelo Bruno: paciente clicava errado e ficava sem caminho
+// limpo pra recuperar — gerava vergonha do '+975 kcal'.
+function zerarAlcoolHoje(){
+  var dh = getDH();
+  if(!dh) return;
+  delete dh.alcool;
+  delete dh.alcoolDoses;
+  delete dh.alcoolHoje;
+  recalcKcalConsumed(dh);
+  salvar();
+  // Desmarca o card de saciedade
+  var card = el('ciSAL');
+  if(card) card.classList.remove('active');
+  var expand = el('alcoolExpand');
+  if(expand) expand.style.display = 'none';
+  // Re-renderiza painel
+  try{ if(typeof renderQuatroGauges === 'function') renderQuatroGauges(); }catch(e){}
+  try{ if(typeof renderResumoDiario === 'function') renderResumoDiario(); }catch(e){}
+  if(typeof toast === 'function') toast('Álcool de hoje zerado · sem julgamento ✓', 2000);
 }
 
 // v3.9.19: helper que recalcula dh.kcalConsumed sem precisar refeicao nova.
@@ -13396,7 +13436,8 @@ function renderResumoDiario(){
   var kcal=Math.round(M.meta);
   var elA=el('resumoAguaVal'),elP=el('resumoProtVal'),elK=el('resumoKcalVal'),elProg=el('resumoDiarioProgresso');
   if(elA) elA.textContent=agua;
-  if(elP) elP.textContent=prot+'g';
+  // v3.9.22: nao concatena 'g' aqui — o label embaixo ja diz 'g proteina/dia'.
+  if(elP) elP.textContent=prot;
   if(elK) elK.textContent=kcal;
   // Progresso do dia (sempre limpa a mensagem antiga, mesmo sem dh)
   if(elProg){
@@ -17984,7 +18025,26 @@ function renderJanelaTerapeutica(){
   card.style.display = 'block';
 }
 
+// v3.9.22: barra de contexto temporal do painel — paciente entende que metricas
+// sao "desde 00h de HOJE". Resolve confusao da Marcia ("acordei agora, de onde
+// vem 374 kcal?"). Mostra saudacao + data extensa abreviada.
+function renderPainelHojeBar(){
+  var elD = el('painelHojeData');
+  var elS = el('painelSaudacao');
+  if(!elD || !elS) return;
+  var d = new Date();
+  var h = d.getHours();
+  var saud = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  var nome = (S.profile && S.profile.name) ? String(S.profile.name).trim().split(/\s+/)[0] : '';
+  elS.textContent = nome ? (saud + ', ' + nome) : saud;
+  var diasSem = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  elD.textContent = 'Hoje, ' + diasSem[d.getDay()] + ' ' + d.getDate() + ' ' + meses[d.getMonth()];
+}
+
 function renderHero(){
+  // v3.9.22: contexto temporal vem junto pra confirmar "hoje" antes dos numeros
+  try{ renderPainelHojeBar(); }catch(e){}
   atualizarBotaoDoseHero();
   var f=S.caneta&&S.caneta.farmaco;
   var heroV=el('heroVazio');
