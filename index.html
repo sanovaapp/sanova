@@ -6004,7 +6004,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.29';
+var SANOVA_VERSION = '3.9.30';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -10848,7 +10848,15 @@ function buildCE(){
     var ritmoC='ok',ritmoV='—',ritmoH='Registre 8+ pesagens';
     if(rl!==null){ritmoV=rd(rl,2)+' kg/sem';if(rl>=0.3){ritmoC='ok';ritmoH='Ritmo dentro do esperado ✓';}else if(rl>=-0.1){ritmoC='warn';ritmoH='Platô — revise proteína e água';}else{ritmoC='danger';ritmoH='Revise sal, álcool e sono';}}
     if(S.weights.length>=3) kpis.push({l:'Ritmo real',v:ritmoV,h:ritmoH,c:ritmoC});
-    kpis.push({l:'Meta calórica',v:Math.round(M.meta)+' kcal',h:'Déficit ~'+Math.round(M.def)+' kcal/dia',c:'ok'});
+    // v3.9.30: M.def foi zerado na refactor v3.1.41 (saldoDoDia calcula vivo).
+    // Hint passa a usar saldoDoDia(hoje()).deficit pra dado real.
+    var _saldoHoje = (typeof saldoDoDia === 'function') ? saldoDoDia(hoje()) : null;
+    var _defTxt = _saldoHoje && typeof _saldoHoje.deficit === 'number'
+      ? (_saldoHoje.deficit > 0 ? 'Saldo: −' + Math.round(_saldoHoje.deficit) + ' kcal hoje'
+         : _saldoHoje.deficit < 0 ? 'Saldo: +' + Math.abs(Math.round(_saldoHoje.deficit)) + ' kcal hoje'
+         : 'Saldo: zerado')
+      : 'Meta única (GET dinâmico)';
+    kpis.push({l:'Meta calórica',v:Math.round(M.meta)+' kcal',h:_defTxt,c:'ok'});
     var aH=dh&&dh.waterMl?dh.waterMl:0,aP=M.agua>0?Math.round((aH/M.agua)*100):0;
     kpis.push({l:'Água hoje',v:aH?aH+' ml':'—',h:aP>=80?'Em dia ✓':aH?aP+'% da meta':'Não registrado',c:aP>=80?'ok':aP>=50?'warn':'danger'});
     var pH=dh&&dh.proteinG?dh.proteinG:0,pP=M.pm>0?Math.round((pH/M.pm)*100):0;
@@ -13416,10 +13424,12 @@ function toggleEntendaMeta(){
     html+='<div style="font-size:13px;font-weight:800;color:#e8c878;margin-bottom:4px">🔥 Por que '+meta+' kcal?</div>';
     html+='Seu metabolismo em repouso (TMB) é <strong>'+tmb+' kcal</strong> — energia que seu corpo gasta só existindo. ';
     html+='Com sua atividade '+ativ.toLowerCase()+', seu gasto total diário (GET) é <strong>'+tdee+' kcal</strong>. ';
-    html+='Comendo <strong>'+meta+' kcal</strong>, você cria um déficit de <strong>'+def+' kcal/dia</strong> — suficiente para perder aproximadamente ';
-    var perdaSem=M.perda.toFixed(2).replace('.',',');
-    var perdaMes=(M.perda*4.3).toFixed(1).replace('.',',');
-    html+='<strong>~'+perdaSem+'kg por semana</strong> (ou <strong>~'+perdaMes+'kg por mês</strong>) de forma saudável.';
+    // v3.9.30: filosofia v3.1.41 — meta = GET dinâmico. Em GLP-1 a propria
+    // medicacao gera deficit (paciente come menos por saciedade). Nao forcamos.
+    html+='Sua meta diária é <strong>'+meta+' kcal</strong> — equivalente ao seu gasto total. ';
+    html+='<strong>Em GLP-1, o próprio remédio reduz a fome</strong> e você naturalmente come abaixo dessa meta. ';
+    html+='É o déficit que faz emagrecer — e ele vem espontaneamente, sem forçar. ';
+    html+='Por isso a meta é honesta (igual ao gasto) em vez de um número artificialmente baixo que te frustaria.';
     html+='</div>';
     body.innerHTML=html;
     body.style.display='block';
@@ -14004,10 +14014,13 @@ function render(){
       if(M.pisoAplicado){
         _kdh.innerHTML = '<span style="color:#b86a14">⚠️ piso fisiológico aplicado</span><br><span style="font-size:9px;color:var(--muted)">déficit ajustado para segurança</span>';
       } else {
-        _kdh.textContent = 'déficit ~'+Math.round(M.def)+' kcal/dia';
+        // v3.9.30: M.def virou 0 na refactor; agora explica meta = GET (sem subtrair fixo)
+        _kdh.textContent = 'meta = seu gasto total (déficit vem do GLP-1)';
       }
     }
-    el('kPEst').textContent=rd(M.perda,2)+' kg';
+    // v3.9.30: M.perda foi zerada na refactor; texto antigo mostrava '0,00 kg'.
+    // Agora indica que a perda real vem do consumo registrado (saldoDoDia).
+    el('kPEst').textContent='vem do consumo real';
     el('kPMin').textContent=Math.round(M.pm)+'g';el('kPIdeal').textContent=Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g';el('kAgua').textContent=Math.round(M.agua);
     // v3.1.5: mostrar fatores que compõem a meta
     var _kSub=el('kPMinSub');
