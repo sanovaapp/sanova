@@ -221,6 +221,32 @@ Login + Supabase (v3.2.0+) — NÃO quebrar
 Liraglutida — MANTER no código (Saxenda é real, excluí-la exclui pacientes)
 SEMPRE bumpar versão ao terminar: SANOVA_VERSION no index.html E VERSION no sw.js
 SEMPRE validar HTML balanceado + sintaxe JS antes de finalizar
+🚨 ESTADO ATUAL COBRANÇA — JÁ TUDO PRONTO PRA TESTE REAL (cravado 05/06/2026):
+NÃO REPETIR estes passos com Bruno — já foram feitos:
+  ✅ Aplicação MP "Sanova" criada (User ID 3435185663, App 3009571745502058)
+  ✅ Integração configurada como "Assinaturas" (preapproval)
+  ✅ Credenciais de produção liberadas
+     Public Key: APP_USR-d56d3798-c70f-4cb2-93be-76be54ae82ae
+     Access Token: APP_USR-3009571745502058-052917-...-3435185663
+  ✅ GitHub Secret MP_ACCESS_TOKEN_SANDBOX = token de PRODUÇÃO (nome enganoso)
+  ✅ Worker deploy-worker.yml rodado com token novo (success 05/06)
+  ✅ Webhook MP em produção configurado:
+     URL: https://sanova-api.contatosanovaapp.workers.dev/api/mp-webhook
+     Ambiente: Produtivo
+     Eventos: Pagamentos, Planos e assinaturas, Vinculações
+  ✅ MP_WEBHOOK_SECRET configurado nos GitHub Secrets
+
+O QUE FALTA (Bruno faz UMA vez):
+  → Abrir conta NOVA com email secundário em sanovaapp.github.io/sanova/
+  → Bater no paywall, clicar Assinar, pagar com cartão real
+  → Confirmar desbloqueio das features (ia_prato, conv_insulina, pdf_medico)
+  → Se travar, ele manda print + claude debuga via logs do worker (wrangler tail)
+
+PÓS-VALIDAÇÃO:
+  → Bruno rotaciona MP Access Token no painel (segurança — token atual passou em chat)
+  → Renomear MP_ACCESS_TOKEN_SANDBOX → MP_ACCESS_TOKEN_PROD no código worker
+  → Bumpar R1 cobrança como concluído
+
 🎯 CONTEXTO DE NEGÓCIO
 Pricing planejado: R19,90/mês ou R199/ano (cobrança via Mercado Pago, web — não Play Billing)
 Posicionamento: "plataforma de mudança comportamental durante a janela terapêutica do GLP-1"
