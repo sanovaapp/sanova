@@ -5300,7 +5300,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div id="histAplicLista" style="margin-top:10px"></div>
 
     <!-- Vazio -->
-    <div id="histAplicVazio" style="display:none;padding:20px 14px;text-align:center;font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.55">
+    <div id="histAplicVazio" style="display:none;padding:20px 14px;text-align:center;font-size:12.5px;color:var(--ink3,#777);line-height:1.55">
       Você ainda não registrou nenhuma aplicação.<br>
       As doses que você marcar como "Apliquei hoje" aparecem aqui com seu peso na época.
     </div>
@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.4';
+var SANOVA_VERSION = '3.10.5';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -18642,38 +18642,49 @@ function renderHistoricoAplicacoes(){
 
   if(vazio) vazio.style.display = 'none';
 
-  // v3.10.3: tabela compacta (Data | Dose | Peso) substitui os cards
-  // grandes que estavam ocupando muito espaço. Bruno: 'ficou ruim'.
+  // v3.10.5: tabela em TEMA LIGHT — cores escuras pra contrastar com fundo
+  // creme do card. v3.10.3 usava color:#fff que sumia. Bruno: 'Ilegivel.
+  // Mal formatado. Algo simples — data, dose, peso na Semana.'
+  // Formato: 'Sem N · DD/MM' (linha 1) + '💉 X mg · ⚖️ Y kg' (linha 2) + ações.
   if(lista){
     var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-    var html =
-      '<div style="display:grid;grid-template-columns:64px 1fr 64px 72px;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(187,247,208,.18);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:rgba(187,247,208,.55)">' +
-        '<div>Data</div><div>Dose</div><div style="text-align:right">Peso</div><div style="text-align:right">Ações</div>' +
-      '</div>';
+    var html = '';
     apps.forEach(function(rec){
       if(!rec || !rec.date) return;
       var d = parseLocalDate(rec.date);
-      var dataTxt = d && !isNaN(d.getTime())
+      var dataCurta = d && !isNaN(d.getTime())
         ? (d.getDate() + '/' + meses[d.getMonth()])
-        : rec.date;
+        : (rec.date || '—');
+      var sem = _semanasDesdeInicio(rec.date);
+      var semTxt = sem ? ('Sem ' + sem) : '—';
       var peso = _pesoNaEpoca(rec.date);
       var pesoTxt = peso
         ? ((Math.round(peso.kg*10)/10).toString().replace('.',',') + ' kg' + (peso.diasDelta > 0 ? '*' : ''))
         : '—';
-      var pesoCor = peso ? '#86efac' : 'rgba(255,255,255,.35)';
+      var pesoCor = peso ? 'var(--g700,#166534)' : 'var(--ink3,#999)';
       var doseStr = rec.dose ? (String(rec.dose).replace('.',',') + ' mg') : '— mg';
-      var editIco = rec.editedAt ? '<span title="editada" style="color:rgba(232,200,120,.7);font-size:9px;margin-left:4px">✎</span>' : '';
+      var editIco = rec.editedAt ? '<span title="editada" style="color:#b86a14;font-size:10px;margin-left:4px">✎</span>' : '';
       html +=
-        '<div style="display:grid;grid-template-columns:64px 1fr 64px 72px;gap:8px;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.05)">' +
-          '<div style="font-size:12px;font-weight:700;color:#fff">' + dataTxt + editIco + '</div>' +
-          '<div style="font-size:12.5px;color:rgba(255,255,255,.85)">💉 ' + doseStr + '</div>' +
-          '<div style="text-align:right;font-size:12px;color:' + pesoCor + ';font-weight:600">' + pesoTxt + '</div>' +
-          '<div style="display:flex;gap:4px;justify-content:flex-end;flex-shrink:0">' +
-            '<button type="button" onclick="abrirEditAplic(\'' + rec.id + '\')" aria-label="Editar" title="Editar" style="width:28px;height:28px;border-radius:7px;border:1px solid rgba(187,247,208,.22);background:transparent;color:rgba(187,247,208,.75);cursor:pointer;font-size:11px;padding:0">✏️</button>' +
-            '<button type="button" onclick="removerAplicacao(\'' + rec.id + '\')" aria-label="Remover" title="Remover" style="width:28px;height:28px;border-radius:7px;border:1px solid rgba(232,168,138,.28);background:transparent;color:rgba(232,168,138,.78);cursor:pointer;font-size:11px;padding:0">🗑</button>' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:12px 6px;border-bottom:1px solid rgba(0,0,0,.06)">' +
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' +
+            '<div style="font-size:13.5px;font-weight:700;color:var(--ink,#1a0f00);line-height:1.25">' +
+              semTxt + ' · ' + dataCurta + editIco +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--ink2,#444);line-height:1.4">' +
+              '💉 <strong>' + doseStr + '</strong> · ⚖️ <strong style="color:' + pesoCor + '">' + pesoTxt + '</strong>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;flex-shrink:0">' +
+            '<button type="button" onclick="abrirEditAplic(\'' + rec.id + '\')" aria-label="Editar" title="Editar" style="width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,0,0,.12);background:#fff;color:var(--ink2,#555);cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center">✏️</button>' +
+            '<button type="button" onclick="removerAplicacao(\'' + rec.id + '\')" aria-label="Remover" title="Remover" style="width:34px;height:34px;border-radius:8px;border:1px solid rgba(196,65,46,.32);background:#fff;color:#c4412e;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center">🗑</button>' +
           '</div>' +
         '</div>';
     });
+    // Disclaimer do '*' só aparece se algum item tem peso aproximado
+    var temAprox = apps.some(function(r){ var p=_pesoNaEpoca(r.date); return p && p.diasDelta > 0; });
+    if(temAprox){
+      html += '<div style="font-size:11px;color:var(--ink3,#999);font-style:italic;margin-top:8px;padding:0 6px">* peso aproximado (registrado em até 3 dias da aplicação)</div>';
+    }
     lista.innerHTML = html;
   }
   // v3.10.4: gráfico removido (Bruno: 'melhor não ter gráfico').
