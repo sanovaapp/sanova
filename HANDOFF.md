@@ -69,6 +69,17 @@
        "Tratamento e registro de aplicações" (calculadora não se
        aplica pra tipo='caneta', maioria dos pacientes)
 
+   ROUNDS EXTRAS (R9-R17, alvos clinicos profundos):
+   #75 v3.9.30 — 'deficit 0 kcal' em 4 lugares (residuo da refactor
+                 v3.1.41 que zerou M.def/M.perda mas a UI ainda lia).
+                 KPI ceOv, kDH, 'Como calculei suas metas', kPEst.
+   #76 v3.9.31 — BUG CLINICO classificar(): rl >= 1.3*0 fazia qualquer
+                 perda virar 'Acelerado 🚀'. Refeito com referencia
+                 fisiologica fixa (>= 1.5 kg/sem = atencao, 0.5-1.5
+                 saudavel, 0-0.5 plato, <0 ganho). Tema STEP/SURMOUNT.
+   #77 v3.9.32 — OBJETIVOS detail sem 'GET' (jargão academico). Now:
+                 'meta calorica enxuta/generosa/seu gasto'.
+
    Coberto antes da noite (mesmo round de UX):
    #62 v3.9.18 — 4 tipos alcool com kcal real
    #63 v3.9.19 — recalcKcalConsumed em ajustarAlcoolTipo
