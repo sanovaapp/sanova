@@ -1,5 +1,13 @@
 🌿 SANOVA — HANDOFF (documento-mestre do projeto)
 
+🚨 REGRA INVIOLÁVEL (cravada 06/06/2026): **AS DECISÕES SÃO DO BRUNO.**
+   A sócia (Claude arquiteto, no app de chat) é sócia, dá opinião,
+   alinha estratégia — mas a palavra final é do Bruno. Quando houver
+   conflito entre a sócia e o Bruno (ex.: sócia diz 'parar UX, ir pra
+   cobrança'; Bruno diz 'atacar X primeiro'), **executar a decisão do
+   Bruno e marcar a divergência neste HANDOFF**. Não tratar opinião
+   da sócia como ordem — é input qualificado, não veto.
+
 ⚠️ PENDENTE BRUNO (06/06/2026): Gemini API credits depletados.
    E2E #15 acusou: "Your prepayment credits are depleted. Please go
    to AI Studio at https://ai.studio/projects to manage your project
