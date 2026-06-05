@@ -5058,9 +5058,16 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
         <div style="font-size:11.5px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:4px">Dose</div>
         <div id="calcCanetaDose" style="font-size:26px;font-weight:800;color:#4ade80;letter-spacing:-.02em">— mg</div>
       </div>
+      <!-- v3.9.38: instruções de "Como aplicar" — local de hoje + rodízio.
+           Bruno cravou: paciente caneta industrial precisa das mesmas
+           instruções clínicas (local, rodízio) que paciente frasco tem. -->
+      <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:rgba(74,222,128,.7);margin-bottom:10px">💉 Como aplicar</div>
+        <div id="canetaLocalInjecao" style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.7">—</div>
+      </div>
       <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,.72);line-height:1.6">
         ✅ Selecione a dose no dial da caneta conforme a prescrição.<br>
-        ✅ Aplique subcutaneamente.<br>
+        ✅ Aplique subcutaneamente, segure 6 segundos antes de retirar.<br>
         ✅ Não é necessário seringa de insulina para caneta industrial.
       </div>
       <button onclick="registrarAplicacaoHoje()" style="width:100%;padding:16px;border-radius:12px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
@@ -6045,7 +6052,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.37';
+var SANOVA_VERSION = '3.9.38';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -10320,6 +10327,11 @@ function renderCalc(){
     var dose = S.caneta.dose ? (String(S.caneta.dose).replace(',','.') + ' mg') : '— mg';
     if(el('calcCanetaNome')) el('calcCanetaNome').textContent = nome;
     if(el('calcCanetaDose')) el('calcCanetaDose').textContent = dose;
+    // v3.9.38: popula 'Como aplicar' (local + rodizio) tambem na caneta industrial.
+    if(typeof _htmlComoAplicar === 'function'){
+      var liCan = el('canetaLocalInjecao');
+      if(liCan) liCan.innerHTML = _htmlComoAplicar();
+    }
     return;
   }
 
@@ -10543,25 +10555,33 @@ function calcDil(){
     // Local de injeção — v3.6.2: mostra os 3 locais (rodízio explícito), com o
     // local de HOJE em destaque + os outros visíveis. Paciente não fica achando
     // que só pode aplicar num lugar.
+    // v3.9.38: extraido pra _htmlComoAplicar() reusada pela caneta industrial.
     var li=el('frascoLocalInjecao');
     if(li){
-      var loc=getLocalInjecao();
-      var idxAtual=_LOCAIS_INJECAO.indexOf(loc);
-      var outros=_LOCAIS_INJECAO.filter(function(l,i){return i!==idxAtual;});
-      li.innerHTML =
-        '<div style="font-size:10.5px;font-weight:800;color:#86efac;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">📍 Local de hoje</div>' +
-        '<strong style="color:#fff;font-size:15px">'+loc.local+'</strong>' +
-        '<div style="font-size:12.5px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.5">'+loc.desc+'</div>' +
-        '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
-          '<div style="font-size:10.5px;font-weight:700;color:rgba(187,247,208,.7);margin-bottom:6px;letter-spacing:.04em">⟳ Próximas aplicações em rodízio</div>' +
-          outros.map(function(l){
-            return '<div style="font-size:12px;color:rgba(255,255,255,.62);margin-bottom:5px;line-height:1.5">' +
-              '<strong style="color:rgba(255,255,255,.88)">'+l.local+'</strong> — '+l.desc + '</div>';
-          }).join('') +
-        '</div>' +
-        '<div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
+      li.innerHTML = _htmlComoAplicar();
     }
   }
+}
+
+// v3.9.38: HTML do bloco "Como aplicar" (local de hoje + rodizio). Usado tanto
+// pelo frasco manipulado quanto pela caneta industrial — instruções clinicas
+// se aplicam aos dois tipos (subcutaneo, rodizio entre regioes).
+function _htmlComoAplicar(){
+  if(typeof getLocalInjecao !== 'function' || typeof _LOCAIS_INJECAO === 'undefined') return '';
+  var loc = getLocalInjecao();
+  var idxAtual = _LOCAIS_INJECAO.indexOf(loc);
+  var outros = _LOCAIS_INJECAO.filter(function(l,i){return i!==idxAtual;});
+  return '<div style="font-size:10.5px;font-weight:800;color:#86efac;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">📍 Local de hoje</div>' +
+    '<strong style="color:#fff;font-size:15px">'+loc.local+'</strong>' +
+    '<div style="font-size:12.5px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.5">'+loc.desc+'</div>' +
+    '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
+      '<div style="font-size:10.5px;font-weight:700;color:rgba(187,247,208,.7);margin-bottom:6px;letter-spacing:.04em">⟳ Próximas aplicações em rodízio</div>' +
+      outros.map(function(l){
+        return '<div style="font-size:12px;color:rgba(255,255,255,.62);margin-bottom:5px;line-height:1.5">' +
+          '<strong style="color:rgba(255,255,255,.88)">'+l.local+'</strong> — '+l.desc + '</div>';
+      }).join('') +
+    '</div>' +
+    '<div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
 }
 
 /* ══ COMO ESTOU ══ */
