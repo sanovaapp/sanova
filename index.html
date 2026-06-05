@@ -4911,7 +4911,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
             style="min-height:80px;padding:9px 7px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-family:var(--ss);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.22">
             <div style="font-size:18px;margin-bottom:3px">⚗️</div>
             <div style="font-size:12px;font-weight:700">Frasco manipulado</div>
-            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">calc. UI seringa</div>
+            <div style="font-size:10px;font-weight:500;opacity:.75;margin-top:2px">calcular dose na seringa</div>
           </button>
         </div>
       </div>
@@ -5287,6 +5287,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
     <div style="margin-bottom:12px">
       <label style="display:block;font-size:11px;font-weight:700;color:rgba(187,247,208,.8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Data da aplicação</label>
       <input id="editAplicData" type="date" style="width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid rgba(187,247,208,.25);background:rgba(255,255,255,.04);color:#fff;font-family:var(--ss);font-size:14px;outline:none">
+      <div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:5px">Hoje ou retroativa. Datas futuras não são aceitas.</div>
     </div>
     <div style="margin-bottom:18px">
       <label style="display:block;font-size:11px;font-weight:700;color:rgba(187,247,208,.8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Dose (mg)</label>
@@ -6113,7 +6114,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.0';
+var SANOVA_VERSION = '3.10.1';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -18498,7 +18499,7 @@ function renderHistoricoAplicacoes(){
       var peso = _pesoNaEpoca(rec.date);
       var pesoTxt = peso
         ? ('<span style="color:#86efac">⚖️ ' + (Math.round(peso.kg*10)/10).toString().replace('.',',') + ' kg</span>' +
-           (peso.diasDelta > 0 ? '<span style="color:rgba(255,255,255,.4);font-size:10.5px"> ·*aprox.</span>' : ''))
+           (peso.diasDelta > 0 ? '<span style="color:rgba(255,255,255,.4);font-size:10.5px"> · aproximado</span>' : ''))
         : '<span style="color:rgba(255,255,255,.35);font-style:italic">sem peso registrado próximo</span>';
       var doseStr = rec.dose ? (String(rec.dose).replace(',','.').replace('.',',') + ' mg') : '— mg';
       var farmaco = rec.farmaco || S.caneta.farmaco || '—';
@@ -18540,7 +18541,11 @@ function abrirEditAplic(id){
   _editAplicId = id;
   var inData = el('editAplicData');
   var inDose = el('editAplicDose');
-  if(inData) inData.value = rec.date || '';
+  if(inData){
+    inData.value = rec.date || '';
+    // v3.10.1: bloqueia datas futuras no date picker tambem (defesa em camadas)
+    try{ inData.max = hoje(); }catch(e){}
+  }
   if(inDose) inDose.value = rec.dose ? String(rec.dose).replace('.',',') : '';
   var ov = el('editAplicOv');
   if(ov) ov.style.display = 'flex';
@@ -18566,6 +18571,11 @@ function salvarEditAplic(){
   var doseNova = parseFloat(normDose(doseNovaStr));
   if(!doseNova || doseNova <= 0){ if(typeof toast === 'function') toast('Dose inválida', 2200); return; }
   if(!dataNova){ if(typeof toast === 'function') toast('Data inválida', 2200); return; }
+  // v3.10.1: bloqueia data futura — quebra cronograma de próxima dose.
+  if(dataNova > hoje()){
+    if(typeof toast === 'function') toast('Data futura não permitida — aplicação só pode ser hoje ou retroativa.', 3500);
+    return;
+  }
 
   // Devolve estoque da dose antiga (em mg) — paciente pode estar mudando dose retroativa.
   if(typeof S.caneta.estoqueAtual === 'number' && doseAnt > 0){
@@ -18592,13 +18602,27 @@ function salvarEditAplic(){
 
 function removerAplicacao(id){
   if(!Array.isArray(S.applications)) return;
-  if(!confirm('Remover esta aplicação?\n\nA dose volta pro estoque e o cronograma de próxima dose é recalculado.')) return;
+  // v3.10.1: confirm mostra QUAL aplicacao está sendo removida (data + fármaco
+  // + dose). Marcia: 'sem isso, se clico errado no botao, removo a errada'.
   var idx = -1;
   for(var i = 0; i < S.applications.length; i++){
     if(S.applications[i] && S.applications[i].id === id){ idx = i; break; }
   }
   if(idx < 0) return;
   var rec = S.applications[idx];
+  var diasSem = ['dom','seg','ter','qua','qui','sex','sáb'];
+  var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  var dataLabel = rec.date;
+  try{
+    var d = parseLocalDate(rec.date);
+    if(d && !isNaN(d.getTime())){
+      dataLabel = diasSem[d.getDay()] + ', ' + d.getDate() + '/' + meses[d.getMonth()] + '/' + d.getFullYear();
+    }
+  }catch(e){}
+  var farmaco = rec.farmaco || (S.caneta && S.caneta.farmaco) || 'medicação';
+  var doseLabel = rec.dose ? (String(rec.dose).replace('.',',') + ' mg') : 'dose —';
+  var msg = 'Remover esta aplicação?\n\n💉 ' + farmaco + ' ' + doseLabel + '\n🗓️ ' + dataLabel + '\n\nA dose volta pro estoque e o cronograma de próxima dose é recalculado.';
+  if(!confirm(msg)) return;
   var doseMg = parseFloat(normDose(rec.dose));
   S.applications.splice(idx, 1);
   if(typeof S.caneta.estoqueAtual === 'number' && doseMg > 0){
