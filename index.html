@@ -5991,7 +5991,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.22';
+var SANOVA_VERSION = '3.9.23';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13321,10 +13321,13 @@ function renderPilares(){
   if(dotsEl) dotsEl.innerHTML = dotsHtml;
   var elExSub = document.getElementById('pilarExercSub');
   if(elExSub){
+    // v3.9.23: "treinos esta semana" e mais claro que "sessoes" pra paciente leigo.
+    // Marcia: "1 de 3 sessoes" — 1 do que? sessao de yoga? serie? treino?
     var meta = (typeof getMetaExerc === 'function') ? getMetaExerc() : 3;
-    if(feitos >= meta) elExSub.textContent = '✓ Meta semanal atingida (' + feitos + ' sessões)';
-    else if(feitos > 0) elExSub.textContent = feitos + ' de ' + meta + ' sessões · faltam ' + (meta-feitos);
-    else elExSub.textContent = 'Meta: ' + meta + ' sessões/semana · preserva músculo';
+    var palavra = function(n){ return n === 1 ? 'treino' : 'treinos'; };
+    if(feitos >= meta) elExSub.textContent = '✓ Meta semanal batida (' + feitos + ' ' + palavra(feitos) + ')';
+    else if(feitos > 0) elExSub.textContent = feitos + ' de ' + meta + ' ' + palavra(meta) + ' esta semana · faltam ' + (meta-feitos);
+    else elExSub.textContent = 'Meta: ' + meta + ' ' + palavra(meta) + ' esta semana · preserva músculo';
   }
 
   // ============ FRASE CONTEXTUAL NO TOPO ============
@@ -16570,20 +16573,83 @@ function atualizarBotaoDoseHero(){
   var hojeStr = hoje();
   var jaAplicouHoje = (S.caneta.ultima === hojeStr);
   if(jaAplicouHoje){
-    btn.innerHTML = '✓ Aplicado hoje';
-    btn.style.background = 'linear-gradient(135deg,rgba(74,222,128,.35),rgba(74,222,128,.22))';
-    btn.style.borderColor = 'rgba(74,222,128,.7)';
-    btn.style.color = '#fff';
-    btn.style.cursor = 'default';
-    btn.disabled = true;
+    // v3.9.23: aplicada hoje — botao vira "desfazer" pra paciente recuperar
+    // de clique errado. Bug observado pela Marcia: aplicacao acidental
+    // ficava sem caminho de reverter, e isso mexia em estoque + cronograma.
+    btn.innerHTML = '↺ Desfazer aplicação';
+    btn.style.background = 'transparent';
+    btn.style.borderColor = 'rgba(187,247,208,.35)';
+    btn.style.color = 'rgba(187,247,208,.75)';
+    btn.style.cursor = 'pointer';
+    btn.disabled = false;
+    btn.onclick = function(){ desfazerUltimaAplicacao(); };
+    btn.setAttribute('aria-label','Desfazer ultima aplicacao registrada');
   } else {
-    btn.innerHTML = '✓ Registrar dose';
-    btn.style.background = 'linear-gradient(135deg,rgba(74,222,128,.2),rgba(74,222,128,.12))';
-    btn.style.borderColor = 'rgba(74,222,128,.45)';
+    // v3.9.23: copy mais clara pra paciente leigo (Marcia) — "Apliquei hoje"
+    // e mais natural que "Registrar dose".
+    btn.innerHTML = '💉 Apliquei hoje';
+    btn.style.background = 'linear-gradient(135deg,rgba(74,222,128,.28),rgba(74,222,128,.16))';
+    btn.style.borderColor = 'rgba(74,222,128,.55)';
     btn.style.color = '#bbf7d0';
     btn.style.cursor = 'pointer';
     btn.disabled = false;
+    btn.onclick = function(){ registrarAplicacaoHoje(); };
+    btn.setAttribute('aria-label','Registrar aplicacao de hoje');
   }
+}
+
+// v3.9.23: desfaz a ultima aplicacao registrada hoje. Reverte:
+// - S.caneta.ultima volta pra penultima aplicacao (ou '' se era a primeira)
+// - Remove do S.applications a entrada com date=hoje() mais recente
+// - Devolve estoque (se tinha decrementado)
+function desfazerUltimaAplicacao(){
+  if(!S.caneta || !S.caneta.farmaco) return;
+  var hojeStr = hoje();
+  // So permite desfazer se ultima === hoje (evita confusao com aplicacao antiga)
+  if(S.caneta.ultima !== hojeStr){
+    if(typeof toast === 'function') toast('Nenhuma aplicação de hoje pra desfazer.', 2200);
+    return;
+  }
+  if(!confirm('Desfazer a aplicação registrada hoje?\n\nIsso devolve a dose ao estoque e atualiza o cronograma.')) return;
+
+  if(!Array.isArray(S.applications)) S.applications = [];
+  // Acha a aplicacao mais recente de hoje
+  var idxHoje = -1;
+  for(var i = S.applications.length - 1; i >= 0; i--){
+    if(S.applications[i] && S.applications[i].date === hojeStr){ idxHoje = i; break; }
+  }
+  if(idxHoje >= 0){
+    var rec = S.applications[idxHoje];
+    S.applications.splice(idxHoje, 1);
+    // Devolve estoque (dose em mg). So se temos estoque numerico.
+    var dose = parseFloat(String(rec.dose||'').replace(/mg/i,'').replace(',','.'));
+    if(dose > 0 && typeof S.caneta.estoqueAtual === 'number' && !isNaN(S.caneta.estoqueAtual)){
+      S.caneta.estoqueAtual = Math.max(0, S.caneta.estoqueAtual + dose);
+    }
+  }
+  // Volta S.caneta.ultima pra penultima aplicacao (a mais recente ainda em historico)
+  if(S.applications.length > 0){
+    var ult = null;
+    for(var j = 0; j < S.applications.length; j++){
+      var a = S.applications[j];
+      if(!ult || (a.date && a.date > ult.date)) ult = a;
+    }
+    if(ult){
+      S.caneta.ultima = ult.date;
+      S.caneta.ultimaISO = ult.appliedAt || (ult.date + 'T12:00:00');
+    } else {
+      S.caneta.ultima = '';
+      delete S.caneta.ultimaISO;
+    }
+  } else {
+    S.caneta.ultima = '';
+    delete S.caneta.ultimaISO;
+  }
+  salvar();
+  if(typeof toast === 'function') toast('↺ Aplicação desfeita · estoque devolvido', 2500);
+  if(typeof renderHero === 'function') renderHero();
+  if(typeof atualizarBotaoDoseHero === 'function') atualizarBotaoDoseHero();
+  if(typeof renderAplicacaoCheckin === 'function') renderAplicacaoCheckin();
 }
 
 
