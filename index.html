@@ -4221,11 +4221,13 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
             <button id="dataReg-peso" onclick="_abrirSeletorData('peso')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
+            <!-- v3.9.33: cor do input/botao trocada de roxo (rgba 147,51,234)
+                 pra verde (paleta Sanova). Coerencia visual. -->
             <input type="number" id="pesoRapidoInput" placeholder="ex: 82.5" step="0.1" min="30" max="400"
-              style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(134,239,172,.3);background:rgba(147,51,234,.08);color:#fff;font-size:16px;font-weight:700;text-align:center;font-family:var(--ss);outline:none"
+              style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(134,239,172,.3);background:rgba(74,222,128,.08);color:#fff;font-size:16px;font-weight:700;text-align:center;font-family:var(--ss);outline:none"
               onfocus="this.style.borderColor='#86efac'" onblur="this.style.borderColor='rgba(134,239,172,.3)'">
             <span style="font-size:12px;color:rgba(255,255,255,.4);flex-shrink:0">kg</span>
-            <button onclick="salvarPesoRapido();btnFeedback(this,'Salvo!')" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(147,51,234,.4);color:#86efac;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Salvar</button>
+            <button onclick="salvarPesoRapido();btnFeedback(this,'Salvo!')" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(74,222,128,.32);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Salvar</button>
           </div>
         </div>
       </div>
@@ -6004,7 +6006,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.9.32';
+var SANOVA_VERSION = '3.9.33';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
