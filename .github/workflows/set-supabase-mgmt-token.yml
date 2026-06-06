@@ -14,8 +14,8 @@ name: Set Supabase Mgmt Token + Apply Email Templates
 on:
   workflow_dispatch:
     inputs:
-      mgmt_token:
-        description: 'Personal Access Token Supabase (sbp_...)'
+      mgmt_token_b64:
+        description: 'PAT Supabase em base64 (echo -n sbp_... | base64)'
         required: true
         type: string
 
@@ -26,8 +26,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Mask token in logs
-        run: echo "::add-mask::${{ github.event.inputs.mgmt_token }}"
+      - name: Decode and mask token
+        id: decode
+        env:
+          B64: ${{ github.event.inputs.mgmt_token_b64 }}
+        run: |
+          DECODED=$(echo "$B64" | base64 -d)
+          echo "::add-mask::$DECODED"
+          echo "::add-mask::$B64"
+          echo "token=$DECODED" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,7 +52,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          MGMT_TOKEN: ${{ github.event.inputs.mgmt_token }}
+          MGMT_TOKEN: ${{ steps.decode.outputs.token }}
         run: |
           echo "$MGMT_TOKEN" | npx wrangler secret put SUPABASE_MGMT_TOKEN
 
