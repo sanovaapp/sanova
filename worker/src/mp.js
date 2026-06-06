@@ -206,14 +206,14 @@ export async function createPreapprovalPlanMP({ tipo, backUrl }, env) {
     ? 'Sanova — assinatura anual'
     : 'Sanova — assinatura mensal';
 
+  // v1.10.0: sem restrição de payment_types — MP usa TODOS os métodos
+  // habilitados na conta do vendedor (credit_card, debit_card, ticket
+  // boleto, account_money, PIX onde aplicável). Bruno: 'Pagamento é livre.
+  // Sem travas. Inclusive PIX. Muito comum no Brasil.'
   const body = {
     reason,
     auto_recurring,
     back_url: backUrl,
-    payment_methods_allowed: {
-      payment_types: [{ id: 'credit_card' }],
-      payment_methods: [],
-    },
   };
 
   const resp = await fetch(MP_API + '/preapproval_plan', {
