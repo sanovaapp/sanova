@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.7.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.8.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -253,6 +253,7 @@ async function handleMpCreatePreapproval(request, env, origin) {
   const body = await request.json().catch(() => ({}));
   const userId = body.userId;
   const email = body.email;
+  const plano = body.plano;
   const backUrl = body.backUrl || 'https://sanovaapp.github.io/sanova/?mp_return=1';
 
   if (!userId || !email) {
@@ -263,7 +264,7 @@ async function handleMpCreatePreapproval(request, env, origin) {
   }
 
   try {
-    const preapproval = await createPreapproval({ userId, payerEmail: email, backUrl }, env);
+    const preapproval = await createPreapproval({ userId, payerEmail: email, backUrl, plano }, env);
 
     // Grava preapproval_id na assinatura existente (criada pelo trigger no signup)
     try {

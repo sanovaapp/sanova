@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.7';
+var SANOVA_VERSION = '3.10.8';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -22065,13 +22065,13 @@ window.addEventListener('beforeunload',function(){
       '</div>' +
 
       '<div style="display:flex;gap:10px;margin-bottom:14px;align-items:stretch">' +
-        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.06);text-align:center;display:flex;flex-direction:column;justify-content:center">' +
+        '<div data-plano="mensal" onclick="window.SanovaPaywall.selecionarPlano(\'mensal\')" id="sanova-plano-mensal" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid #bbf7d0;background:linear-gradient(160deg,rgba(34,197,94,.18),rgba(187,247,208,.10));text-align:center;display:flex;flex-direction:column;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(34,197,94,.18)">' +
           '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Mensal</div>' +
           '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:5px;line-height:1">R$ 19,90</div>' +
           '<div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-top:3px">por mês</div>' +
         '</div>' +
-        '<div style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid #bbf7d0;background:linear-gradient(160deg,rgba(34,197,94,.18),rgba(187,247,208,.10));text-align:center;position:relative;display:flex;flex-direction:column;justify-content:center;box-shadow:0 6px 18px rgba(34,197,94,.18)">' +
-          '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9.5px;font-weight:900;padding:3px 9px;border-radius:99px;letter-spacing:.05em;white-space:nowrap;text-transform:uppercase">Mais escolhido</div>' +
+        '<div data-plano="anual" onclick="window.SanovaPaywall.selecionarPlano(\'anual\')" id="sanova-plano-anual" style="flex:1;padding:14px 10px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.06);text-align:center;position:relative;display:flex;flex-direction:column;justify-content:center;cursor:pointer">' +
+          '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#bbf7d0;color:#052413;font-size:9.5px;font-weight:900;padding:3px 9px;border-radius:99px;letter-spacing:.05em;white-space:nowrap;text-transform:uppercase">Economize 17%</div>' +
           '<div style="font-size:10.5px;color:rgba(255,255,255,.6);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:4px">Anual</div>' +
           '<div style="font-size:11.5px;color:rgba(255,255,255,.5);text-decoration:line-through;margin-top:3px;line-height:1">R$ 238,80</div>' +
           '<div style="font-size:22px;color:#fff;font-weight:800;margin-top:2px;line-height:1">R$ 199</div>' +
@@ -22114,7 +22114,7 @@ window.addEventListener('beforeunload',function(){
       try{ Sanova.track('checkout_blocked', { motivo: 'sem_login' }); }catch(e){}
       return;
     }
-    try{ Sanova.track('checkout_started', { plano: 'mensal_1990' }); }catch(e){}
+    try{ Sanova.track('checkout_started', { plano: planoSelecionado }); }catch(e){}
 
     var btn = document.querySelector('#sanova-modal-paywall button[onclick*="iniciarAssinatura"]');
     var txtOrig = btn ? btn.textContent : null;
@@ -22130,6 +22130,7 @@ window.addEventListener('beforeunload',function(){
         body: JSON.stringify({
           userId: user.id,
           email: user.email,
+          plano: planoSelecionado,
           backUrl: window.location.origin + window.location.pathname + '?mp_return=1'
         })
       });
@@ -22169,12 +22170,36 @@ window.addEventListener('beforeunload',function(){
     return window.SanovaAssinatura.forcarStatus(status);
   }
 
+  // v3.10.8: plano selecionado no modal (default mensal)
+  var planoSelecionado = 'mensal';
+  function selecionarPlano(plano){
+    if(plano !== 'mensal' && plano !== 'anual') return;
+    planoSelecionado = plano;
+    var elM = document.getElementById('sanova-plano-mensal');
+    var elA = document.getElementById('sanova-plano-anual');
+    if(!elM || !elA) return;
+    var selStyle = 'border:2px solid #bbf7d0;background:linear-gradient(160deg,rgba(34,197,94,.18),rgba(187,247,208,.10));box-shadow:0 6px 18px rgba(34,197,94,.18)';
+    var unselStyle = 'border:1.5px solid rgba(187,247,208,.35);background:rgba(187,247,208,.06);box-shadow:none';
+    function aplica(el, sel){
+      var props = (sel ? selStyle : unselStyle).split(';');
+      props.forEach(function(p){
+        var kv = p.split(':');
+        if(kv.length < 2) return;
+        var prop = kv[0].trim().replace(/-([a-z])/g, function(_, c){ return c.toUpperCase(); });
+        el.style[prop] = kv.slice(1).join(':').trim();
+      });
+    }
+    aplica(elM, plano === 'mensal');
+    aplica(elA, plano === 'anual');
+  }
+
   // API publica
   window.SanovaPaywall = {
     abrirModal: abrirModal,
     fecharModal: fecharModal,
     fecharBanner: fecharBanner,
     iniciarAssinatura: iniciarAssinatura,
+    selecionarPlano: selecionarPlano,
     forcarStatusDev: forcarStatusDev
   };
 

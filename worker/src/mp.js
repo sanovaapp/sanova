@@ -19,22 +19,26 @@ const MP_API = 'https://api.mercadopago.com';
  * @param {object} env                  — env do Worker (acesso a MP_ACCESS_TOKEN_SANDBOX)
  * @returns {Promise<{init_point: string, id: string, status: string}>}
  */
-export async function createPreapproval({ userId, payerEmail, backUrl }, env) {
+export async function createPreapproval({ userId, payerEmail, backUrl, plano }, env) {
   const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
   if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
 
+  // v1.8.0: mensal R$19,90/mes vs anual R$199 a cada 12 meses
+  const planoNormalizado = (plano === 'anual') ? 'anual' : 'mensal';
+  const auto_recurring = planoNormalizado === 'anual'
+    ? { frequency: 12, frequency_type: 'months', transaction_amount: 199.00, currency_id: 'BRL' }
+    : { frequency: 1,  frequency_type: 'months', transaction_amount: 19.90,  currency_id: 'BRL' };
+  const reason = planoNormalizado === 'anual'
+    ? 'Sanova — assinatura anual'
+    : 'Sanova — assinatura mensal';
+
   const body = {
-    reason: 'Sanova — assinatura mensal',
+    reason,
     external_reference: 'sanova_' + userId,
     payer_email: payerEmail,
     back_url: backUrl,
     status: 'pending',
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: 'months',
-      transaction_amount: 19.90,
-      currency_id: 'BRL',
-    },
+    auto_recurring,
   };
 
   const resp = await fetch(MP_API + '/preapproval', {
