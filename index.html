@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.10';
+var SANOVA_VERSION = '3.10.11';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -20489,7 +20489,9 @@ function renderHistRef(cid,dias){
     var dt=new Date();dt.setDate(dt.getDate()-i);
     var ds=fmtData(dt);
     var dh=S.daily.find(function(x){return x.date===ds;});
-    if(dh&&(dh.proteinG||dh.kcalConsumed)){
+    // v3.10.11: dia entra no histórico se tem proteína OU kcal OU álcool
+    var kAlcDia = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+    if(dh&&(dh.proteinG||dh.kcalConsumed||kAlcDia>0)){
       itens.push({ds:ds,dh:dh,hoje:ds===h,dt:new Date(dt)});
     }
   }
@@ -20499,8 +20501,16 @@ function renderHistRef(cid,dias){
     var dh=it.dh;
     var lbl=it.hoje?'Hoje':it.dt.getDate()+' '+ms[it.dt.getMonth()];
     var prot=Math.round(dh.proteinG||0);
-    var kcal=Math.round(dh.kcalConsumed||0);
+    // v3.10.11: total do dia usa getKcalConsumed pra incluir álcool sempre
+    var kcal=(typeof getKcalConsumed==='function') ? getKcalConsumed(dh) : Math.round(dh.kcalConsumed||0);
     var refs=dh.refeicoes||[];
+    var kAlc=(typeof calcKcalAlcool==='function') ? calcKcalAlcool(dh) : 0;
+    var dosesAlc=0;
+    if(dh.alcool && typeof dh.alcool==='object'){
+      Object.keys(dh.alcool).forEach(function(k){ dosesAlc += (typeof dh.alcool[k]==='number'?dh.alcool[k]:0); });
+    } else if(typeof dh.alcoolDoses==='number'){
+      dosesAlc = dh.alcoolDoses;
+    }
     var uid='hr'+it.ds.replace(/-/g,'');
     html+='<div style="margin-bottom:8px;border:1px solid var(--cream3);border-radius:12px;overflow:hidden">';
     html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:'+(it.hoje?'var(--g50)':'var(--cream2)')+';cursor:pointer" onclick="toggleHR(\''+uid+'\',this)">';
@@ -20511,6 +20521,27 @@ function renderHistRef(cid,dias){
     html+='<span id="arr'+uid+'" style="font-size:12px;color:var(--muted)">'+(it.hoje?'▾':'▸')+'</span>';
     html+='</span></div>';
     html+='<div id="'+uid+'" style="display:'+(it.hoje?'block':'none')+';padding:8px 14px">';
+    // v3.10.11: linha sintética de álcool quando o dia tem doses
+    if(kAlc > 0 && dh.alcool && typeof dh.alcool==='object'){
+      var breakdown = [];
+      var iconMap = { cerveja:'🍺', vinho:'🥂', destilado:'🥃', drinkDoce:'🍹' };
+      var lblMap  = { cerveja:'Cerveja', vinho:'Vinho', destilado:'Destilado', drinkDoce:'Drink doce' };
+      Object.keys(dh.alcool).forEach(function(k){
+        var n = (typeof dh.alcool[k]==='number') ? dh.alcool[k] : 0;
+        if(n > 0) breakdown.push((iconMap[k]||'')+' '+lblMap[k]+': '+n);
+      });
+      html+='<div style="padding:8px 0;border-bottom:1px solid var(--cream2);background:rgba(243,168,138,.06);border-radius:6px;padding:8px 10px;margin-bottom:4px">';
+      html+='<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px">🍷 Álcool · '+dosesAlc+' dose'+(dosesAlc===1?'':'s')+' · 🔥 '+kAlc+' kcal</div>';
+      if(breakdown.length){
+        html+='<div style="font-size:12px;color:var(--ink2);line-height:1.6">'+breakdown.join(' · ')+'</div>';
+      }
+      html+='</div>';
+    } else if(kAlc > 0){
+      // legado: só dh.alcoolDoses
+      html+='<div style="padding:8px 0;border-bottom:1px solid var(--cream2);background:rgba(243,168,138,.06);border-radius:6px;padding:8px 10px;margin-bottom:4px">';
+      html+='<div style="font-size:10px;font-weight:700;color:var(--muted)">🍷 Álcool · '+dosesAlc+' dose'+(dosesAlc===1?'':'s')+' · 🔥 '+kAlc+' kcal</div>';
+      html+='</div>';
+    }
     if(refs.length){
       refs.forEach(function(r,refIdx){
         var refKey = r.id || (it.ds+'_'+refIdx+'_'+(r.hora||''));
