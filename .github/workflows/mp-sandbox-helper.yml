@@ -23,6 +23,7 @@ on:
           - admin-revert-trial
           - admin-magic-link-bruno
           - admin-set-email-templates
+          - admin-set-auth-urls
 
 jobs:
   call-worker:

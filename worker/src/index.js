@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.6.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.7.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -92,6 +92,12 @@ export default {
       // Requer env.SUPABASE_MGMT_TOKEN (PAT do dashboard). Idempotente.
       if (url.pathname === '/api/admin-set-email-templates' && request.method === 'GET') {
         return await handleAdminSetEmailTemplates(env);
+      }
+
+      // v1.7.0: configura site_url + uri_allow_list pra reset/magic link
+      // nao darem 404 (caem em sanovaapp.github.io/ em vez de /sanova/).
+      if (url.pathname === '/api/admin-set-auth-urls' && request.method === 'GET') {
+        return await handleAdminSetAuthUrls(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -556,6 +562,65 @@ async function handleAdminMagicLink(env) {
         nota: 'Link unico, valido ate 1h. Abrir em browser limpo (sem sessao).',
       }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-set-auth-urls (v1.7.0) ───────────────────────
+// Configura Site URL + Allowed Redirect URLs do Supabase Auth.
+// Sem isso, reset password / magic link / confirm email caem na
+// raiz sanovaapp.github.io (404) em vez de /sanova/.
+async function handleAdminSetAuthUrls(env) {
+  const PROJECT_REF = 'yjycpcydqfuvojfzwfvy';
+  const token = env.SUPABASE_MGMT_TOKEN;
+  if (!token) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'SUPABASE_MGMT_TOKEN nao setado no env do worker' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  const body = {
+    site_url: 'https://sanovaapp.github.io/sanova/',
+    uri_allow_list: [
+      'https://sanovaapp.github.io/sanova/',
+      'https://sanovaapp.github.io/sanova/*',
+      'https://sanovaapp.github.io/',
+      'http://localhost:8080/',
+      'http://localhost:8080/*',
+      'http://localhost:5500/',
+      'http://localhost:5500/*',
+    ].join(','),
+  };
+
+  try {
+    const resp = await fetch('https://api.supabase.com/v1/projects/' + PROJECT_REF + '/config/auth', {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const txt = await resp.text();
+    let parsed;
+    try { parsed = JSON.parse(txt); } catch { parsed = txt; }
+
+    return new Response(
+      JSON.stringify({
+        ok: resp.ok,
+        http_status: resp.status,
+        management_api_response: parsed,
+        site_url_set: body.site_url,
+        uri_allow_list_set: body.uri_allow_list,
+        nota: resp.ok ? 'site_url + uri_allow_list aplicados. Proximo reset/magic link cai em /sanova/ corretamente.' : 'Falhou — veja management_api_response.',
+      }, null, 2),
+      { status: resp.ok ? 200 : 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err) {
     return new Response(
