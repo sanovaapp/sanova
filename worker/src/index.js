@@ -16,8 +16,8 @@
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
-import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser } from './mp.js';
-import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink } from './supabase.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan } from './supabase.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.8.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.9.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -98,6 +98,12 @@ export default {
       // nao darem 404 (caem em sanovaapp.github.io/ em vez de /sanova/).
       if (url.pathname === '/api/admin-set-auth-urls' && request.method === 'GET') {
         return await handleAdminSetAuthUrls(env);
+      }
+
+      // v1.9.0: cria os 2 preapproval_plan no MP (mensal+anual) se ainda
+      // nao existem na tabela mp_plans. Idempotente.
+      if (url.pathname === '/api/admin-ensure-mp-plans' && request.method === 'GET') {
+        return await handleAdminEnsureMpPlans(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -241,10 +247,13 @@ async function handleDebugGemini(env) {
   );
 }
 
-// ─── /api/mp-create-preapproval ──────────────────────────────
-// Recebe { userId, email } do app, cria assinatura recorrente no MP,
-// devolve { init_point } com a URL de checkout pro paciente pagar.
-// Tambem grava mp_preapproval_id na linha do Supabase pra rastreamento.
+// ─── /api/mp-create-preapproval (v1.9.0) ─────────────────────
+// REFATORADO: nao cria mais preapproval direto (que amarrava payer_email
+// e quebrava quando email Sanova != email conta MP).
+//
+// Agora retorna init_point do preapproval_plan publico (mensal ou anual),
+// com external_reference=sanova_<userId> pra webhook reconciliar.
+// Paciente loga no MP com QUALQUER conta — sem mismatch de email.
 async function handleMpCreatePreapproval(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
@@ -252,41 +261,82 @@ async function handleMpCreatePreapproval(request, env, origin) {
 
   const body = await request.json().catch(() => ({}));
   const userId = body.userId;
-  const email = body.email;
-  const plano = body.plano;
+  const planoIn = body.plano;
   const backUrl = body.backUrl || 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const tipo = (planoIn === 'anual') ? 'anual' : 'mensal';
 
-  if (!userId || !email) {
+  if (!userId) {
     return jsonResponse(
-      { ok: false, error: 'missing_params', message: 'userId e email obrigatorios.' },
+      { ok: false, error: 'missing_params', message: 'userId obrigatorio.' },
       400, origin, env
     );
   }
 
   try {
-    const preapproval = await createPreapproval({ userId, payerEmail: email, backUrl, plano }, env);
-
-    // Grava preapproval_id na assinatura existente (criada pelo trigger no signup)
-    try {
-      await updateSubscriptionByUser(userId, {
-        mp_preapproval_id: preapproval.id,
+    // 1) garante que o plano existe (auto-cria se faltar)
+    let plano = await getMpPlan(tipo, env);
+    if (!plano) {
+      const created = await createPreapprovalPlanMP({ tipo, backUrl }, env);
+      plano = await upsertMpPlan({
+        tipo,
+        mp_plan_id: created.id,
+        init_point: created.init_point,
+        reason: created.reason,
+        amount: created.auto_recurring && created.auto_recurring.transaction_amount,
       }, env);
-    } catch (e) {
-      console.error('[mp-create-preapproval] supabase update falhou:', e.message);
-      // Nao bloqueia o checkout — paciente ainda pode pagar; webhook reconcilia depois.
     }
+
+    const checkoutUrl = buildCheckoutUrlForPlan({
+      planId: plano.mp_plan_id,
+      userId,
+      backUrl,
+    });
 
     return jsonResponse({
       ok: true,
-      init_point: preapproval.init_point,
-      preapproval_id: preapproval.id,
-      status: preapproval.status,
+      init_point: checkoutUrl,
+      plan_id: plano.mp_plan_id,
+      tipo,
     }, 200, origin, env);
   } catch (err) {
     console.error('[mp-create-preapproval] erro:', err);
     return jsonResponse(
       { ok: false, error: 'mp_error', message: String(err.message || err) },
       500, origin, env
+    );
+  }
+}
+
+// ─── /api/admin-ensure-mp-plans (v1.9.0) ─────────────────────
+// Idempotente. Cria mensal+anual se nao existem no Supabase.mp_plans.
+async function handleAdminEnsureMpPlans(env) {
+  const backUrl = 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const result = {};
+  try {
+    for (const tipo of ['mensal', 'anual']) {
+      let p = await getMpPlan(tipo, env);
+      if (!p) {
+        const created = await createPreapprovalPlanMP({ tipo, backUrl }, env);
+        p = await upsertMpPlan({
+          tipo,
+          mp_plan_id: created.id,
+          init_point: created.init_point,
+          reason: created.reason,
+          amount: created.auto_recurring && created.auto_recurring.transaction_amount,
+        }, env);
+        result[tipo] = { criado: true, mp_plan_id: p.mp_plan_id, init_point: p.init_point };
+      } else {
+        result[tipo] = { criado: false, mp_plan_id: p.mp_plan_id, init_point: p.init_point };
+      }
+    }
+    return new Response(
+      JSON.stringify({ ok: true, planos: result }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
 }

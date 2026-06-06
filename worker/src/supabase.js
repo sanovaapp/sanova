@@ -146,3 +146,32 @@ export async function generateMagicLink(email, redirectTo, env) {
   }
   return data;
 }
+
+/**
+ * v1.9.0: pega plano MP por tipo ('mensal' | 'anual').
+ * Retorna { mp_plan_id, init_point } ou null se nao existir.
+ */
+export async function getMpPlan(tipo, env) {
+  const url = SUPABASE_URL + '/rest/v1/mp_plans?tipo=eq.' + encodeURIComponent(tipo) + '&select=*';
+  const resp = await fetch(url, { headers: _headers(env) });
+  if (!resp.ok) return null;
+  const arr = await resp.json().catch(() => []);
+  return (Array.isArray(arr) && arr.length > 0) ? arr[0] : null;
+}
+
+/**
+ * v1.9.0: upsert plano MP por tipo (chave de conflito).
+ */
+export async function upsertMpPlan(row, env) {
+  const url = SUPABASE_URL + '/rest/v1/mp_plans?on_conflict=tipo';
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ..._headers(env), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(row),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error('upsertMpPlan: HTTP ' + resp.status + ' ' + JSON.stringify(data).slice(0, 200));
+  }
+  return Array.isArray(data) ? data[0] : data;
+}

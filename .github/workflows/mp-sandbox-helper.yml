@@ -24,6 +24,7 @@ on:
           - admin-magic-link-bruno
           - admin-set-email-templates
           - admin-set-auth-urls
+          - admin-ensure-mp-plans
 
 jobs:
   call-worker:

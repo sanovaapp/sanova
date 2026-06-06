@@ -186,3 +186,62 @@ export async function verifyWebhookSignature(request, body, env) {
   }
   return { ok: diff === 0, reason: diff === 0 ? 'valid' : 'mismatch' };
 }
+
+/**
+ * v1.9.0: cria preapproval_plan publico no MP (mensal ou anual).
+ * Retorna { id, init_point, ... } — id usado em /api/mp-create-preapproval
+ * pra montar URL de checkout sem amarrar payer_email.
+ *
+ * Doc: https://www.mercadopago.com.br/developers/pt/reference/subscriptions/_preapproval_plan/post
+ */
+export async function createPreapprovalPlanMP({ tipo, backUrl }, env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+
+  const planoNormalizado = (tipo === 'anual') ? 'anual' : 'mensal';
+  const auto_recurring = planoNormalizado === 'anual'
+    ? { frequency: 12, frequency_type: 'months', transaction_amount: 199.00, currency_id: 'BRL' }
+    : { frequency: 1,  frequency_type: 'months', transaction_amount: 19.90,  currency_id: 'BRL' };
+  const reason = planoNormalizado === 'anual'
+    ? 'Sanova — assinatura anual'
+    : 'Sanova — assinatura mensal';
+
+  const body = {
+    reason,
+    auto_recurring,
+    back_url: backUrl,
+    payment_methods_allowed: {
+      payment_types: [{ id: 'credit_card' }],
+      payment_methods: [],
+    },
+  };
+
+  const resp = await fetch(MP_API + '/preapproval_plan', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg = (data && data.message) ? data.message : ('HTTP ' + resp.status);
+    throw new Error('MP createPreapprovalPlan: ' + msg);
+  }
+  return data;
+}
+
+/**
+ * v1.9.0: monta URL de checkout publico do preapproval_plan.
+ * Paciente loga com QUALQUER conta MP — sem amarra de email.
+ * external_reference vai como sanova_<userId> pra webhook reconciliar.
+ */
+export function buildCheckoutUrlForPlan({ planId, userId, backUrl }) {
+  const params = new URLSearchParams({
+    preapproval_plan_id: planId,
+    external_reference: 'sanova_' + userId,
+  });
+  if (backUrl) params.set('back_url', backUrl);
+  return 'https://www.mercadopago.com.br/subscriptions/checkout?' + params.toString();
+}
