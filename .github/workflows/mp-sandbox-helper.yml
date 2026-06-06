@@ -25,6 +25,7 @@ on:
           - admin-set-email-templates
           - admin-set-auth-urls
           - admin-ensure-mp-plans
+          - admin-recreate-mp-plans
 
 jobs:
   call-worker:

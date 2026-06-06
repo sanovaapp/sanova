@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.9.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.10.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -104,6 +104,12 @@ export default {
       // nao existem na tabela mp_plans. Idempotente.
       if (url.pathname === '/api/admin-ensure-mp-plans' && request.method === 'GET') {
         return await handleAdminEnsureMpPlans(env);
+      }
+
+      // v1.10.0: FORÇA recriação dos planos no MP (mesmo se já existem
+      // no Supabase). Usado quando muda payment_methods_allowed ou amount.
+      if (url.pathname === '/api/admin-recreate-mp-plans' && request.method === 'GET') {
+        return await handleAdminRecreateMpPlans(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -331,6 +337,38 @@ async function handleAdminEnsureMpPlans(env) {
     }
     return new Response(
       JSON.stringify({ ok: true, planos: result }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-recreate-mp-plans (v1.10.0) ──────────────────
+// FORÇA recriação dos planos (mesmo se já existem no Supabase).
+// Usado quando muda payment_methods_allowed/amount/reason no MP.
+// Os planos antigos no MP ficam ativos até MP arquivar, mas
+// Supabase passa a apontar pros novos imediatamente.
+async function handleAdminRecreateMpPlans(env) {
+  const backUrl = 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const result = {};
+  try {
+    for (const tipo of ['mensal', 'anual']) {
+      const created = await createPreapprovalPlanMP({ tipo, backUrl }, env);
+      const p = await upsertMpPlan({
+        tipo,
+        mp_plan_id: created.id,
+        init_point: created.init_point,
+        reason: created.reason,
+        amount: created.auto_recurring && created.auto_recurring.transaction_amount,
+      }, env);
+      result[tipo] = { mp_plan_id: p.mp_plan_id, init_point: p.init_point };
+    }
+    return new Response(
+      JSON.stringify({ ok: true, recriado: true, planos: result, nota: 'Planos antigos no MP continuam existindo mas Supabase aponta pros novos. Proximo /api/mp-create-preapproval usa os novos.' }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err) {
