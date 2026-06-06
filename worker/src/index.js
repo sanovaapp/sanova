@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.5.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.6.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -86,6 +86,12 @@ export default {
       // pra E2E nao depender de localStorage (que sync sobrescreve).
       if (url.pathname === '/api/admin-seed-bruno-profile' && request.method === 'GET') {
         return await handleAdminSeedProfile(env);
+      }
+
+      // v1.6.0: aplica templates de email branded Sanova via Supabase Management API.
+      // Requer env.SUPABASE_MGMT_TOKEN (PAT do dashboard). Idempotente.
+      if (url.pathname === '/api/admin-set-email-templates' && request.method === 'GET') {
+        return await handleAdminSetEmailTemplates(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -550,6 +556,78 @@ async function handleAdminMagicLink(env) {
         nota: 'Link unico, valido ate 1h. Abrir em browser limpo (sem sessao).',
       }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-set-email-templates (v1.6.0) ─────────────────
+// Aplica subjects + bodies branded Sanova em todos templates de auth via
+// Supabase Management API. Requer env.SUPABASE_MGMT_TOKEN (PAT criado em
+// supabase.com/dashboard/account/tokens).
+//
+// Idempotente — pode chamar quantas vezes quiser; sobrescreve a config.
+// Project ref hardcoded (yjycpcydqfuvojfzwfvy) — escopo Sanova.
+async function handleAdminSetEmailTemplates(env) {
+  const PROJECT_REF = 'yjycpcydqfuvojfzwfvy';
+  const token = env.SUPABASE_MGMT_TOKEN;
+  if (!token) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'SUPABASE_MGMT_TOKEN nao setado no env do worker' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+
+  // Body base — verde Sanova (#1f7a3a), Arial, 🌿, footer marca.
+  const wrap = (h2, p1, btnLabel, p2) =>
+    '<h2 style="color:#1f7a3a;font-family:Arial,sans-serif">🌿 ' + h2 + '</h2>' +
+    '<p style="font-family:Arial,sans-serif;font-size:15px;color:#222">' + p1 + '</p>' +
+    '<p><a href="{{ .ConfirmationURL }}" style="background:#1f7a3a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-family:Arial,sans-serif;font-weight:bold">' + btnLabel + '</a></p>' +
+    (p2 ? '<p style="font-family:Arial,sans-serif;font-size:13px;color:#666;margin-top:24px">' + p2 + '</p>' : '') +
+    '<p style="font-family:Arial,sans-serif;font-size:12px;color:#999;margin-top:32px">🌿 Sanova — acompanhamento clínico GLP-1</p>';
+
+  const body = {
+    mailer_subjects_recovery:        '🌿 Sanova — recuperar acesso à sua conta',
+    mailer_subjects_magic_link:      '🌿 Sanova — seu link de acesso',
+    mailer_subjects_confirmation:    '🌿 Sanova — confirme seu e-mail',
+    mailer_subjects_email_change:    '🌿 Sanova — confirme seu novo e-mail',
+    mailer_subjects_invite:          '🌿 Você foi convidado para o Sanova',
+    mailer_subjects_reauthentication:'🌿 Sanova — código de verificação',
+
+    mailer_templates_recovery_content:     wrap('Sanova', 'Recebemos um pedido para redefinir sua senha do Sanova. Toque no botão abaixo para escolher uma nova:', 'Redefinir senha', 'Se você não pediu isso, pode ignorar este e-mail. Sua conta segue segura.'),
+    mailer_templates_magic_link_content:   wrap('Sanova', 'Toque para entrar sem senha. Este link é único e expira em 1 hora:', 'Entrar no Sanova', 'Se não foi você, ignore este e-mail.'),
+    mailer_templates_confirmation_content: wrap('Bem-vindo ao Sanova', 'Falta um passo pra começar. Confirme seu e-mail tocando abaixo:', 'Confirmar e-mail', ''),
+    mailer_templates_email_change_content: wrap('Sanova', 'Você pediu para trocar o e-mail da sua conta Sanova. Toque abaixo para confirmar o novo:', 'Confirmar novo e-mail', ''),
+    mailer_templates_invite_content:       wrap('Sanova', 'Você foi convidado para usar o Sanova. Toque abaixo para criar sua conta:', 'Aceitar convite', ''),
+  };
+
+  try {
+    const resp = await fetch('https://api.supabase.com/v1/projects/' + PROJECT_REF + '/config/auth', {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const txt = await resp.text();
+    let parsed;
+    try { parsed = JSON.parse(txt); } catch { parsed = txt; }
+
+    return new Response(
+      JSON.stringify({
+        ok: resp.ok,
+        http_status: resp.status,
+        management_api_response: parsed,
+        applied_subjects: Object.keys(body).filter(k => k.startsWith('mailer_subjects_')).length,
+        applied_bodies:   Object.keys(body).filter(k => k.startsWith('mailer_templates_')).length,
+        nota: resp.ok ? 'Templates aplicados. Próximo email de auth (signup/reset/magic) ja sai branded Sanova.' : 'Falhou — veja management_api_response.',
+      }, null, 2),
+      { status: resp.ok ? 200 : 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err) {
     return new Response(

@@ -21,6 +21,8 @@ on:
           - health
           - admin-simulate-active
           - admin-revert-trial
+          - admin-magic-link-bruno
+          - admin-set-email-templates
 
 jobs:
   call-worker:
