@@ -1,0 +1,65 @@
+name: Set Supabase Mgmt Token + Apply Email Templates
+
+# Workflow one-shot pra:
+#  1) Setar SUPABASE_MGMT_TOKEN como secret do Worker Cloudflare (via wrangler)
+#  2) Disparar /api/admin-set-email-templates pra aplicar templates branded
+#
+# O token vai como input mascarado (logs com ::add-mask::). Apos run, o
+# valor fica so como secret do Cloudflare (criptografado).
+#
+# ATENCAO: Bruno ainda deveria setar SUPABASE_MGMT_TOKEN como GitHub Secret
+# para deploys futuros (deploy-worker.yml re-injeta secrets a cada deploy).
+# Esse workflow resolve a aplicacao imediata, nao a persistencia.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mgmt_token:
+        description: 'Personal Access Token Supabase (sbp_...)'
+        required: true
+        type: string
+
+jobs:
+  set-and-apply:
+    runs-on: ubuntu-latest
+    name: Set secret + apply templates
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mask token in logs
+        run: echo "::add-mask::${{ github.event.inputs.mgmt_token }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install worker deps
+        working-directory: worker
+        run: npm ci
+
+      - name: Set SUPABASE_MGMT_TOKEN as Worker secret
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MGMT_TOKEN: ${{ github.event.inputs.mgmt_token }}
+        run: |
+          echo "$MGMT_TOKEN" | npx wrangler secret put SUPABASE_MGMT_TOKEN
+
+      - name: Apply email templates via Worker endpoint
+        run: |
+          set -e
+          BASE="https://sanova-api.contatosanovaapp.workers.dev"
+          echo "## Chamando $BASE/api/admin-set-email-templates" | tee -a $GITHUB_STEP_SUMMARY
+          RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" "$BASE/api/admin-set-email-templates")
+          echo "$RESPONSE"
+          {
+            echo "## Resposta do Worker"
+            echo ''
+            echo '```json'
+            echo "$RESPONSE"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
