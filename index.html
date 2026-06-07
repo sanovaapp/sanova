@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.11';
+var SANOVA_VERSION = '3.10.12';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21332,9 +21332,19 @@ window.addEventListener('beforeunload',function(){
       .replace(/[^a-z0-9\s,\.]/g,' ')
       .replace(/\s+/g,' ').trim();
   }
-  function _setResultado(alimentos, totais){
+  function _setResultado(alimentos, totais, comFoto){
     window._pratoResultados = alimentos || [];
     window._pratoTotais = totais || {kcal:0,proteina:0,carbo:0,gordura:0};
+    // v3.10.12: limpa foto se entrada foi Voz/Texto pra não vazar foto antiga
+    var img = document.getElementById('fotoPratoImg2');
+    if(img){
+      if(comFoto){
+        img.style.display = '';
+      } else {
+        img.style.display = 'none';
+        img.src = '';
+      }
+    }
     if(window._pratoResultados.length){
       if(typeof renderizarResultadoPrato === 'function') renderizarResultadoPrato();
       if(typeof pratoSetEstado === 'function') pratoSetEstado('resultado');
@@ -21524,7 +21534,7 @@ window.addEventListener('beforeunload',function(){
       var data=await resp.json();
       if(data && Array.isArray(data.alimentos) && data.alimentos.length){
         var t=data.totais||{};
-        _setResultado(data.alimentos,{kcal:_num(t.kcal),proteina:_num(t.proteina),carbo:_num(t.carbo),gordura:_num(t.gordura)});
+        _setResultado(data.alimentos,{kcal:_num(t.kcal),proteina:_num(t.proteina),carbo:_num(t.carbo),gordura:_num(t.gordura)}, true);
       }else{
         if(typeof mostrarErroPrato === 'function') mostrarErroPrato('Não consegui identificar o prato. Tire outra foto com boa luz, prato inteiro visível e sem zoom.');
       }
