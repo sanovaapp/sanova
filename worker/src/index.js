@@ -17,7 +17,7 @@
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
-import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan } from './supabase.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.10.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.11.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -110,6 +110,12 @@ export default {
       // no Supabase). Usado quando muda payment_methods_allowed ou amount.
       if (url.pathname === '/api/admin-recreate-mp-plans' && request.method === 'GET') {
         return await handleAdminRecreateMpPlans(env);
+      }
+
+      // v1.11.0: lista as N subscriptions mais recentes (debug pos-pagamento).
+      // Sem CORS check — endpoint só usado por Bruno via workflow gateway.
+      if (url.pathname === '/api/admin-recent-subscriptions' && request.method === 'GET') {
+        return await handleAdminRecentSubscriptions(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -370,6 +376,25 @@ async function handleAdminRecreateMpPlans(env) {
     return new Response(
       JSON.stringify({ ok: true, recriado: true, planos: result, nota: 'Planos antigos no MP continuam existindo mas Supabase aponta pros novos. Proximo /api/mp-create-preapproval usa os novos.' }, null, 2),
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-recent-subscriptions (v1.11.0) ───────────────
+// Lista últimas 10 rows de subscriptions com email do paciente.
+// Usado pra validar webhook MP em produção (ex: confirmar que
+// pagamento real virou status='active' na tabela).
+async function handleAdminRecentSubscriptions(env) {
+  try {
+    const result = await listRecentSubscriptions(10, env);
+    return new Response(
+      JSON.stringify(result, null, 2),
+      { status: result.ok ? 200 : 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (err) {
     return new Response(

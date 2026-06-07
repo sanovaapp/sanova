@@ -175,3 +175,43 @@ export async function upsertMpPlan(row, env) {
   }
   return Array.isArray(data) ? data[0] : data;
 }
+
+/**
+ * v1.11.0: lista as N subscriptions mais recentes (pra debug admin).
+ * Junta auth.users via PostgREST embed pra trazer email.
+ */
+export async function listRecentSubscriptions(limit, env) {
+  const url = SUPABASE_URL + '/rest/v1/subscriptions?select=*&order=updated_at.desc&limit=' + (limit || 10);
+  const resp = await fetch(url, { headers: _headers(env) });
+  if (!resp.ok) {
+    return { ok: false, error: 'HTTP ' + resp.status };
+  }
+  const rows = await resp.json().catch(() => []);
+  // Para cada user_id, busca email via admin API (n+1 burro mas baixo volume)
+  const out = [];
+  for (const r of rows) {
+    let email = null;
+    try {
+      const u = await fetch(SUPABASE_URL + '/auth/v1/admin/users/' + r.user_id, {
+        headers: _headers(env),
+      });
+      if (u.ok) {
+        const ud = await u.json().catch(() => null);
+        email = ud && ud.email ? ud.email : null;
+      }
+    } catch {}
+    out.push({
+      user_id_curto: r.user_id ? r.user_id.slice(0, 8) + '...' : null,
+      email,
+      status: r.status,
+      trial_started_at: r.trial_started_at,
+      trial_ends_at: r.trial_ends_at,
+      subscription_started_at: r.subscription_started_at,
+      subscription_ends_at: r.subscription_ends_at,
+      mp_preapproval_id: r.mp_preapproval_id,
+      mp_subscription_id: r.mp_subscription_id,
+      updated_at: r.updated_at,
+    });
+  }
+  return { ok: true, count: out.length, subscriptions: out };
+}
