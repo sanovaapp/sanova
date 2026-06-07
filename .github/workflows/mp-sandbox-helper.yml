@@ -27,6 +27,7 @@ on:
           - admin-ensure-mp-plans
           - admin-recreate-mp-plans
           - admin-recent-subscriptions
+          - admin-reconcile-subscriptions
 
 jobs:
   call-worker:
