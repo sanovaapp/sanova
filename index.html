@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.12';
+var SANOVA_VERSION = '3.10.13';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13727,6 +13727,9 @@ function renderPilares(){
 
   // ============ FRASE CONTEXTUAL NO TOPO ============
   // v3.1.11: lógica honesta — não celebra excesso calórico, prioriza alertas reais
+  // v3.10.13: detecta álcool registrado como alimento (vinho/cerveja/destilado/drink)
+  // e diferencia 3 cenários clínicos: estouro pelo álcool com/sem proteína OK, e
+  // álcool roubando o lugar da proteína sem estouro.
   var fraseEl = document.getElementById('pilaresFrase');
   if(fraseEl){
     var msg = '';
@@ -13734,8 +13737,42 @@ function renderPilares(){
     var kcalExcessoPct = (kcalMeta > 0 && kcalHoje > 0) ? Math.round((kcalHoje / kcalMeta) * 100) : 0;
     var kcalLimite = kcalMeta + 400; // tolerância de manutenção
 
+    // v3.10.13: kcal de álcool — soma do card "Álcool" + alimentos das refeições
+    // que casam com palavras-chave (vinho, cerveja, destilado, drink, etc).
+    var kcalAlcoolCard = (typeof calcKcalAlcool === 'function') ? calcKcalAlcool(dh) : 0;
+    var ALC_RE = /\b(vinho|cerveja|chopp|chope|lager|ipa|pilsen|weiss|stout|brahma|skol|antarctica|heineken|budweiser|corona|original|eisenbahn|malbec|cabernet|merlot|syrah|chardonnay|prosecco|champ|espumante|whisk|bourbon|scotch|vodka|smirnoff|absolut|cacha[çc]a|pinga|gin|tanqueray|bombay|rum|bacardi|tequila|mezcal|caipirinha|caipiroska|mojito|margarita|daiquiri|negroni|conhaque|brandy|licor|sak[êe]|drink|coquetel)\b/i;
+    var kcalAlcoolRefs = 0;
+    (dh && dh.refeicoes || []).forEach(function(r){
+      (r.alimentos || []).forEach(function(a){
+        if(a && a.nome && ALC_RE.test(a.nome)){
+          // a.kcal não existe sempre; usa proporcional da refeição
+          var protAlim = Number(a.proteina) || 0;
+          var protRef  = Number(r.totalProt) || 0;
+          var kcalRef  = Number(r.totalKcal) || 0;
+          // bebida tem ~0g prot; aproxima kcal do item como (kcalRef - kcalRefSemEssaBebida).
+          // Heurística: se o alimento tem 0g prot, conta TODA a kcal da refeição se ela só tem essa bebida; senão divide igualmente.
+          var alimentos = r.alimentos || [];
+          if(alimentos.length === 1) kcalAlcoolRefs += kcalRef;
+          else kcalAlcoolRefs += Math.round(kcalRef / alimentos.length);
+        }
+      });
+    });
+    var kcalAlcool = kcalAlcoolCard + kcalAlcoolRefs;
+    var alcoolPctDoDia = (kcalHoje > 0) ? (kcalAlcool / kcalHoje) : 0;
+    var alcoolPesado = kcalAlcool > 200 && alcoolPctDoDia >= 0.25;
+
+    // v3.10.13: cenários clínicos com álcool — acolhedor mas honesto
+    if(alcoolPesado && kcalHoje > kcalLimite && protPct < 80){
+      msg = '⚠️ <strong style="color:#fcd34d">' + Math.round(kcalAlcool) + ' kcal de álcool</strong> hoje (' + Math.round(alcoolPctDoDia*100) + '% do dia) e proteína em ' + protPct + '%. Sem proteína suficiente, o corpo pode degradar massa magra mesmo com calorias sobrando. Amanhã: comida de verdade, água, sem culpa pelo hoje. 🌿';
+    }
+    else if(alcoolPesado && kcalHoje > kcalLimite && protPct >= 80){
+      msg = 'Estouro hoje veio do álcool (' + Math.round(kcalAlcool) + ' kcal). Boa que a <strong style="color:#86efac">proteína bateu</strong> — massa magra protegida. Amanhã: água em dia e segue o ritmo. 🌿';
+    }
+    else if(alcoolPesado && protPct < 80){
+      msg = '⚠️ Álcool tomou o lugar do alimento (<strong style="color:#fcd34d">' + Math.round(kcalAlcool) + ' kcal de álcool, ' + Math.round((dh && dh.proteinG)||0) + 'g de proteína</strong>). Corpo precisa de aminoácido pra construir músculo. Amanhã prioriza proteína. 🌿';
+    }
     // ⚠️ Excesso calórico — PRIORIDADE MAXIMA (paciente precisa saber)
-    if(kcalHoje > 0 && kcalHoje > kcalLimite){
+    else if(kcalHoje > 0 && kcalHoje > kcalLimite){
       msg = '⚠️ <strong style="color:#fcd34d">' + kcalHoje + ' kcal hoje</strong> — acima da meta (' + kcalMeta + '). Pode comprometer o déficit da semana.';
     }
     else if(kcalHoje > 0 && kcalHoje > kcalMeta + 100){
