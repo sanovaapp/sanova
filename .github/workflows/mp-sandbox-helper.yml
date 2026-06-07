@@ -26,6 +26,7 @@ on:
           - admin-set-auth-urls
           - admin-ensure-mp-plans
           - admin-recreate-mp-plans
+          - admin-recent-subscriptions
 
 jobs:
   call-worker:
