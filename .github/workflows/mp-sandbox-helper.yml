@@ -28,6 +28,7 @@ on:
           - admin-recreate-mp-plans
           - admin-recent-subscriptions
           - admin-reconcile-subscriptions
+          - admin-debug-mp-state
 
 jobs:
   call-worker:

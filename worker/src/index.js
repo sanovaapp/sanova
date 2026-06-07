@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.12.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.13.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -124,6 +124,12 @@ export default {
       // gravou ID mas não atualizou status (race / webhook perdido).
       if (url.pathname === '/api/admin-reconcile-subscriptions' && request.method === 'GET') {
         return await handleAdminReconcileSubscriptions(env);
+      }
+
+      // v1.13.0: retorna preapprovals + payments raw do MP. Debug profundo
+      // pra entender por que esposa pagou mas preapproval ficou pending.
+      if (url.pathname === '/api/admin-debug-mp-state' && request.method === 'GET') {
+        return await handleAdminDebugMpState(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -409,6 +415,66 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-debug-mp-state (v1.13.0) ─────────────────────
+// Retorna preapprovals raw + payments associados (search por
+// external_reference) pra debug profundo. Pra entender estado real
+// no MP quando webhook nao trouxe paciente pra active.
+async function handleAdminDebugMpState(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  const out = [];
+  try {
+    const subs = await listRecentSubscriptions(20, env);
+    const alvos = (subs.subscriptions || []).filter(s =>
+      s.mp_preapproval_id && !s.mp_preapproval_id.startsWith('admin-simulated-')
+    );
+    for (const s of alvos) {
+      const item = { email: s.email, supabase_status: s.status, mp_preapproval_id: s.mp_preapproval_id };
+      try {
+        const pa = await getPreapproval(s.mp_preapproval_id, env);
+        item.preapproval_raw = {
+          id: pa.id,
+          status: pa.status,
+          payer_id: pa.payer_id,
+          payer_email: pa.payer_email,
+          external_reference: pa.external_reference,
+          preapproval_plan_id: pa.preapproval_plan_id,
+          date_created: pa.date_created,
+          last_modified: pa.last_modified,
+          next_payment_date: pa.next_payment_date,
+          summarized: pa.summarized,
+          auto_recurring: pa.auto_recurring,
+        };
+      } catch (e) { item.preapproval_erro = String(e.message || e); }
+      // busca payments por external_reference
+      try {
+        const userIdSeg = await _resolveUserId({ external_reference: s.mp_preapproval_id && (item.preapproval_raw && item.preapproval_raw.external_reference) }, env);
+        const extRef = (item.preapproval_raw && item.preapproval_raw.external_reference) || ('sanova_' + (userIdSeg || ''));
+        const r = await fetch('https://api.mercadopago.com/v1/payments/search?external_reference=' + encodeURIComponent(extRef), {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (r.ok) {
+          const pj = await r.json().catch(() => ({}));
+          item.payments = (pj.results || []).map(p => ({
+            id: p.id, status: p.status, status_detail: p.status_detail,
+            transaction_amount: p.transaction_amount, date_approved: p.date_approved,
+            external_reference: p.external_reference, payer_email: p.payer && p.payer.email,
+          }));
+        } else { item.payments_erro = 'HTTP ' + r.status; }
+      } catch (e) { item.payments_erro = String(e.message || e); }
+      out.push(item);
+    }
+    return new Response(JSON.stringify({ ok: true, debug: out }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: out }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 
