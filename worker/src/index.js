@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.11.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.12.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -116,6 +116,14 @@ export default {
       // Sem CORS check — endpoint só usado por Bruno via workflow gateway.
       if (url.pathname === '/api/admin-recent-subscriptions' && request.method === 'GET') {
         return await handleAdminRecentSubscriptions(env);
+      }
+
+      // v1.12.0: reconcilia status das subscriptions consultando o MP.
+      // Para cada subscription com mp_preapproval_id, pega o status real
+      // na API do MP e atualiza no Supabase. Resolve casos onde webhook
+      // gravou ID mas não atualizou status (race / webhook perdido).
+      if (url.pathname === '/api/admin-reconcile-subscriptions' && request.method === 'GET') {
+        return await handleAdminReconcileSubscriptions(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -399,6 +407,68 @@ async function handleAdminRecentSubscriptions(env) {
   } catch (err) {
     return new Response(
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
+// ─── /api/admin-reconcile-subscriptions (v1.12.0) ────────────
+// Pega as ultimas N subscriptions que tem mp_preapproval_id mas
+// status nao-active. Consulta status real no MP e atualiza.
+async function handleAdminReconcileSubscriptions(env) {
+  const log = [];
+  try {
+    const result = await listRecentSubscriptions(20, env);
+    if (!result.ok) {
+      return new Response(JSON.stringify({ ok: false, error: result.error }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+    // só processa quem tem preapproval real (não admin-simulated) e status nao-active
+    const alvos = result.subscriptions.filter(s =>
+      s.mp_preapproval_id &&
+      !s.mp_preapproval_id.startsWith('admin-simulated-') &&
+      s.status !== 'active'
+    );
+    for (const s of alvos) {
+      try {
+        const pa = await getPreapproval(s.mp_preapproval_id, env);
+        const novoStatus = pa.status === 'authorized' ? 'active'
+                         : (pa.status === 'cancelled' || pa.status === 'paused') ? 'canceled'
+                         : 'trial';
+        const userId = await _resolveUserId(pa, env);
+        const update = { status: novoStatus, mp_preapproval_id: pa.id };
+        if (novoStatus === 'active') {
+          update.subscription_started_at = pa.date_created || new Date().toISOString();
+        }
+        if (userId) {
+          await updateSubscriptionByUser(userId, update, env);
+        } else {
+          await updateSubscriptionByPreapproval(pa.id, update, env);
+        }
+        log.push({
+          email: s.email,
+          mp_preapproval_id: s.mp_preapproval_id,
+          mp_status: pa.status,
+          status_anterior: s.status,
+          status_novo: novoStatus,
+          atualizado: true,
+        });
+      } catch (err) {
+        log.push({
+          email: s.email,
+          mp_preapproval_id: s.mp_preapproval_id,
+          atualizado: false,
+          erro: String(err.message || err),
+        });
+      }
+    }
+    return new Response(
+      JSON.stringify({ ok: true, total_processados: alvos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err), log }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   }
