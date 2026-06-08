@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.14';
+var SANOVA_VERSION = '3.10.15';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21700,7 +21700,12 @@ window.addEventListener('beforeunload',function(){
     limparMsg();
     try{
       if(modoCriar){
-        var r = await sb.auth.signUp({ email: email, password: pass });
+        // v3.10.15: emailRedirectTo explicito pra confirmacao cair em /sanova/
+        var r = await sb.auth.signUp({
+          email: email,
+          password: pass,
+          options: { emailRedirectTo: window.location.origin + '/sanova/' }
+        });
         if(r.error) throw r.error;
         // v3.9.3: analytics — user_signup (email NÃO é enviado, só id e UTM via super-props)
         try{
@@ -21741,15 +21746,21 @@ window.addEventListener('beforeunload',function(){
   };
 
   // Recuperação de senha
+  // v3.10.15: passa redirectTo EXPLICITO. Sem isso, Supabase usa site_url
+  // default que ignora o path /sanova/ — link de reset caía em raiz e dava 404.
   window.agReset = async function(){
     if(!sb && !initSB()){ msg('Carregando... tente de novo.'); return; }
     var email = (elAG('agEmail').value||'').trim();
     if(!email){ msg('Digite seu e-mail no campo acima primeiro.'); return; }
     try{
-      var r = await sb.auth.resetPasswordForEmail(email);
+      var redirectTo = window.location.origin + '/sanova/';
+      var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo });
       if(r.error) throw r.error;
       msg('Enviamos um link de recuperação para seu e-mail.', 'ok');
-    }catch(e){ msg('Não consegui enviar agora. Tente mais tarde.'); }
+    }catch(e){
+      console.error('[Auth] resetPasswordForEmail erro:', e);
+      msg('Não consegui enviar agora. Tente mais tarde.');
+    }
   };
 
   // Quando loga com sucesso: puxa dados da nuvem e libera o app
