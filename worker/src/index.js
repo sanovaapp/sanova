@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.19.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.19.1' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -479,28 +479,31 @@ async function handleAdminReconcileFinal(env) {
         const paInicial = await getPreapproval(s.mp_preapproval_id, env);
         const extRef = paInicial.external_reference || '';
         const userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
-        const planId = paInicial.preapproval_plan_id;
         const created = paInicial.date_created;
+        const amount = paInicial.auto_recurring && paInicial.auto_recurring.transaction_amount;
         item.user_id_curto = userId ? userId.slice(0, 8) + '...' : null;
-        item.plan_id = planId;
+        item.amount = amount;
         item.preapproval_inicial_status = paInicial.status;
-        if (!userId || !planId || !created) {
-          item.nota = 'sem user_id/plan_id/date — pula';
+        if (!userId || !created) {
+          item.nota = 'sem user_id/date — pula';
           log.push(item); continue;
         }
-        // Busca preapprovals authorized do mesmo plan na janela [-1h, +24h]
+        // v1.19.1: a inicial pending nao tem plan_id; filtra so por timestamp + amount
         const t0 = new Date(created); t0.setHours(t0.getHours() - 1);
         const t1 = new Date(created); t1.setHours(t1.getHours() + 24);
         const searchUrl = 'https://api.mercadopago.com/preapproval/search'
           + '?status=authorized'
-          + '&preapproval_plan_id=' + encodeURIComponent(planId)
           + '&date_created_from=' + t0.toISOString()
           + '&date_created_to=' + t1.toISOString()
-          + '&limit=20';
+          + '&limit=50';
         const r = await fetch(searchUrl, { headers: { 'Authorization': 'Bearer ' + token } });
         if (!r.ok) { item.nota = 'search HTTP ' + r.status; log.push(item); continue; }
         const sj = await r.json().catch(() => ({}));
-        const candidatos = sj.results || [];
+        let candidatos = sj.results || [];
+        // filtra por amount igual
+        if (amount) {
+          candidatos = candidatos.filter(c => c.auto_recurring && c.auto_recurring.transaction_amount === amount);
+        }
         item.candidatos_count = candidatos.length;
         // pega a mais proxima no tempo
         const init = new Date(created).getTime();
