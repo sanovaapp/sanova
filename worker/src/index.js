@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.19.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.20.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -166,6 +166,13 @@ export default {
       // a preapproval autorizada (sem external_reference) via plano + timestamp.
       if (url.pathname === '/api/admin-reconcile-final' && request.method === 'GET') {
         return await handleAdminReconcileFinal(env);
+      }
+
+      // v1.20.0: cleanup falsos positivos do reconcile-final v1. Pra cada
+      // subscription active, confirma no MP que charged_quantity > 0. Se
+      // não, reverte pra trial.
+      if (url.pathname === '/api/admin-cleanup-false-positives' && request.method === 'GET') {
+        return await handleAdminCleanupFalsePositives(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -454,6 +461,61 @@ async function handleAdminRecentSubscriptions(env) {
   }
 }
 
+// ─── /api/admin-cleanup-false-positives (v1.20.0) ────────────
+// Pra cada sub status=active com mp_preapproval_id real (nao admin),
+// confirma no MP via summarized.charged_quantity. Se zero, reverte
+// pra trial. Resolve falsos positivos do reconcile-final v1.
+async function handleAdminCleanupFalsePositives(env) {
+  const log = [];
+  try {
+    const subs = await listRecentSubscriptions(20, env);
+    const candidatos = (subs.subscriptions || []).filter(s =>
+      s.status === 'active' &&
+      s.mp_preapproval_id &&
+      !s.mp_preapproval_id.startsWith('admin-simulated-')
+    );
+    for (const s of candidatos) {
+      const item = { email: s.email, mp_preapproval_id: s.mp_preapproval_id };
+      try {
+        const pa = await getPreapproval(s.mp_preapproval_id, env);
+        const charged = (pa.summarized && pa.summarized.charged_quantity) || 0;
+        const chargedAmount = (pa.summarized && pa.summarized.charged_amount) || 0;
+        item.charged_quantity = charged;
+        item.charged_amount = chargedAmount;
+        item.mp_status = pa.status;
+        if (charged > 0 && chargedAmount > 0) {
+          item.acao = 'mantido (paga real)';
+        } else {
+          // resolve user_id via external_reference (pode estar na preapproval inicial via Supabase)
+          const userId = await _resolveUserId(pa, env) || null;
+          // se nao conseguiu via preapproval real, usa email -> user
+          const finalUserId = userId || (await findUserByEmail(s.email, env));
+          if (finalUserId) {
+            await updateSubscriptionByUser(finalUserId, {
+              status: 'trial',
+              mp_preapproval_id: null,
+              subscription_started_at: null,
+              subscription_ends_at: null,
+            }, env);
+            item.acao = 'revertido pra trial (sem pagamento real)';
+          } else {
+            item.acao = 'sem user_id — manual';
+          }
+        }
+        log.push(item);
+      } catch (err) {
+        item.erro = String(err.message || err);
+        log.push(item);
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, total: candidatos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+}
+
 // ─── /api/admin-reconcile-final (v1.19.0) ────────────────────
 // FIX DEFINITIVO: cada subscription com mp_preapproval_id pending
 // → preapproval inicial tem external_reference (sanova_<userId>)
@@ -472,6 +534,10 @@ async function handleAdminReconcileFinal(env) {
       s.mp_preapproval_id &&
       !s.mp_preapproval_id.startsWith('admin-simulated-') &&
       s.status !== 'active'
+    );
+    // v1.20.0: rastreia IDs reais já usados por outras subscriptions (mesmo deste run)
+    const realIdsUsados = new Set(
+      (subs.subscriptions || []).filter(s => s.status === 'active' && s.mp_preapproval_id).map(s => s.mp_preapproval_id)
     );
     for (const s of alvos) {
       const item = { email: s.email, mp_preapproval_id_inicial: s.mp_preapproval_id };
@@ -510,6 +576,19 @@ async function handleAdminReconcileFinal(env) {
         candidatos.sort((a, b) => Math.abs(new Date(a.date_created).getTime() - init) - Math.abs(new Date(b.date_created).getTime() - init));
         const matched = candidatos[0];
         if (!matched) { item.nota = 'nenhuma preapproval authorized casa'; log.push(item); continue; }
+        // v1.20.0: se já foi atribuído a outra sub, pula (evita falso positivo)
+        if (realIdsUsados.has(matched.id)) {
+          item.nota = 'preapproval real já atribuída a outra subscription — pula';
+          item.mp_preapproval_id_real = matched.id;
+          log.push(item); continue;
+        }
+        // v1.20.0: exige pagamento real (charged_quantity > 0)
+        const charged = (matched.summarized && matched.summarized.charged_quantity) || 0;
+        if (charged < 1) {
+          item.nota = 'preapproval authorized mas sem cobrança real ainda';
+          item.mp_preapproval_id_real = matched.id;
+          log.push(item); continue;
+        }
         item.mp_preapproval_id_real = matched.id;
         item.matched_amount = matched.summarized && matched.summarized.charged_amount;
         item.matched_date = matched.date_created;
@@ -518,6 +597,7 @@ async function handleAdminReconcileFinal(env) {
           mp_preapproval_id: matched.id,
           subscription_started_at: (matched.summarized && matched.summarized.last_charged_date) || matched.date_created || new Date().toISOString(),
         }, env);
+        realIdsUsados.add(matched.id);
         item.atualizado = 'active';
         log.push(item);
       } catch (err) {
