@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.20.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.21.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -173,6 +173,13 @@ export default {
       // não, reverte pra trial.
       if (url.pathname === '/api/admin-cleanup-false-positives' && request.method === 'GET') {
         return await handleAdminCleanupFalsePositives(env);
+      }
+
+      // v1.21.0: cleanup CORRETO — pra cada active, busca preapprovals do
+      // user via external_reference=sanova_<userId>. Só confirma se HOUVER
+      // preapproval authorized COM charged_quantity > 0 dessa busca.
+      if (url.pathname === '/api/admin-cleanup-v2' && request.method === 'GET') {
+        return await handleAdminCleanupV2(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -458,6 +465,74 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-cleanup-v2 (v1.21.0) ─────────────────────────
+// Cleanup CORRETO. Pra cada sub active, busca preapprovals com
+// external_reference=sanova_<userId>. Se houver authorized + charged
+// > 0, confirma com esse ID. Senão, reverte pra trial.
+async function handleAdminCleanupV2(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  const log = [];
+  try {
+    const subs = await listRecentSubscriptions(20, env);
+    const candidatos = (subs.subscriptions || []).filter(s =>
+      s.status === 'active' &&
+      s.mp_preapproval_id &&
+      !s.mp_preapproval_id.startsWith('admin-simulated-')
+    );
+    for (const s of candidatos) {
+      const item = { email: s.email, mp_preapproval_id_anterior: s.mp_preapproval_id };
+      try {
+        const userId = await findUserByEmail(s.email, env);
+        if (!userId) { item.nota = 'user nao encontrado por email'; log.push(item); continue; }
+        item.user_id_curto = userId.slice(0, 8) + '...';
+        // search por preapprovals com external_reference UNICO
+        const extRef = 'sanova_' + userId;
+        const r = await fetch('https://api.mercadopago.com/preapproval/search?external_reference=' + encodeURIComponent(extRef) + '&limit=10', {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!r.ok) { item.nota = 'search HTTP ' + r.status; log.push(item); continue; }
+        const j = await r.json().catch(() => ({}));
+        const minhas = j.results || [];
+        item.preapprovals_encontradas = minhas.map(p => ({
+          id: p.id,
+          status: p.status,
+          charged: p.summarized && p.summarized.charged_quantity || 0,
+        }));
+        const real = minhas.find(p => p.status === 'authorized' && p.summarized && p.summarized.charged_quantity > 0);
+        if (real) {
+          await updateSubscriptionByUser(userId, {
+            status: 'active',
+            mp_preapproval_id: real.id,
+            subscription_started_at: (real.summarized && real.summarized.last_charged_date) || real.date_created,
+          }, env);
+          item.acao = 'mantido active com ID real ' + real.id;
+        } else {
+          await updateSubscriptionByUser(userId, {
+            status: 'trial',
+            mp_preapproval_id: null,
+            subscription_started_at: null,
+            subscription_ends_at: null,
+          }, env);
+          item.acao = 'revertido pra trial (sem cobranca real)';
+        }
+        log.push(item);
+      } catch (err) {
+        item.erro = String(err.message || err);
+        log.push(item);
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, total: candidatos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 
