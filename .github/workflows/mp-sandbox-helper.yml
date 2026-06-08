@@ -29,6 +29,7 @@ on:
           - admin-recent-subscriptions
           - admin-reconcile-subscriptions
           - admin-debug-mp-state
+          - admin-reconcile-via-preapproval-id
 
 jobs:
   call-worker:

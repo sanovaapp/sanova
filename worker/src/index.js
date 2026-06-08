@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.13.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.14.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -130,6 +130,13 @@ export default {
       // pra entender por que esposa pagou mas preapproval ficou pending.
       if (url.pathname === '/api/admin-debug-mp-state' && request.method === 'GET') {
         return await handleAdminDebugMpState(env);
+      }
+
+      // v1.14.0: reconcilia subscriptions buscando payments por preapproval_id
+      // (em vez de external_reference, que MP nao copia do plano pro payment).
+      // Resolve o caso real da esposa do Bruno (Claudia Cogo) em produção.
+      if (url.pathname === '/api/admin-reconcile-via-preapproval-id' && request.method === 'GET') {
+        return await handleAdminReconcileViaPreapprovalId(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -418,6 +425,77 @@ async function handleAdminRecentSubscriptions(env) {
   }
 }
 
+// ─── /api/admin-reconcile-via-preapproval-id (v1.14.0) ───────
+// Pra cada subscription com mp_preapproval_id pending no Supabase,
+// busca payments via /v1/payments/search?preapproval_id=X. Se algum
+// 'approved', marca subscription active. Resolve o caso real:
+// MP não copia external_reference do plano pro payment individual.
+async function handleAdminReconcileViaPreapprovalId(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  const log = [];
+  try {
+    const subs = await listRecentSubscriptions(20, env);
+    const alvos = (subs.subscriptions || []).filter(s =>
+      s.mp_preapproval_id &&
+      !s.mp_preapproval_id.startsWith('admin-simulated-') &&
+      s.status !== 'active'
+    );
+    for (const s of alvos) {
+      try {
+        // busca payments associados a essa preapproval
+        const r = await fetch('https://api.mercadopago.com/v1/payments/search?preapproval_id=' + encodeURIComponent(s.mp_preapproval_id), {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!r.ok) {
+          log.push({ email: s.email, mp_preapproval_id: s.mp_preapproval_id, ok: false, erro: 'HTTP ' + r.status });
+          continue;
+        }
+        const pj = await r.json().catch(() => ({}));
+        const payments = pj.results || [];
+        const approved = payments.find(p => p.status === 'approved');
+        const item = {
+          email: s.email,
+          mp_preapproval_id: s.mp_preapproval_id,
+          total_payments: payments.length,
+          payments_resumo: payments.map(p => ({ id: p.id, status: p.status, amount: p.transaction_amount, date_approved: p.date_approved })),
+        };
+        if (approved) {
+          // pega user_id via external_reference da preapproval
+          const pa = await getPreapproval(s.mp_preapproval_id, env);
+          const userId = await _resolveUserId(pa, env);
+          const update = {
+            status: 'active',
+            mp_preapproval_id: s.mp_preapproval_id,
+            subscription_started_at: approved.date_approved || pa.date_created || new Date().toISOString(),
+          };
+          if (userId) {
+            await updateSubscriptionByUser(userId, update, env);
+          } else {
+            await updateSubscriptionByPreapproval(s.mp_preapproval_id, update, env);
+          }
+          item.atualizado = 'active';
+          item.payment_aprovado_id = approved.id;
+        } else {
+          item.atualizado = false;
+          item.nota = 'Nenhum payment approved encontrado';
+        }
+        log.push(item);
+      } catch (err) {
+        log.push({ email: s.email, mp_preapproval_id: s.mp_preapproval_id, erro: String(err.message || err) });
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, total: alvos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+}
+
 // ─── /api/admin-debug-mp-state (v1.13.0) ─────────────────────
 // Retorna preapprovals raw + payments associados (search por
 // external_reference) pra debug profundo. Pra entender estado real
@@ -598,20 +676,39 @@ async function handleMpWebhook(request, env) {
     }
 
     // ── PAYMENT (cobranca recorrente confirmada) ──
+    // v1.14.0: MP nao copia external_reference do preapproval_plan pro payment
+    // individual. Usa preapproval_id como fallback pra achar o user_id.
     if (type === 'payment' || type === 'subscription_authorized_payment') {
       const pay = await getPayment(dataId, env);
-      // pay.status: approved | rejected | refunded | charged_back ...
-      // Vincular pelo external_reference (sanova_<user_id>) se presente
       const extRef = pay.external_reference || '';
-      const userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
+      let userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
 
-      if (pay.status === 'approved' && userId) {
-        await updateSubscriptionByUser(userId, {
+      // Fallback v1.14.0: se sem external_reference, busca pela preapproval
+      let preapprovalId = pay.preapproval_id || null;
+      if (!userId && preapprovalId) {
+        try {
+          const pa = await getPreapproval(preapprovalId, env);
+          userId = await _resolveUserId(pa, env);
+        } catch (e) { console.warn('[mp-webhook] getPreapproval fallback falhou:', e.message); }
+      }
+
+      if (pay.status === 'approved') {
+        const update = {
           status: 'active',
           subscription_started_at: pay.date_approved || new Date().toISOString(),
-        }, env);
-      } else if ((pay.status === 'refunded' || pay.status === 'charged_back') && userId) {
-        await updateSubscriptionByUser(userId, { status: 'canceled' }, env);
+        };
+        if (preapprovalId) update.mp_preapproval_id = preapprovalId;
+        if (userId) {
+          await updateSubscriptionByUser(userId, update, env);
+        } else if (preapprovalId) {
+          await updateSubscriptionByPreapproval(preapprovalId, update, env);
+        }
+      } else if (pay.status === 'refunded' || pay.status === 'charged_back') {
+        if (userId) {
+          await updateSubscriptionByUser(userId, { status: 'canceled' }, env);
+        } else if (preapprovalId) {
+          await updateSubscriptionByPreapproval(preapprovalId, { status: 'canceled' }, env);
+        }
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
