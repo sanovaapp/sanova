@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.17.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.18.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -155,6 +155,11 @@ export default {
       // point_of_interaction.transaction_data.subscription_id (ID REAL).
       if (url.pathname === '/api/admin-reconcile-via-payments' && request.method === 'GET') {
         return await handleAdminReconcileViaPayments(env);
+      }
+
+      // v1.18.0: pega preapproval REAL ce7d87ef (Claudia) com tudo.
+      if (url.pathname === '/api/admin-debug-cogo-real' && request.method === 'GET') {
+        return await handleAdminDebugCogoReal(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -440,6 +445,28 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-debug-cogo-real (v1.18.0) ────────────────────
+async function handleAdminDebugCogoReal(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  try {
+    const r = await fetch('https://api.mercadopago.com/preapproval/ce7d87ef74ea415ea081d5d56387b8a4', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const txt = await r.text();
+    let raw;
+    try { raw = JSON.parse(txt); } catch { raw = txt; }
+    return new Response(JSON.stringify({ ok: r.ok, http: r.status, raw }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 
