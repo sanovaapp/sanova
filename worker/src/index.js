@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.16.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.17.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -149,6 +149,12 @@ export default {
       // os campos. Vou caçar campo que liga ao preapproval/subscription.
       if (url.pathname === '/api/admin-debug-cogo-payment' && request.method === 'GET') {
         return await handleAdminDebugCogoPayment(env);
+      }
+
+      // v1.17.0: reconcilia varrendo payments recentes e usando
+      // point_of_interaction.transaction_data.subscription_id (ID REAL).
+      if (url.pathname === '/api/admin-reconcile-via-payments' && request.method === 'GET') {
+        return await handleAdminReconcileViaPayments(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -434,6 +440,84 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-reconcile-via-payments (v1.17.0) ─────────────
+// Verdadeiro fix definitivo: varre payments recentes da conta MP,
+// extrai subscription_id REAL (point_of_interaction.transaction_data.
+// subscription_id), busca preapproval real (que tem external_reference
+// sanova_<userId>), resolve user, e atualiza subscriptions com status
+// active + ID correto.
+async function handleAdminReconcileViaPayments(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  const log = [];
+  try {
+    // busca payments aprovados ultimos 30 dias
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    const searchUrl = 'https://api.mercadopago.com/v1/payments/search'
+      + '?range=date_created&begin_date=' + start.toISOString()
+      + '&end_date=' + end.toISOString()
+      + '&status=approved&sort=date_created&criteria=desc&limit=50';
+    const r = await fetch(searchUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!r.ok) {
+      return new Response(JSON.stringify({ ok: false, erro: 'search HTTP ' + r.status }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+    const sj = await r.json().catch(() => ({}));
+    const payments = sj.results || [];
+    // só Sanova subscriptions (pra evitar processar outros vendas)
+    const alvos = payments.filter(p =>
+      (p.description || '').toLowerCase().includes('sanova') &&
+      p.transaction_amount > 0
+    );
+    for (const pay of alvos) {
+      const item = {
+        payment_id: pay.id,
+        payer_email: pay.payer && pay.payer.email,
+        transaction_amount: pay.transaction_amount,
+        date_approved: pay.date_approved,
+      };
+      try {
+        // pega payment full (search nao traz point_of_interaction)
+        const rf = await fetch('https://api.mercadopago.com/v1/payments/' + pay.id, {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        const pf = await rf.json().catch(() => ({}));
+        const tdata = pf.point_of_interaction && pf.point_of_interaction.transaction_data;
+        const realSubId = tdata && tdata.subscription_id;
+        item.subscription_id_real = realSubId;
+        if (!realSubId) { item.nota = 'sem subscription_id no payment'; log.push(item); continue; }
+        // busca preapproval real (ela TEM external_reference)
+        const pa = await getPreapproval(realSubId, env);
+        item.preapproval_status = pa.status;
+        item.external_reference = pa.external_reference;
+        const userId = await _resolveUserId(pa, env);
+        if (!userId) { item.nota = 'user_id nao encontrado via external_reference'; log.push(item); continue; }
+        await updateSubscriptionByUser(userId, {
+          status: 'active',
+          mp_preapproval_id: realSubId,
+          subscription_started_at: pay.date_approved || pa.date_created || new Date().toISOString(),
+        }, env);
+        item.atualizado = 'active';
+        item.user_id_curto = userId.slice(0, 8) + '...';
+        log.push(item);
+      } catch (err) {
+        item.erro = String(err.message || err);
+        log.push(item);
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, total_payments_sanova: alvos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 
