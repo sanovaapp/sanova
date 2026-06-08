@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.13';
+var SANOVA_VERSION = '3.10.14';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21766,13 +21766,41 @@ window.addEventListener('beforeunload',function(){
         temLocal = raw && raw.length > 80;
       }catch(e){}
 
-      if(temNuvem){
-        // Restaura da nuvem (sobrescreve local)
+      // v3.10.14: MERGE inteligente — nao sobrescreve local sem checar timestamp + owner.
+      // Bruno reportou perda de dados ao trocar entre contas. Causa: sobrescrita cega
+      // do localStorage com nuvem (potencialmente desatualizada).
+      var localObj = null;
+      try{
+        var rawLocal = localStorage.getItem(window.LS || 'equilibra_v5');
+        if(rawLocal) localObj = JSON.parse(rawLocal);
+      }catch(e){}
+      var localOwnedBy = localObj && localObj.ownedBy;
+      var localUpdatedAt = (localObj && localObj.updatedAt) || 0;
+      var nuvemUpdatedAt = (nuvem && nuvem.updatedAt) || 0;
+      var trocouDeConta = localOwnedBy && localOwnedBy !== user.id;
+
+      if(trocouDeConta){
+        // Dados de outra conta no dispositivo. NAO sobrescreve com nuvem antes
+        // do dono original sincronizar. Usa nuvem desta conta (ou vazio se nao tem).
         try{
-          localStorage.setItem(window.LS || 'equilibra_v5', JSON.stringify(nuvem));
+          if(typeof toast === 'function') toast('Trocou de conta — carregando dados desta conta', 3500);
         }catch(e){}
+        if(nuvem){
+          try{ localStorage.setItem(window.LS || 'equilibra_v5', JSON.stringify(nuvem)); }catch(e){}
+        } else {
+          // Sem nuvem nesta conta → reset local, deixa app carregar como novo
+          try{ localStorage.removeItem(window.LS || 'equilibra_v5'); }catch(e){}
+        }
         if(typeof window.carregar === 'function') window.carregar();
-      }else if(temLocal){
+      }else if(temNuvem && nuvemUpdatedAt >= localUpdatedAt){
+        // Nuvem é mais recente (ou empate) → restaura nuvem
+        try{ localStorage.setItem(window.LS || 'equilibra_v5', JSON.stringify(nuvem)); }catch(e){}
+        if(typeof window.carregar === 'function') window.carregar();
+      }else if(temLocal && localUpdatedAt > nuvemUpdatedAt){
+        // Local é mais recente → mantém local e SOBE pra nuvem (não perde dados)
+        try{ if(typeof toast === 'function') toast('Dados locais mais recentes — sincronizando…', 2500); }catch(e){}
+        await sincronizarAgora();
+      }else if(temLocal && !temNuvem){
         // Primeiro login com dados locais: sobe pra nuvem
         await sincronizarAgora();
       }
@@ -21815,6 +21843,13 @@ window.addEventListener('beforeunload',function(){
     if(window._salvarOriginal) return; // já instalado
     window._salvarOriginal = window.salvar;
     window.salvar = function(){
+      // v3.10.14: marca timestamp + owner ANTES de salvar
+      try{
+        if(window.S){
+          window.S.updatedAt = Date.now();
+          if(usuarioAtual && usuarioAtual.id) window.S.ownedBy = usuarioAtual.id;
+        }
+      }catch(e){}
       var r = window._salvarOriginal.apply(this, arguments);
       // Sincroniza com atraso (espera 3s sem novas mudanças)
       if(usuarioAtual){
@@ -21846,7 +21881,15 @@ window.addEventListener('beforeunload',function(){
   }
 
   // Logout (exposto pra usar num botão depois)
+  // v3.10.14: FORÇA sync antes de signOut pra não perder dados locais.
+  // Bruno: dados de hoje sumiram ao trocar entre contas.
   window.sanovaLogout = async function(){
+    try{
+      if(usuarioAtual && window.S){
+        clearTimeout(syncTimer);
+        await sincronizarAgora();
+      }
+    }catch(e){ console.warn('[Cloud] sync de logout falhou:', e); }
     try{ if(sb) await sb.auth.signOut(); }catch(e){}
     usuarioAtual = null;
     location.reload();
