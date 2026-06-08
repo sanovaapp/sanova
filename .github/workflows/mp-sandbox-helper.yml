@@ -35,6 +35,7 @@ on:
           - admin-reconcile-via-payments
           - admin-debug-cogo-real
           - admin-reconcile-final
+          - admin-cleanup-false-positives
 
 jobs:
   call-worker:
