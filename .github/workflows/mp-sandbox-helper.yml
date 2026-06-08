@@ -31,6 +31,7 @@ on:
           - admin-debug-mp-state
           - admin-reconcile-via-preapproval-id
           - admin-list-recent-payments
+          - admin-debug-cogo-payment
 
 jobs:
   call-worker:
