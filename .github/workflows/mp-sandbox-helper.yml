@@ -34,6 +34,7 @@ on:
           - admin-debug-cogo-payment
           - admin-reconcile-via-payments
           - admin-debug-cogo-real
+          - admin-reconcile-final
 
 jobs:
   call-worker:
