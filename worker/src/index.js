@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.18.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.19.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -160,6 +160,12 @@ export default {
       // v1.18.0: pega preapproval REAL ce7d87ef (Claudia) com tudo.
       if (url.pathname === '/api/admin-debug-cogo-real' && request.method === 'GET') {
         return await handleAdminDebugCogoReal(env);
+      }
+
+      // v1.19.0: reconcilia LINKANDO preapproval inicial (com external_reference)
+      // a preapproval autorizada (sem external_reference) via plano + timestamp.
+      if (url.pathname === '/api/admin-reconcile-final' && request.method === 'GET') {
+        return await handleAdminReconcileFinal(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -445,6 +451,82 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-reconcile-final (v1.19.0) ────────────────────
+// FIX DEFINITIVO: cada subscription com mp_preapproval_id pending
+// → preapproval inicial tem external_reference (sanova_<userId>)
+// → busca preapprovals authorized do mesmo plan + janela [-1h, +2h]
+// → atualiza Supabase com user resolvido e ID real
+async function handleAdminReconcileFinal(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  const log = [];
+  try {
+    const subs = await listRecentSubscriptions(20, env);
+    const alvos = (subs.subscriptions || []).filter(s =>
+      s.mp_preapproval_id &&
+      !s.mp_preapproval_id.startsWith('admin-simulated-') &&
+      s.status !== 'active'
+    );
+    for (const s of alvos) {
+      const item = { email: s.email, mp_preapproval_id_inicial: s.mp_preapproval_id };
+      try {
+        const paInicial = await getPreapproval(s.mp_preapproval_id, env);
+        const extRef = paInicial.external_reference || '';
+        const userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
+        const planId = paInicial.preapproval_plan_id;
+        const created = paInicial.date_created;
+        item.user_id_curto = userId ? userId.slice(0, 8) + '...' : null;
+        item.plan_id = planId;
+        item.preapproval_inicial_status = paInicial.status;
+        if (!userId || !planId || !created) {
+          item.nota = 'sem user_id/plan_id/date — pula';
+          log.push(item); continue;
+        }
+        // Busca preapprovals authorized do mesmo plan na janela [-1h, +24h]
+        const t0 = new Date(created); t0.setHours(t0.getHours() - 1);
+        const t1 = new Date(created); t1.setHours(t1.getHours() + 24);
+        const searchUrl = 'https://api.mercadopago.com/preapproval/search'
+          + '?status=authorized'
+          + '&preapproval_plan_id=' + encodeURIComponent(planId)
+          + '&date_created_from=' + t0.toISOString()
+          + '&date_created_to=' + t1.toISOString()
+          + '&limit=20';
+        const r = await fetch(searchUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!r.ok) { item.nota = 'search HTTP ' + r.status; log.push(item); continue; }
+        const sj = await r.json().catch(() => ({}));
+        const candidatos = sj.results || [];
+        item.candidatos_count = candidatos.length;
+        // pega a mais proxima no tempo
+        const init = new Date(created).getTime();
+        candidatos.sort((a, b) => Math.abs(new Date(a.date_created).getTime() - init) - Math.abs(new Date(b.date_created).getTime() - init));
+        const matched = candidatos[0];
+        if (!matched) { item.nota = 'nenhuma preapproval authorized casa'; log.push(item); continue; }
+        item.mp_preapproval_id_real = matched.id;
+        item.matched_amount = matched.summarized && matched.summarized.charged_amount;
+        item.matched_date = matched.date_created;
+        await updateSubscriptionByUser(userId, {
+          status: 'active',
+          mp_preapproval_id: matched.id,
+          subscription_started_at: (matched.summarized && matched.summarized.last_charged_date) || matched.date_created || new Date().toISOString(),
+        }, env);
+        item.atualizado = 'active';
+        log.push(item);
+      } catch (err) {
+        item.erro = String(err.message || err);
+        log.push(item);
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, total: alvos.length, log }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 
