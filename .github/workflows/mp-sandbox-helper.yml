@@ -32,6 +32,7 @@ on:
           - admin-reconcile-via-preapproval-id
           - admin-list-recent-payments
           - admin-debug-cogo-payment
+          - admin-reconcile-via-payments
 
 jobs:
   call-worker:
