@@ -36,6 +36,7 @@ on:
           - admin-debug-cogo-real
           - admin-reconcile-final
           - admin-cleanup-false-positives
+          - admin-cleanup-v2
 
 jobs:
   call-worker:
