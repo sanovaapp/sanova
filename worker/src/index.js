@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.14.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.15.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -137,6 +137,12 @@ export default {
       // Resolve o caso real da esposa do Bruno (Claudia Cogo) em produção.
       if (url.pathname === '/api/admin-reconcile-via-preapproval-id' && request.method === 'GET') {
         return await handleAdminReconcileViaPreapprovalId(env);
+      }
+
+      // v1.15.0: lista TODOS os payments da conta MP nos ultimos N dias.
+      // Diagnostico cego pra ver o que MP de fato registrou.
+      if (url.pathname === '/api/admin-list-recent-payments' && request.method === 'GET') {
+        return await handleAdminListRecentPayments(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -422,6 +428,53 @@ async function handleAdminRecentSubscriptions(env) {
       JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
+  }
+}
+
+// ─── /api/admin-list-recent-payments (v1.15.0) ───────────────
+// Lista todos os payments da conta MP nos ultimos 7 dias.
+// Diagnostico cego pra entender o que MP de fato registrou.
+async function handleAdminListRecentPayments(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+  try {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    const url = 'https://api.mercadopago.com/v1/payments/search'
+      + '?range=date_created'
+      + '&begin_date=' + start.toISOString()
+      + '&end_date=' + end.toISOString()
+      + '&sort=date_created'
+      + '&criteria=desc'
+      + '&limit=20';
+    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!r.ok) {
+      const txt = await r.text();
+      return new Response(JSON.stringify({ ok: false, http: r.status, body: txt.slice(0, 500) }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+    const j = await r.json().catch(() => ({}));
+    const resumo = (j.results || []).map(p => ({
+      id: p.id,
+      status: p.status,
+      status_detail: p.status_detail,
+      transaction_amount: p.transaction_amount,
+      description: p.description,
+      external_reference: p.external_reference,
+      preapproval_id: p.preapproval_id,
+      payer_email: p.payer && p.payer.email,
+      date_created: p.date_created,
+      date_approved: p.date_approved,
+    }));
+    return new Response(JSON.stringify({ ok: true, paging: j.paging, total: resumo.length, payments: resumo }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
 

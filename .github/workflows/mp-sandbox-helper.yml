@@ -30,6 +30,7 @@ on:
           - admin-reconcile-subscriptions
           - admin-debug-mp-state
           - admin-reconcile-via-preapproval-id
+          - admin-list-recent-payments
 
 jobs:
   call-worker:
