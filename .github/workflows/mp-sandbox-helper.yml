@@ -33,6 +33,7 @@ on:
           - admin-list-recent-payments
           - admin-debug-cogo-payment
           - admin-reconcile-via-payments
+          - admin-debug-cogo-real
 
 jobs:
   call-worker:
