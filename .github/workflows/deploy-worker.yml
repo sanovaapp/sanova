@@ -42,8 +42,12 @@ jobs:
             MP_ACCESS_TOKEN_SANDBOX
             MP_WEBHOOK_SECRET
             SUPABASE_SERVICE_ROLE_KEY
+            ADMIN_OVERRIDE_TOKEN
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MP_ACCESS_TOKEN_SANDBOX: ${{ secrets.MP_ACCESS_TOKEN_SANDBOX }}
           MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # v1.24.0: GitHub Actions usa esse token no header X-Admin-Token
+          # pra acionar /api/admin-* (workflow gateway + cron).
+          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}

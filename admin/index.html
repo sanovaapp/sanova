@@ -278,17 +278,44 @@ window.carregarMetricas = async function() {
 // v3.10.25: lista pacientes recentes via worker
 const WORKER_URL = 'https://sanova-api.contatosanovaapp.workers.dev';
 
+// v3.10.26: JWT do Supabase passa no Authorization pra falar com /api/admin-*
+// do Worker (que agora exige auth — auditoria Manus 09/06/2026).
+async function adminAuthHeaders() {
+  const { data } = await sb.auth.getSession();
+  const tok = data && data.session && data.session.access_token;
+  return tok ? { 'Authorization': 'Bearer ' + tok } : {};
+}
+
+// v3.10.26: helper pra montar DOM sem innerHTML com string interpolada.
+// Email do paciente vem do banco; um atacante que conseguisse criar conta
+// com email <img onerror=...> conseguiria XSS persistente no painel.
+function elBuild(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === 'style') e.setAttribute('style', attrs[k]);
+    else if (k === 'class') e.className = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  if (children) for (const c of children) {
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
 window.carregarPacientes = async function() {
   const cont = $('pacientesLista');
   if (!cont) return;
-  cont.innerHTML = '<div style="text-align:center;color:var(--ink3);padding:14px 0;font-style:italic">Carregando…</div>';
+  cont.textContent = '';
+  cont.appendChild(elBuild('div', { style:'text-align:center;color:var(--ink3);padding:14px 0;font-style:italic' }, ['Carregando…']));
   try {
-    const r = await fetch(WORKER_URL + '/api/admin-recent-subscriptions');
+    const headers = await adminAuthHeaders();
+    const r = await fetch(WORKER_URL + '/api/admin-recent-subscriptions', { headers });
     const j = await r.json();
     if (!j.ok) throw new Error('worker erro');
     const subs = j.subscriptions || [];
+    cont.textContent = '';
     if (!subs.length) {
-      cont.innerHTML = '<div style="text-align:center;color:var(--ink3);padding:14px 0">Nenhum paciente cadastrado ainda.</div>';
+      cont.appendChild(elBuild('div', { style:'text-align:center;color:var(--ink3);padding:14px 0' }, ['Nenhum paciente cadastrado ainda.']));
       return;
     }
     const fmtDt = (s) => {
@@ -306,26 +333,30 @@ window.carregarPacientes = async function() {
         expired:  { bg:'rgba(232,168,138,.18)', cor:'#f3a88a', lbl:'expirado' },
       };
       const c = cores[st] || { bg:'rgba(255,255,255,.08)', cor:'rgba(255,255,255,.7)', lbl:st || '?' };
-      return `<span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:${c.bg};color:${c.cor}">${c.lbl}</span>`;
+      return elBuild('span', { style:`font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:${c.bg};color:${c.cor}` }, [c.lbl]);
     };
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
+    const list = elBuild('div', { style:'display:flex;flex-direction:column;gap:6px' }, []);
     for (const s of subs.slice(0, 10)) {
       const email = s.email || s.user_id_curto || '—';
       const upd = fmtDt(s.updated_at);
       const trialEnd = s.trial_ends_at ? fmtDt(s.trial_ends_at) : '';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:9px">';
-      html +=   '<div style="flex:1;min-width:0;overflow:hidden">';
-      html +=     `<div style="font-size:12.5px;color:#fff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${email}</div>`;
-      html +=     `<div style="font-size:10.5px;color:var(--ink3);margin-top:1px">${s.status === 'active' ? 'desde ' + fmtDt(s.subscription_started_at) : (trialEnd ? 'trial até ' + trialEnd : 'atualizado ' + upd)}</div>`;
-      html +=   '</div>';
-      html +=   `<div style="flex-shrink:0">${statusBadge(s.status)}</div>`;
-      html += '</div>';
+      const sub = s.status === 'active'
+        ? 'desde ' + fmtDt(s.subscription_started_at)
+        : (trialEnd ? 'trial até ' + trialEnd : 'atualizado ' + upd);
+      const row = elBuild('div', { style:'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:9px' }, [
+        elBuild('div', { style:'flex:1;min-width:0;overflow:hidden' }, [
+          elBuild('div', { style:'font-size:12.5px;color:#fff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, [email]),
+          elBuild('div', { style:'font-size:10.5px;color:var(--ink3);margin-top:1px' }, [sub]),
+        ]),
+        elBuild('div', { style:'flex-shrink:0' }, [statusBadge(s.status)]),
+      ]);
+      list.appendChild(row);
     }
-    html += '</div>';
-    html += `<div style="text-align:center;font-size:10.5px;color:var(--ink3);margin-top:8px">Mostrando ${Math.min(10, subs.length)} de ${subs.length}</div>`;
-    cont.innerHTML = html;
+    cont.appendChild(list);
+    cont.appendChild(elBuild('div', { style:'text-align:center;font-size:10.5px;color:var(--ink3);margin-top:8px' }, [`Mostrando ${Math.min(10, subs.length)} de ${subs.length}`]));
   } catch (e) {
-    cont.innerHTML = '<div style="text-align:center;color:#f3a88a;padding:14px 0;font-size:12px">Erro ao carregar: ' + (e.message || e) + '</div>';
+    cont.textContent = '';
+    cont.appendChild(elBuild('div', { style:'text-align:center;color:#f3a88a;padding:14px 0;font-size:12px' }, ['Erro ao carregar: ' + (e.message || e)]));
   }
 };
 
@@ -335,7 +366,8 @@ window.sincronizarPagamentos = async function(btn) {
   btn.disabled = true; btn.textContent = '⏳ Sincronizando…';
   if (status) { status.style.display = 'block'; status.textContent = 'Consultando MP…'; }
   try {
-    const r = await fetch(WORKER_URL + '/api/admin-cleanup-v2');
+    const headers = await adminAuthHeaders();
+    const r = await fetch(WORKER_URL + '/api/admin-cleanup-v2', { headers });
     const j = await r.json();
     if (!j.ok) throw new Error('worker erro');
     const log = j.log || [];

@@ -18,6 +18,30 @@ import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
+import { requireAdmin } from './auth.js';
+
+// v1.24.0: gate de admin pras rotas /api/admin-*.
+// Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
+async function gateAdmin(request, env, origin) {
+  const r = await requireAdmin(request, env);
+  if (r.ok) return null;
+  return jsonResponse(
+    { ok: false, error: r.error || 'unauthorized' },
+    r.status || 401,
+    origin,
+    env
+  );
+}
+
+// v1.24.0: limite generico de payload pra endpoints publicos.
+// Aceita ate maxBytes; corta acima disso com 413.
+async function readBodyWithLimit(request, maxBytes) {
+  const cl = Number(request.headers.get('content-length') || 0);
+  if (cl && cl > maxBytes) return { tooBig: true, size: cl };
+  const buf = await request.arrayBuffer();
+  if (buf.byteLength > maxBytes) return { tooBig: true, size: buf.byteLength };
+  return { tooBig: false, text: new TextDecoder().decode(buf) };
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,7 +59,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.23.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.24.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -68,8 +92,16 @@ export default {
         return await handleDebugAdmin(env);
       }
 
+      // v1.24.0: TODAS as rotas /api/admin-* exigem auth (JWT Supabase no
+      // header Authorization, OU X-Admin-Token pra GitHub Actions).
+      // Sem isso, qualquer um na internet acionava simulate-active / lia
+      // emails de pacientes. Auditoria Manus 09/06/2026.
+      if (url.pathname.startsWith('/api/admin-') && request.method === 'GET') {
+        const gate = await gateAdmin(request, env, origin);
+        if (gate) return gate;
+      }
+
       // v1.3.0: helpers admin pra testar o pipeline sem precisar pagamento real.
-      // Bruno (founder) e o unico autorizado — hardcoded.
       if (url.pathname === '/api/admin-simulate-active' && request.method === 'GET') {
         return await handleAdminSimulate(env, 'active');
       }
@@ -218,7 +250,14 @@ async function handleAnalyzePhoto(request, env, origin) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
 
-  const body = await request.json().catch(() => ({}));
+  // v1.24.0: cap em ~6MB JSON (foto base64 grande de celular ~4-5MB).
+  // Bloqueia atacante que mandaria 50MB pra estourar Worker/Gemini.
+  const lim = await readBodyWithLimit(request, 6 * 1024 * 1024);
+  if (lim.tooBig) {
+    return jsonResponse({ ok: false, error: 'payload_too_large', max: 6291456 }, 413, origin, env);
+  }
+  let body;
+  try { body = JSON.parse(lim.text || '{}'); } catch { body = {}; }
   const raw = body.image || body.imageBase64;
   const context = body.context;
 
@@ -248,10 +287,21 @@ async function handleAnalyzeText(request, env, origin) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
 
-  const body = await request.json().catch(() => ({}));
+  // v1.24.0: cap em 16KB (descricao de prato em pt-BR raramente passa de 500 chars).
+  const lim = await readBodyWithLimit(request, 16 * 1024);
+  if (lim.tooBig) {
+    return jsonResponse({ ok: false, error: 'payload_too_large', max: 16384 }, 413, origin, env);
+  }
+  let body;
+  try { body = JSON.parse(lim.text || '{}'); } catch { body = {}; }
   // v1.0.2: aceita "text" (novo) ou "description" (legado Manus)
   const text = body.text || body.description;
   const context = body.context;
+
+  // Cap adicional no campo text: 2000 chars (defesa em profundidade).
+  if (text && typeof text === 'string' && text.length > 2000) {
+    return jsonResponse({ ok: false, error: 'text_too_long', max: 2000 }, 413, origin, env);
+  }
 
   if (!text || typeof text !== 'string' || text.trim().length < 2) {
     return jsonResponse(
