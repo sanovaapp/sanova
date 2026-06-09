@@ -3259,6 +3259,19 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 </head>
 <body>
 
+<script>
+// v3.10.18: detecta type=recovery NO HASH antes de qualquer outra coisa.
+// Supabase consome o fragment async — quando DOMContentLoaded chama
+// go('dashboard'), o hash ainda esta intacto. Guardamos flag global pra
+// DOMContentLoaded + onAuthStateChange usarem.
+try{
+  var _hash = window.location.hash || '';
+  if(/[#&?]type=recovery\b/.test(_hash)){
+    window._sanovaRecoveryMode = true;
+  }
+}catch(e){}
+</script>
+
   <!-- v3.1.23: Termo de uso e responsabilidade — primeiro acesso obrigatório -->
   <div id="termoUsoOv" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;align-items:center;justify-content:center;padding:20px">
     <div style="max-width:520px;width:100%;max-height:90vh;overflow-y:auto;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:24px;border:1.5px solid rgba(187,247,208,.25);box-shadow:0 20px 60px rgba(0,0,0,.6)">
@@ -6145,7 +6158,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.17';
+var SANOVA_VERSION = '3.10.18';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21288,7 +21301,20 @@ window.addEventListener('DOMContentLoaded',function(){
     buildSint();if(typeof buildFAQ==='function') buildFAQ();
     if(typeof buildPassos==='function'){buildPassos(PASSOS_CANETA,'passosCaneta');buildPassos(PASSOS_AMPOLA,'passosAmpola');}
     if(typeof renderManualCaneta==='function'){try{renderManualCaneta();}catch(e){}}
-    render();go('dashboard');
+    render();
+    // v3.10.18: se vem de reset password, vai pra Minha conta. Senão, dashboard.
+    if(window._sanovaRecoveryMode === true){
+      go('conta');
+      setTimeout(function(){
+        try{
+          var inp = document.getElementById('novaSenhaInput');
+          if(inp){ inp.focus(); inp.scrollIntoView({behavior:'smooth', block:'center'}); }
+          if(typeof toast === 'function') toast('🔑 Defina sua nova senha abaixo', 4500);
+        }catch(e){}
+      }, 400);
+    } else {
+      go('dashboard');
+    }
     // v3.10.9: promoção proativa de PWA — banner discreto pra usuário recorrente
     setTimeout(function(){ try{ if(window.SanovaInstall && SanovaInstall.promoverInstalacao) SanovaInstall.promoverInstalacao({modo:'banner'}); }catch(e){} }, 2500);
   }else{
