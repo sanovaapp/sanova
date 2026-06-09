@@ -159,13 +159,26 @@ WHERE email = 'voce@email.com';</pre>
       </div>
     </div>
 
+    <!-- v3.10.25: lista de pacientes recentes via worker -->
+    <div class="card">
+      <h2>👥 Pacientes recentes</h2>
+      <div id="pacientesLista" style="font-size:12.5px;color:var(--ink2);line-height:1.55">
+        <div style="text-align:center;color:var(--ink3);padding:14px 0;font-style:italic">Carregando…</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="refresh" onclick="carregarPacientes()" style="flex:1">↻ Atualizar lista</button>
+        <button class="refresh" onclick="sincronizarPagamentos(this)" style="flex:1;background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35);color:#86efac">⚡ Sincronizar pagamentos MP</button>
+      </div>
+      <div id="sincStatus" style="font-size:11.5px;color:var(--ink3);text-align:center;margin-top:8px;display:none"></div>
+    </div>
+
     <div class="muted">
-      Dados via Supabase com RLS. PostHog disponível em <a href="https://app.posthog.com" target="_blank">app.posthog.com</a>.
+      Dados via Supabase com RLS + worker MP. PostHog em <a href="https://app.posthog.com" target="_blank">app.posthog.com</a>.
     </div>
   </div>
 
   <footer>
-    <div>🌿 Sanova v3.9.5 · admin v1</div>
+    <div>🌿 Sanova · admin v2 (v3.10.25)</div>
     <div><a href="../">← Voltar pro app</a></div>
   </footer>
 </div>
@@ -257,6 +270,88 @@ window.carregarMetricas = async function() {
 
   const d = new Date(data.calculado_em || Date.now());
   $('updHora').textContent = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  // v3.10.25: carrega lista de pacientes em paralelo
+  carregarPacientes();
+};
+
+// v3.10.25: lista pacientes recentes via worker
+const WORKER_URL = 'https://sanova-api.contatosanovaapp.workers.dev';
+
+window.carregarPacientes = async function() {
+  const cont = $('pacientesLista');
+  if (!cont) return;
+  cont.innerHTML = '<div style="text-align:center;color:var(--ink3);padding:14px 0;font-style:italic">Carregando…</div>';
+  try {
+    const r = await fetch(WORKER_URL + '/api/admin-recent-subscriptions');
+    const j = await r.json();
+    if (!j.ok) throw new Error('worker erro');
+    const subs = j.subscriptions || [];
+    if (!subs.length) {
+      cont.innerHTML = '<div style="text-align:center;color:var(--ink3);padding:14px 0">Nenhum paciente cadastrado ainda.</div>';
+      return;
+    }
+    const fmtDt = (s) => {
+      if (!s) return '—';
+      try {
+        const d = new Date(s);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      } catch { return s; }
+    };
+    const statusBadge = (st) => {
+      const cores = {
+        active:   { bg:'rgba(74,222,128,.18)',  cor:'#86efac', lbl:'✓ ativo' },
+        trial:    { bg:'rgba(125,211,252,.15)', cor:'#7dd3fc', lbl:'trial' },
+        canceled: { bg:'rgba(232,168,138,.18)', cor:'#f3a88a', lbl:'cancel.' },
+        expired:  { bg:'rgba(232,168,138,.18)', cor:'#f3a88a', lbl:'expirado' },
+      };
+      const c = cores[st] || { bg:'rgba(255,255,255,.08)', cor:'rgba(255,255,255,.7)', lbl:st || '?' };
+      return `<span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:${c.bg};color:${c.cor}">${c.lbl}</span>`;
+    };
+    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
+    for (const s of subs.slice(0, 10)) {
+      const email = s.email || s.user_id_curto || '—';
+      const upd = fmtDt(s.updated_at);
+      const trialEnd = s.trial_ends_at ? fmtDt(s.trial_ends_at) : '';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:9px">';
+      html +=   '<div style="flex:1;min-width:0;overflow:hidden">';
+      html +=     `<div style="font-size:12.5px;color:#fff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${email}</div>`;
+      html +=     `<div style="font-size:10.5px;color:var(--ink3);margin-top:1px">${s.status === 'active' ? 'desde ' + fmtDt(s.subscription_started_at) : (trialEnd ? 'trial até ' + trialEnd : 'atualizado ' + upd)}</div>`;
+      html +=   '</div>';
+      html +=   `<div style="flex-shrink:0">${statusBadge(s.status)}</div>`;
+      html += '</div>';
+    }
+    html += '</div>';
+    html += `<div style="text-align:center;font-size:10.5px;color:var(--ink3);margin-top:8px">Mostrando ${Math.min(10, subs.length)} de ${subs.length}</div>`;
+    cont.innerHTML = html;
+  } catch (e) {
+    cont.innerHTML = '<div style="text-align:center;color:#f3a88a;padding:14px 0;font-size:12px">Erro ao carregar: ' + (e.message || e) + '</div>';
+  }
+};
+
+window.sincronizarPagamentos = async function(btn) {
+  const status = $('sincStatus');
+  const txtOrig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Sincronizando…';
+  if (status) { status.style.display = 'block'; status.textContent = 'Consultando MP…'; }
+  try {
+    const r = await fetch(WORKER_URL + '/api/admin-cleanup-v2');
+    const j = await r.json();
+    if (!j.ok) throw new Error('worker erro');
+    const log = j.log || [];
+    const atualizados = log.filter(x => x.acao && x.acao.includes('mantido active')).length;
+    const revertidos = log.filter(x => x.acao && x.acao.includes('revertido')).length;
+    if (status) {
+      status.textContent = `✓ ${log.length} subscriptions verificadas · ${atualizados} ativos confirmados · ${revertidos} revertidos`;
+      status.style.color = '#86efac';
+    }
+    setTimeout(() => carregarPacientes(), 300);
+    setTimeout(() => carregarMetricas(), 600);
+  } catch (e) {
+    if (status) { status.textContent = 'Erro: ' + (e.message || e); status.style.color = '#f3a88a'; }
+  } finally {
+    btn.disabled = false; btn.textContent = txtOrig;
+  }
 };
 
 $('btnLogin').addEventListener('click', async () => {
