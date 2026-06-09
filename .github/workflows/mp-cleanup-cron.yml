@@ -18,11 +18,17 @@ jobs:
     name: Cleanup subscriptions via MP search
     steps:
       - name: Curl Worker admin-cleanup-v2
+        env:
+          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
         run: |
           set -e
           BASE="https://sanova-api.contatosanovaapp.workers.dev"
           echo "## Disparando cleanup-v2 às $(date -u +%FT%TZ)"
-          RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" "$BASE/api/admin-cleanup-v2")
+          # v1.24.0: header X-Admin-Token autentica o worker action (rotas
+          # /api/admin-* agora exigem auth — auditoria Manus 09/06/2026).
+          RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" \
+            -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" \
+            "$BASE/api/admin-cleanup-v2")
           echo "$RESPONSE"
           {
             echo "## Resposta do Worker"
