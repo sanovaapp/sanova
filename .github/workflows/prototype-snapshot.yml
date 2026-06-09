@@ -1,0 +1,84 @@
+name: Snapshot prototipo Janela Terapeutica
+
+# Renderiza prototypes/janela-terapeutica/v1.html e v2.html via Playwright
+# mobile 412x915 e expoe screenshots como artifact pra Claude analisar.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'prototypes/janela-terapeutica/**'
+      - '.github/workflows/prototype-snapshot.yml'
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install -D @playwright/test@1.49.0
+          npx playwright install --with-deps chromium
+
+      - name: Renderiza protótipos
+        run: |
+          mkdir -p screenshots
+          cat > snap.mjs <<'PWEND'
+          import { chromium } from '@playwright/test';
+          import { pathToFileURL } from 'url';
+          import path from 'path';
+
+          const variantes = [
+            { file: 'prototypes/janela-terapeutica/v1.html', name: 'v1-onda-organica' },
+            { file: 'prototypes/janela-terapeutica/v2.html', name: 'v2-mapa-semana' },
+          ];
+
+          const browser = await chromium.launch();
+          const ctx = await browser.newContext({
+            viewport: { width: 412, height: 915 },
+            deviceScaleFactor: 2,
+            locale: 'pt-BR',
+          });
+          const page = await ctx.newPage();
+          page.on('pageerror', e => console.log('[err]', e.message));
+
+          for (const v of variantes) {
+            const url = pathToFileURL(path.resolve(v.file)).href;
+            console.log('Abrindo:', url);
+            await page.goto(url, { waitUntil: 'load' });
+            await page.waitForTimeout(800);
+            const out = `screenshots/${v.name}.png`;
+            await page.screenshot({ path: out, fullPage: true });
+            console.log('Snap:', out);
+          }
+
+          await browser.close();
+          PWEND
+          node snap.mjs 2>&1 | tee snap.log
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototipo-janela-terapeutica
+          path: |
+            screenshots/
+            snap.log
+          retention-days: 7
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Snapshot Janela Terapeutica"
+            echo ""
+            ls -la screenshots/ 2>/dev/null || echo "(sem screenshots)"
+          } >> $GITHUB_STEP_SUMMARY

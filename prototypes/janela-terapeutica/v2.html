@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=412,initial-scale=1,viewport-fit=cover">
+<title>Sanova · Janela Terapêutica — V2 "Mapa da Semana"</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     V2 — "Mapa da Semana"
+     Estilo Strava / Calm Body. Mais informativo, eixos visíveis, dias da
+     semana reais, 3 mini-cards de fase (auge / descida / véspera).
+     ═══════════════════════════════════════════════════════════════════ */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    width:412px;
+    min-height:915px;
+    background:linear-gradient(180deg,#031208 0%,#04180c 50%,#031208 100%);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:rgba(255,255,255,.94);
+    -webkit-font-smoothing:antialiased;
+    padding:24px 18px 32px;
+  }
+
+  /* ─── Header ───────────────────────────────────────────────── */
+  .topbar{
+    display:flex;align-items:center;gap:8px;
+    font-size:10.5px;font-weight:700;letter-spacing:.18em;
+    color:#86efac;text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .topbar::before{
+    content:'';width:6px;height:6px;border-radius:99px;
+    background:#86efac;box-shadow:0 0 12px rgba(134,239,172,.7);
+  }
+  h1{
+    font-size:22.5px;line-height:1.2;font-weight:600;
+    color:#fff;margin-bottom:4px;letter-spacing:-.01em;
+  }
+  .sub{
+    font-size:12.5px;color:rgba(255,255,255,.55);
+    margin-bottom:18px;
+  }
+  .sub b{color:#86efac;font-weight:600}
+
+  /* ─── Gráfico card ────────────────────────────────────────── */
+  .grafico{
+    position:relative;
+    background:rgba(255,255,255,.025);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:16px;
+    padding:14px 0 0 0;
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .grafico-head{
+    display:flex;justify-content:space-between;
+    padding:0 16px 8px;
+  }
+  .grafico-head .k{
+    font-size:10.5px;color:rgba(255,255,255,.5);
+    letter-spacing:.06em;text-transform:uppercase;
+  }
+  .grafico-head .badge{
+    background:rgba(74,222,128,.18);
+    color:#bbf7d0;
+    padding:3px 9px;border-radius:99px;
+    font-size:10.5px;font-weight:700;letter-spacing:.04em;
+  }
+  svg.mapa{display:block;width:100%;height:240px}
+
+  /* ─── Eixo X dias da semana ───────────────────────────────── */
+  .dias{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    padding:8px 0 14px;border-top:1px solid rgba(255,255,255,.05);
+  }
+  .dias .d{
+    text-align:center;
+    font-size:10px;color:rgba(255,255,255,.42);
+    letter-spacing:.06em;text-transform:uppercase;
+    line-height:1.3;
+  }
+  .dias .d.hoje{color:#86efac;font-weight:700}
+  .dias .d .num{
+    display:block;font-size:13.5px;color:rgba(255,255,255,.62);
+    margin-top:2px;font-weight:600;
+  }
+  .dias .d.hoje .num{color:#fff}
+  .dias .d.dose{position:relative}
+  .dias .d.dose::after{
+    content:'💉';position:absolute;left:50%;top:-14px;
+    transform:translateX(-50%);font-size:11px;opacity:.85;
+  }
+
+  /* ─── Marcador "HOJE" ─────────────────────────────────────── */
+  @keyframes pulseDot{
+    0%,100%{ transform: scale(1); }
+    50%{ transform: scale(1.18); }
+  }
+  @keyframes pulseHalo{
+    0%{ opacity:.55; transform: scale(.9); }
+    100%{ opacity:0; transform: scale(2.4); }
+  }
+  .pulse-dot{animation: pulseDot 2.2s ease-in-out infinite; transform-origin: center;}
+  .pulse-halo{animation: pulseHalo 2.2s ease-in-out infinite; transform-origin: center;}
+
+  /* ─── 3 mini-cards de fase ────────────────────────────────── */
+  .fases{
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+    margin-bottom:14px;
+  }
+  .fase{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:13px;
+    padding:11px 10px 12px;
+    text-align:center;
+    position:relative;
+  }
+  .fase.ativa{
+    background:linear-gradient(168deg,rgba(74,222,128,.18),rgba(34,197,94,.06));
+    border-color:rgba(134,239,172,.36);
+    box-shadow:0 4px 16px rgba(74,222,128,.12);
+  }
+  .fase .emoji{font-size:22px;line-height:1;margin-bottom:5px}
+  .fase .lbl{
+    font-size:9.5px;color:rgba(255,255,255,.5);
+    letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;
+  }
+  .fase.ativa .lbl{color:#bbf7d0}
+  .fase .dias-fase{
+    font-size:11.5px;color:rgba(255,255,255,.78);font-weight:600;
+  }
+  .fase.ativa .dias-fase{color:#fff}
+  .fase.ativa::before{
+    content:'AGORA';position:absolute;top:-7px;left:50%;
+    transform:translateX(-50%);
+    background:#22c55e;color:#fff;
+    padding:2px 7px;border-radius:99px;
+    font-size:8.5px;font-weight:800;letter-spacing:.1em;
+  }
+
+  /* ─── Card mensagem contextual ────────────────────────────── */
+  .card-msg{
+    background:linear-gradient(168deg,rgba(74,222,128,.10) 0%,rgba(74,222,128,.025) 100%);
+    border:1px solid rgba(134,239,172,.22);
+    border-left:3px solid #86efac;
+    border-radius:14px;
+    padding:14px 14px 16px;
+    margin-bottom:14px;
+  }
+  .card-msg .topo{
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
+  }
+  .card-msg .topo .emoji{font-size:18px}
+  .card-msg .topo .titulo{
+    font-size:13.5px;font-weight:700;color:#fff;
+  }
+  .card-msg .texto{
+    font-size:12.5px;color:rgba(255,255,255,.72);line-height:1.5;
+  }
+
+  /* ─── Disclaimer ─────────────────────────────────────────── */
+  .disclaimer{
+    font-size:10.5px;color:rgba(255,255,255,.42);
+    line-height:1.55;text-align:center;
+    padding:0 8px;margin-top:6px;
+  }
+  .disclaimer b{color:rgba(255,255,255,.62);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="topbar">Janela terapêutica</div>
+<h1>Sua semana com o remédio</h1>
+<p class="sub">
+  Quando a <b>fome fica baixa</b> · quando o efeito <b>volta a baixar</b>
+</p>
+
+<div class="grafico">
+  <div class="grafico-head">
+    <div class="k">FORÇA ESTIMADA · 7 DIAS</div>
+    <div class="badge">SEMAGLUTIDA</div>
+  </div>
+
+  <svg class="mapa" viewBox="0 0 380 240" preserveAspectRatio="none">
+    <defs>
+      <!-- Gradient da zona forte -->
+      <linearGradient id="zonaForte" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#86efac" stop-opacity=".18"/>
+        <stop offset="100%" stop-color="#4ade80" stop-opacity=".02"/>
+      </linearGradient>
+      <!-- Fill da curva -->
+      <linearGradient id="fillCurva" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4ade80" stop-opacity=".35"/>
+        <stop offset="100%" stop-color="#15803d" stop-opacity="0"/>
+      </linearGradient>
+      <!-- Glow -->
+      <filter id="glow2" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="2.5" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- Grade vertical (dias) -->
+    <g stroke="rgba(255,255,255,.05)" stroke-width="1">
+      <line x1="54"  y1="20" x2="54"  y2="220"/>
+      <line x1="108" y1="20" x2="108" y2="220"/>
+      <line x1="163" y1="20" x2="163" y2="220"/>
+      <line x1="217" y1="20" x2="217" y2="220"/>
+      <line x1="271" y1="20" x2="271" y2="220"/>
+      <line x1="326" y1="20" x2="326" y2="220"/>
+    </g>
+
+    <!-- Linhas horizontais (referência) -->
+    <g stroke="rgba(255,255,255,.04)" stroke-width="1" stroke-dasharray="2 4">
+      <line x1="14" y1="60"  x2="370" y2="60"/>
+      <line x1="14" y1="120" x2="370" y2="120"/>
+      <line x1="14" y1="180" x2="370" y2="180"/>
+    </g>
+
+    <!-- Labels Y -->
+    <g font-size="9" fill="rgba(255,255,255,.35)" font-family="-apple-system,sans-serif">
+      <text x="6" y="64">AUGE</text>
+      <text x="6" y="124">MÉDIO</text>
+      <text x="6" y="184">BAIXO</text>
+    </g>
+
+    <!-- Zona de saciedade (D+1.5 a D+5.5) -->
+    <path d="M 81,200 L 81,55 Q 190,15 299,55 L 299,200 Z" fill="url(#zonaForte)"/>
+    <path d="M 81,55 Q 190,15 299,55" stroke="rgba(134,239,172,.4)" stroke-width="1.5"
+      stroke-dasharray="4 3" fill="none"/>
+    <text x="190" y="48" text-anchor="middle" font-size="9.5" font-weight="700"
+      fill="#bbf7d0" letter-spacing=".08em">ZONA DE SACIEDADE</text>
+
+    <!-- Curva FILL -->
+    <path d="
+      M 14,90
+      C 28,82  46,62  64,52
+      C 96,38  130,28 167,28
+      C 204,28 240,38 274,52
+      C 308,66 338,86 370,128
+      L 370,200 L 14,200 Z"
+      fill="url(#fillCurva)"/>
+
+    <!-- Curva TRACE -->
+    <path d="
+      M 14,90
+      C 28,82  46,62  64,52
+      C 96,38  130,28 167,28
+      C 204,28 240,38 274,52
+      C 308,66 338,86 370,128"
+      stroke="#86efac" stroke-width="2.8" fill="none"
+      stroke-linecap="round" filter="url(#glow2)"/>
+
+    <!-- Linha vertical HOJE (D+4 = x=217) -->
+    <line x1="217" y1="20" x2="217" y2="220" stroke="rgba(134,239,172,.42)" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Label HOJE no topo -->
+    <g transform="translate(217,16)">
+      <rect x="-22" y="-12" width="44" height="16" rx="3"
+        fill="#22c55e"/>
+      <text x="0" y="0" text-anchor="middle" font-size="10" font-weight="800"
+        fill="#fff" letter-spacing=".1em">HOJE</text>
+    </g>
+
+    <!-- Marcador HOJE no D+4 sobre a curva (y=28 segundo curva) -->
+    <g transform="translate(217,38)">
+      <circle class="pulse-halo" r="14" fill="#86efac" opacity=".55"/>
+      <circle class="pulse-dot" r="7" fill="#bbf7d0"/>
+      <circle r="3.5" fill="#15803d"/>
+    </g>
+
+    <!-- Ícone próxima dose D+7 = x=370 -->
+    <g transform="translate(370,128)">
+      <circle r="6.5" fill="#fbbf24"/>
+      <text x="0" y="3" text-anchor="middle" font-size="8" font-weight="800" fill="#0a0a0a">💉</text>
+    </g>
+  </svg>
+
+  <div class="dias">
+    <div class="d dose"><div>D+0</div><span class="num">Dom</span></div>
+    <div class="d"><div>D+1</div><span class="num">Seg</span></div>
+    <div class="d"><div>D+2</div><span class="num">Ter</span></div>
+    <div class="d"><div>D+3</div><span class="num">Qua</span></div>
+    <div class="d hoje"><div>D+4</div><span class="num">Qui</span></div>
+    <div class="d"><div>D+5</div><span class="num">Sex</span></div>
+    <div class="d"><div>D+6</div><span class="num">Sáb</span></div>
+  </div>
+</div>
+
+<!-- 3 fases visuais -->
+<div class="fases">
+  <div class="fase ativa">
+    <div class="emoji">💪</div>
+    <div class="lbl">AUGE</div>
+    <div class="dias-fase">D+2 a D+5</div>
+  </div>
+  <div class="fase">
+    <div class="emoji">📉</div>
+    <div class="lbl">DESCIDA</div>
+    <div class="dias-fase">D+5 a D+6</div>
+  </div>
+  <div class="fase">
+    <div class="emoji">⏰</div>
+    <div class="lbl">VÉSPERA</div>
+    <div class="dias-fase">D+7</div>
+  </div>
+</div>
+
+<!-- Mensagem contextual -->
+<div class="card-msg">
+  <div class="topo">
+    <div class="emoji">💪</div>
+    <div class="titulo">Seu remédio está no auge</div>
+  </div>
+  <div class="texto">
+    A fome está baixa nestes próximos 2 dias. Aproveite pra firmar
+    bons hábitos — refeições calmas, proteína primeiro, água por perto.
+  </div>
+</div>
+
+<div class="disclaimer">
+  <b>Curva estimada</b> baseada na meia-vida média da semaglutida (~7 dias).
+  Variações individuais existem. <b>Não antecipe sua dose</b> — siga o que
+  seu médico orientou.
+</div>
+
+</body>
+</html>
