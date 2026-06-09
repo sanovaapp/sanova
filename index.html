@@ -403,6 +403,11 @@ html{
   -webkit-text-size-adjust:100%;
 }
 
+/* v3.10.23: details/summary com setinha customizada — usado em vários
+   cards expansíveis (Análise pilares, Análise clínica semana, etc) */
+details > summary{list-style:none}
+details > summary::-webkit-details-marker{display:none}
+
 body{
   font-family:var(--ss);
   font-size:14px;
@@ -6228,7 +6233,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.22';
+var SANOVA_VERSION = '3.10.23';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -18627,14 +18632,13 @@ function renderSaldoSemana(box){
     html += '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;font-style:italic">com fator de adaptação metabólica aplicado</div>';
     html += '</div>';
 
-    // Card de composição clínica
-    html += '<div style="padding:11px 13px;background:' + comp.bg + ';border-left:3px solid ' + comp.cor + ';border-radius:8px;margin-bottom:10px">';
-    html += '<div style="font-size:11px;font-weight:700;color:' + comp.cor + ';margin-bottom:5px">' + comp.titulo + '</div>';
-    html += '<div style="font-size:11.5px;color:rgba(255,255,255,.8);line-height:1.55">' + comp.mensagem + '</div>';
-    if(comp.acao){
-      html += '<div style="font-size:11px;color:rgba(255,255,255,.65);line-height:1.5;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06);font-weight:600">' + comp.acao + '</div>';
-    }
-    html += '</div>';
+    // v3.10.23: bloco 'Composição em risco' guardado pra <details> agrupado
+    // mais abaixo (junto com explicação da aderência baixa de proteína).
+    // Bruno: 'Reduzir poluição. Mantém o nº visível, esconde a análise textual.'
+    window._analiseClinicaSemanaPendente = {
+      bg: comp.bg, cor: comp.cor, titulo: comp.titulo,
+      mensagem: comp.mensagem, acao: comp.acao
+    };
   }
 
   // Proteína
@@ -18647,12 +18651,30 @@ function renderSaldoSemana(box){
   html += '<div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-top:3px">média ' + jan.proteinaMediaG + 'g/dia · meta ' + jan.proteinaMediaMeta + 'g</div>';
   html += '</div>';
 
-  // Interpretação leiga
+  // v3.10.23: agrupa Composição em risco + Aderência baixa em <details>
+  // único pra reduzir poluição. Bruno aprovou.
   var interp = interpretarProteinaSemana();
-  if(interp){
-    html += '<div style="padding:9px 11px;background:rgba(187,247,208,.05);border-left:3px solid rgba(187,247,208,.4);border-radius:6px;font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.5">';
-    html += interp;
-    html += '</div>';
+  var anaPendente = window._analiseClinicaSemanaPendente;
+  if(interp || anaPendente){
+    html += '<details style="margin-top:6px">';
+    html += '<summary style="list-style:none;cursor:pointer;font-size:11.5px;color:rgba(187,247,208,.7);padding:9px 11px;background:rgba(187,247,208,.04);border:1px solid rgba(187,247,208,.18);border-radius:8px;text-align:center;font-weight:600">▸ Análise clínica desta semana</summary>';
+    html += '<div style="margin-top:8px;padding:0">';
+    if(anaPendente){
+      html += '<div style="padding:11px 13px;background:' + anaPendente.bg + ';border-left:3px solid ' + anaPendente.cor + ';border-radius:8px;margin-bottom:8px">';
+      html += '<div style="font-size:11px;font-weight:700;color:' + anaPendente.cor + ';margin-bottom:5px">' + anaPendente.titulo + '</div>';
+      html += '<div style="font-size:11.5px;color:rgba(255,255,255,.8);line-height:1.55">' + anaPendente.mensagem + '</div>';
+      if(anaPendente.acao){
+        html += '<div style="font-size:11px;color:rgba(255,255,255,.65);line-height:1.5;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06);font-weight:600">' + anaPendente.acao + '</div>';
+      }
+      html += '</div>';
+    }
+    if(interp){
+      html += '<div style="padding:9px 11px;background:rgba(187,247,208,.05);border-left:3px solid rgba(187,247,208,.4);border-radius:6px;font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.5">';
+      html += interp;
+      html += '</div>';
+    }
+    html += '</div></details>';
+    window._analiseClinicaSemanaPendente = null;
   }
 
   // Disclaimer honesto sobre incerteza
