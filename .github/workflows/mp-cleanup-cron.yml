@@ -1,0 +1,33 @@
+name: MP Cleanup Cron (backup automático)
+
+# Roda admin-cleanup-v2 a cada 6h pra capturar pacientes que pagaram
+# mas o webhook MP não chegou no worker (rede, retry MP, etc).
+#
+# Webhook auto-reconcilia em 2s na maioria dos casos (worker v1.22.0).
+# Este cron é defesa em profundidade: se algo passar, em até 6h tá ativo.
+
+on:
+  schedule:
+    # A cada 6 horas: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # permite disparar manual também
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    name: Cleanup subscriptions via MP search
+    steps:
+      - name: Curl Worker admin-cleanup-v2
+        run: |
+          set -e
+          BASE="https://sanova-api.contatosanovaapp.workers.dev"
+          echo "## Disparando cleanup-v2 às $(date -u +%FT%TZ)"
+          RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" "$BASE/api/admin-cleanup-v2")
+          echo "$RESPONSE"
+          {
+            echo "## Resposta do Worker"
+            echo ''
+            echo '```json'
+            echo "$RESPONSE"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
