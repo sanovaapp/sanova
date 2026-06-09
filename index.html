@@ -6233,7 +6233,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.23';
+var SANOVA_VERSION = '3.10.24';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11046,7 +11046,21 @@ function _leituraClinicaSemana(M){
       protPctMedio: protPctMedio,
       exercSem: exercSem,
       deficitMedio: deficitMedio
-    }
+    },
+    // v3.10.24: veredito de Proteção Muscular calculado via helper unificado.
+    // Card "Leitura clínica" pode mostrar essa info ao lado da narrativa.
+    protecaoMuscular: (function(){
+      try{
+        if(!M || !jan) return null;
+        var kcalMedSem = (jan && typeof jan.kcalMedio === 'number') ? jan.kcalMedio :
+          (M.meta && protPctMedio ? Math.round(M.meta * (1 - (deficitMedio || 0) / M.meta)) : null);
+        if(!kcalMedSem || kcalMedSem <= 0) return null;
+        var protMedSem = (jan && typeof jan.proteinaMediaG === 'number') ? jan.proteinaMediaG :
+          (M.pm > 0 ? Math.round((protPctMedio || 0) / 100 * M.pm) : 0);
+        var sexo = (S && S.profile && S.profile.sex) || 'F';
+        return calcEstadoProtecaoMuscular(M, kcalMedSem, protMedSem, sexo, { periodo:'semana' });
+      }catch(e){ return null; }
+    })()
   };
 }
 
@@ -13841,6 +13855,85 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
    Card único substitui calBarCard + protBarCard isolados. Tabs (Hoje/Semana/
    15d/Mês) trocam o agregado das barras + diagnóstico de Proteção Muscular.
 */
+/* ══ v3.10.24: HELPER ÚNICO de Proteção Muscular ══
+   Centraliza o veredito clínico (Protegida / Atenção / Risco) que era
+   replicado em renderDiagPilares + narrativas semanais. Bruno (médico)
+   cravou os limites em v3.10.21:
+     - Piso fisiológico: 1500 kcal (M) / 1200 kcal (F)
+     - kcalSegura = M.meta × 0.80 (déficit máx 20% — Helms/ISSN)
+     - protOK = protPct ≥ 100
+     - protQuaseBateu = protPct ≥ 80
+
+   Retorna { estado, icone, titulo, mensagem, cor, corHex }
+   Estados:
+     'protegida'  — verde,  💪
+     'atencao'    — amarelo, ⚠️
+     'risco'      — vermelho, 🚨
+     'aguardando' — sem dados / perfil incompleto
+*/
+function calcEstadoProtecaoMuscular(M, kcal, prot, sexo, opcoes){
+  opcoes = opcoes || {};
+  var periodo = opcoes.periodo || 'hoje';  // 'hoje' | 'semana' | '15d' | 'mes'
+
+  if(!M || !M.meta || M.meta <= 0){
+    return {
+      estado:'aguardando', icone:'⏳', cor:'rgba(255,255,255,.85)', corHex:'#fff',
+      titulo:'Aguardando dados',
+      mensagem: 'Configure seu perfil pra eu poder te acompanhar.'
+    };
+  }
+
+  var protMeta = Math.round(M.pm || 0);
+  var kcalMeta = Math.round(M.meta || 0);
+  var pisoFisiol = sexo === 'M' ? 1500 : 1200;
+  var kcalSegura = Math.round(kcalMeta * 0.80);
+  var protPct = protMeta > 0 ? Math.round((prot / protMeta) * 100) : 0;
+
+  var sufixo = periodo === 'hoje' ? '' :
+    (' · média ' + (periodo === 'semana' ? '7d' : (periodo === '15d' ? '15d' : '30d')));
+
+  if(kcal < pisoFisiol){
+    return {
+      estado:'risco', icone:'🚨', cor:'#f3a88a', corHex:'#f3a88a',
+      titulo:'Risco — catabolismo provável',
+      mensagem: kcal + ' kcal' + (periodo === 'hoje' ? ' hoje' : '/dia') +
+        ' abaixo do piso fisiológico (' + pisoFisiol + '). Esse nível leva à perda de massa magra ' +
+        'mesmo com proteína dobrada. Adiciona uma refeição com gordura boa + proteína 🌿'
+    };
+  }
+  if(protPct < 80 && kcal < kcalSegura){
+    return {
+      estado:'risco', icone:'🚨', cor:'#f3a88a', corHex:'#f3a88a',
+      titulo:'Risco crítico — proteína E calorias baixas',
+      mensagem: 'Falta proteína (' + protPct + '%) E energia. Esse combo é o que mais custa músculo ' +
+        'na janela GLP-1. Próxima refeição: proteína + carbo 🌿'
+    };
+  }
+  if(protPct >= 100 && kcal < kcalSegura){
+    return {
+      estado:'atencao', icone:'⚠️', cor:'#fcd34d', corHex:'#fcd34d',
+      titulo:'Atenção — músculo em risco',
+      mensagem: '💪 Proteína em dia (' + protPct + '%). Mas calorias baixas (' + kcal +
+        ' vs ~' + kcalMeta + '). Proteína extra não compensa déficit calórico grande — ' +
+        'corpo cataboliza músculo. Lanche com proteína + carbo agora? 🌿'
+    };
+  }
+  if(protPct >= 100 && kcal >= kcalSegura){
+    return {
+      estado:'protegida', icone:'💪', cor:'#86efac', corHex:'#86efac',
+      titulo:'Protegida — músculo em dia',
+      mensagem: 'Proteína e energia em dia — massa magra preservada' + sufixo + '. Segue assim 🌿'
+    };
+  }
+  // protPct < 100 && kcal >= kcalSegura
+  return {
+    estado:'atencao', icone:'⚠️', cor:'#fcd34d', corHex:'#fcd34d',
+    titulo:'Falta proteína — atenção',
+    mensagem: 'Calorias OK, mas proteína em ' + protPct + '% da meta. Sem proteína suficiente, ' +
+      'parte do peso perdido pode ser massa magra. Foco da próxima refeição: proteína primeiro 🌿'
+  };
+}
+
 window._pilaresPeriodo = window._pilaresPeriodo || 'hoje';
 
 function setPilaresPeriodo(p){
@@ -13923,7 +14016,6 @@ function renderDiagPilares(M, dados, periodo){
   var sub = document.getElementById('diagProtMuscSub');
   if(!diag || !icon || !ttl || !sub) return;
 
-  // Sem dados ou perfil incompleto
   if(!M || !M.meta || dados.diasComDados === 0){
     icon.textContent = '⏳';
     ttl.textContent = 'Aguardando dados';
@@ -13934,45 +14026,22 @@ function renderDiagPilares(M, dados, periodo){
     return;
   }
 
-  var kcal = dados.kcalMedio, prot = dados.proteinaMedia;
-  var protMeta = Math.round(M.pm || 0);
-  var kcalMeta = Math.round(M.meta || 0);
   var sexo = (S && S.profile && S.profile.sex) || 'F';
-  var pisoFisiol = sexo === 'M' ? 1500 : 1200;
-  var kcalSegura = Math.round(kcalMeta * 0.80);
-  var protPct = protMeta > 0 ? Math.round((prot / protMeta) * 100) : 0;
+  var r = calcEstadoProtecaoMuscular(M, dados.kcalMedio, dados.proteinaMedia, sexo, { periodo: periodo });
 
-  var paleta, tituloTxt, mensagemTxt;
-  var sufixo = periodo === 'hoje' ? '' : (' · média ' + (periodo === 'semana' ? '7d' : (periodo === '15d' ? '15d' : '30d')));
+  // Mapeia estado em paleta de fundo (variantes do helper)
+  var bg, border;
+  if(r.estado === 'protegida'){ bg = 'rgba(74,222,128,.1)';  border = 'rgba(74,222,128,.4)'; }
+  else if(r.estado === 'atencao'){ bg = 'rgba(232,200,120,.1)'; border = 'rgba(232,200,120,.45)'; }
+  else if(r.estado === 'risco'){ bg = 'rgba(232,168,138,.13)'; border = 'rgba(232,168,138,.55)'; }
+  else { bg = 'rgba(255,255,255,.04)'; border = 'rgba(255,255,255,.1)'; }
 
-  if(kcal < pisoFisiol){
-    paleta = { bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', cor:'#f3a88a', icon:'🚨' };
-    tituloTxt = 'Risco — catabolismo provável';
-    mensagemTxt = '<strong>' + kcal + ' kcal' + (periodo === 'hoje' ? ' hoje' : '/dia') + '</strong> abaixo do piso fisiológico (' + pisoFisiol + '). Esse nível leva à perda de massa magra <strong>mesmo com proteína dobrada</strong>. Adiciona uma refeição com gordura boa + proteína 🌿';
-  } else if(protPct < 80 && kcal < kcalSegura){
-    paleta = { bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', cor:'#f3a88a', icon:'🚨' };
-    tituloTxt = 'Risco crítico — proteína E calorias baixas';
-    mensagemTxt = 'Falta proteína (' + protPct + '%) E energia. Esse combo é o que mais custa músculo na janela GLP-1. Próxima refeição: proteína + carbo 🌿';
-  } else if(protPct >= 100 && kcal < kcalSegura){
-    paleta = { bg:'rgba(232,200,120,.1)', border:'rgba(232,200,120,.45)', cor:'#fcd34d', icon:'⚠️' };
-    tituloTxt = 'Atenção — músculo em risco';
-    mensagemTxt = '💪 Proteína em dia (' + protPct + '%). Mas calorias baixas (' + kcal + ' vs ~' + kcalMeta + '). <strong>Proteína extra não compensa déficit calórico grande</strong> — corpo cataboliza músculo. Lanche com proteína + carbo agora? 🌿';
-  } else if(protPct >= 100 && kcal >= kcalSegura){
-    paleta = { bg:'rgba(74,222,128,.1)', border:'rgba(74,222,128,.4)', cor:'#86efac', icon:'💪' };
-    tituloTxt = 'Protegida — músculo em dia';
-    mensagemTxt = 'Proteína e energia em dia — <strong>massa magra preservada</strong>' + sufixo + '. Segue assim 🌿';
-  } else {
-    paleta = { bg:'rgba(232,200,120,.1)', border:'rgba(232,200,120,.45)', cor:'#fcd34d', icon:'⚠️' };
-    tituloTxt = 'Falta proteína — atenção';
-    mensagemTxt = 'Calorias OK, mas proteína em <strong>' + protPct + '%</strong> da meta. Sem proteína suficiente, parte do peso perdido pode ser massa magra. Foco da próxima refeição: proteína primeiro 🌿';
-  }
-
-  diag.style.background = paleta.bg;
-  diag.style.borderColor = paleta.border;
-  icon.textContent = paleta.icon;
-  ttl.textContent = tituloTxt;
-  ttl.style.color = paleta.cor;
-  sub.innerHTML = mensagemTxt;
+  diag.style.background = bg;
+  diag.style.borderColor = border;
+  icon.textContent = r.icone;
+  ttl.textContent = r.titulo;
+  ttl.style.color = r.cor;
+  sub.innerHTML = r.mensagem;
 }
 
 // v3.10.21: cardProtecaoMuscular antigo (v3.10.19) ficou redundante.
@@ -21123,6 +21192,8 @@ function renderRelatorio(){
   var protSomaSemana = 0, protDiasComDado = 0;
   var aguaSomaSemana = 0, aguaDiasComDado = 0;
   var aguaDiasMeta = 0;
+  // v3.10.24: kcal pra integrar veredito de Proteção Muscular no relatório
+  var kcalSomaSemana = 0, kcalDiasComDado = 0;
 
   var hojeStr = hoje();
 
@@ -21144,6 +21215,9 @@ function renderRelatorio(){
     var pPct = protMeta>0 ? Math.min(130, Math.round(((dh.proteinG||0)/protMeta)*100)) : 0;
     if(pPct >= 80) protBatidos++;
     if(dh.proteinG){ protSomaSemana += dh.proteinG; protDiasComDado++; }
+    // v3.10.24: soma kcal usando getKcalConsumed pra incluir álcool
+    var _kcalDia = (typeof getKcalConsumed === 'function') ? getKcalConsumed(dh) : (dh.kcalConsumed || 0);
+    if(_kcalDia > 0 && !futuro){ kcalSomaSemana += _kcalDia; kcalDiasComDado++; }
 
     var aPct = aguaMeta>0 ? Math.round(((dh.waterMl||0)/aguaMeta)*100) : 0;
     if(aPct >= 80){ aguaBatidos++; aguaDiasMeta++; }
@@ -21463,6 +21537,28 @@ function renderRelatorio(){
     }
   }
   pilHtml += _pilarBlock('🥩', 'Proteína', protBatidos, diasComCheckin, protFrase, protInsight);
+
+  // v3.10.24: VEREDITO DE PROTEÇÃO MUSCULAR — combina proteína × calorias
+  // Aparece logo após o bloco de proteína pra contextualizar o "isolado".
+  // Ancora o leitor médico no insight clínico chave que o card do painel mostra.
+  if(M && kcalDiasComDado > 0 && protDiasComDado > 0){
+    var kcalMedSem = Math.round(kcalSomaSemana / kcalDiasComDado);
+    var protMedSem = Math.round(protSomaSemana / protDiasComDado);
+    var sexoRel = (S && S.profile && S.profile.sex) || 'F';
+    var verPM = calcEstadoProtecaoMuscular(M, kcalMedSem, protMedSem, sexoRel, { periodo:'semana' });
+    var verBg, verBorder;
+    if(verPM.estado === 'protegida'){ verBg = 'rgba(74,222,128,.10)'; verBorder = 'rgba(74,222,128,.4)'; }
+    else if(verPM.estado === 'atencao'){ verBg = 'rgba(232,200,120,.10)'; verBorder = 'rgba(232,200,120,.45)'; }
+    else if(verPM.estado === 'risco'){ verBg = 'rgba(232,168,138,.13)'; verBorder = 'rgba(232,168,138,.55)'; }
+    else { verBg = 'rgba(255,255,255,.04)'; verBorder = 'rgba(255,255,255,.1)'; }
+    pilHtml += '<div style="padding:12px 14px;border-radius:12px;background:' + verBg + ';border:1.5px solid ' + verBorder + ';display:flex;align-items:center;gap:13px;margin:6px 0 12px">';
+    pilHtml += '<div style="font-size:30px;line-height:1;flex-shrink:0">' + verPM.icone + '</div>';
+    pilHtml += '<div style="flex:1;min-width:0">';
+    pilHtml += '<div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.55);margin-bottom:3px">Proteção muscular · semana</div>';
+    pilHtml += '<div style="font-family:var(--fd);font-weight:500;font-size:16px;letter-spacing:-.005em;line-height:1.15;color:' + verPM.cor + ';margin-bottom:3px">' + verPM.titulo + '</div>';
+    pilHtml += '<div style="font-size:11.5px;color:rgba(255,255,255,.7);line-height:1.4">' + verPM.mensagem + '</div>';
+    pilHtml += '</div></div>';
+  }
 
   // HIDRATAÇÃO
   var aguaMed = aguaDiasComDado > 0 ? Math.round(aguaSomaSemana/aguaDiasComDado) : 0;
