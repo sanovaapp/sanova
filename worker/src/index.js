@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.22.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.23.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -180,6 +180,12 @@ export default {
       // preapproval authorized COM charged_quantity > 0 dessa busca.
       if (url.pathname === '/api/admin-cleanup-v2' && request.method === 'GET') {
         return await handleAdminCleanupV2(env);
+      }
+
+      // v1.23.0: lista payment_methods_allowed dos planos MP (verifica PIX
+      // sem precisar entrar no painel MP). Bruno: pendência D removida.
+      if (url.pathname === '/api/admin-check-payment-methods' && request.method === 'GET') {
+        return await handleAdminCheckPaymentMethods(env);
       }
 
       if (url.pathname === '/api/analyze-photo' && request.method === 'POST') {
@@ -532,6 +538,45 @@ async function handleAdminCleanupV2(env) {
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+}
+
+// ─── /api/admin-check-payment-methods (v1.23.0) ──────────────
+// Lista payment_methods_allowed dos preapproval_plans cadastrados no
+// Supabase (mp_plans). Usado pra verificar se PIX/boleto/cartão já
+// estão aceitos sem precisar entrar no painel MP.
+async function handleAdminCheckPaymentMethods(env) {
+  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!token) return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
+    { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  const out = [];
+  try {
+    for (const tipo of ['mensal', 'anual']) {
+      const p = await getMpPlan(tipo, env);
+      if (!p) { out.push({ tipo, status: 'plano nao encontrado no supabase' }); continue; }
+      try {
+        const r = await fetch('https://api.mercadopago.com/preapproval_plan/' + p.mp_plan_id, {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!r.ok) { out.push({ tipo, mp_plan_id: p.mp_plan_id, erro: 'HTTP ' + r.status }); continue; }
+        const j = await r.json().catch(() => ({}));
+        out.push({
+          tipo,
+          mp_plan_id: p.mp_plan_id,
+          status: j.status,
+          reason: j.reason,
+          auto_recurring: j.auto_recurring,
+          payment_methods_allowed: j.payment_methods_allowed,
+        });
+      } catch (e) {
+        out.push({ tipo, mp_plan_id: p.mp_plan_id, erro: String(e.message || e) });
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, planos: out }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: out }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
