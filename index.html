@@ -6145,7 +6145,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.15';
+var SANOVA_VERSION = '3.10.16';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21822,10 +21822,26 @@ window.addEventListener('beforeunload',function(){
     try{ bootApp(); }catch(e){ location.reload(); }
     // v3.2.1: reforço — garante que o destino final é o Painel, não o registro.
     // Só força se o app já está ativo (não interrompe a anamnese de quem é novo).
+    // v3.10.16: se veio de email de reset password (type=recovery no fragment),
+    // navega pra Minha conta direto pra usuário trocar senha em vez do dashboard.
     setTimeout(function(){
       try{
+        var hash = window.location.hash || '';
+        var ehRecovery = /[#&?]type=recovery\b/.test(hash);
         var ativo = localStorage.getItem('sanova_ativo')==='1';
-        if(ativo && typeof go==='function') go('dashboard');
+        if(ehRecovery && typeof go === 'function'){
+          go('conta');
+          // foca o input de nova senha e aviso visual
+          setTimeout(function(){
+            try{
+              var inp = document.getElementById('novaSenhaInput');
+              if(inp){ inp.focus(); inp.scrollIntoView({behavior:'smooth', block:'center'}); }
+              if(typeof toast === 'function') toast('🔑 Defina sua nova senha abaixo', 4500);
+            }catch(e){}
+          }, 300);
+        } else if(ativo && typeof go==='function'){
+          go('dashboard');
+        }
       }catch(e){}
     }, 400);
   }
