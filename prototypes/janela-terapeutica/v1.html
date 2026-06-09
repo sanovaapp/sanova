@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=412,initial-scale=1,viewport-fit=cover">
+<title>Sanova · Janela Terapêutica — V1 "Onda Orgânica"</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     V1 — "Onda Orgânica"
+     Estilo Apple Health / Calm. Curva fluida, foco em sensação.
+     ═══════════════════════════════════════════════════════════════════ */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    width:412px;
+    min-height:915px;
+    background:linear-gradient(180deg,#031509 0%,#051f10 50%,#04140a 100%);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:rgba(255,255,255,.94);
+    -webkit-font-smoothing:antialiased;
+    padding:24px 18px 32px;
+  }
+  .topbar{
+    display:flex;align-items:center;gap:8px;
+    font-size:10.5px;font-weight:700;letter-spacing:.18em;
+    color:#86efac;text-transform:uppercase;
+    margin-bottom:6px;opacity:.85;
+  }
+  .topbar::before{
+    content:'';width:6px;height:6px;border-radius:99px;
+    background:#86efac;box-shadow:0 0 12px rgba(134,239,172,.7);
+  }
+  h1{
+    font-size:24px;line-height:1.18;font-weight:600;
+    color:#fff;margin-bottom:6px;letter-spacing:-.012em;
+  }
+  .sub{
+    font-size:13.5px;color:rgba(255,255,255,.55);line-height:1.45;
+    margin-bottom:22px;
+  }
+  .sub b{color:rgba(255,255,255,.78);font-weight:500}
+
+  /* ─── Onda SVG ─────────────────────────────────────────────── */
+  .grafico{
+    position:relative;
+    border-radius:22px;
+    background:radial-gradient(ellipse at 50% 0%, rgba(74,222,128,.10), transparent 70%),
+               linear-gradient(160deg,rgba(16,80,38,.55) 0%, rgba(8,40,20,.35) 100%);
+    border:1px solid rgba(187,247,208,.10);
+    padding:18px 14px 24px;
+    margin-bottom:18px;
+    overflow:hidden;
+  }
+  .legenda{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:8px;
+  }
+  .legenda .lbl{font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.04em}
+  .legenda .valor{font-size:13.5px;color:#86efac;font-weight:700;letter-spacing:.02em}
+  svg.onda{display:block;width:100%;height:220px;overflow:visible}
+
+  .eixoX{
+    display:flex;justify-content:space-between;
+    margin-top:6px;padding:0 2px;
+    font-size:10.5px;color:rgba(255,255,255,.42);
+    letter-spacing:.06em;
+  }
+  .eixoX span.atual{color:#86efac;font-weight:700}
+
+  /* ─── Marcador "Você está aqui" pulsante ───────────────────── */
+  .marcador-circle{
+    transform-origin: center;
+    animation: pulseDot 2.2s ease-in-out infinite;
+  }
+  .marcador-halo{
+    transform-origin: center;
+    animation: pulseHalo 2.2s ease-in-out infinite;
+  }
+  @keyframes pulseDot{
+    0%,100%{ transform: scale(1); }
+    50%{ transform: scale(1.18); }
+  }
+  @keyframes pulseHalo{
+    0%{ opacity:.55; transform: scale(.9); }
+    100%{ opacity:0; transform: scale(2.4); }
+  }
+
+  /* ─── Tag flutuante "Zona de saciedade" ────────────────────── */
+  .tag-zona{
+    position:absolute;
+    top:54px; left:48%;
+    transform:translateX(-50%);
+    background:rgba(74,222,128,.16);
+    color:#bbf7d0;
+    border:1px solid rgba(134,239,172,.32);
+    padding:4px 10px;border-radius:99px;
+    font-size:10.5px;font-weight:700;letter-spacing:.05em;
+    backdrop-filter:blur(2px);
+    pointer-events:none;
+    text-transform:uppercase;
+  }
+  .tag-voce{
+    position:absolute;
+    top:92px; left:62%;
+    background:linear-gradient(180deg,#22c55e,#15803d);
+    color:#fff;
+    padding:4px 9px 4px 9px;border-radius:7px;
+    font-size:10px;font-weight:800;letter-spacing:.08em;
+    box-shadow:0 4px 14px rgba(34,197,94,.45);
+    pointer-events:none;
+    text-transform:uppercase;
+  }
+  .tag-voce::after{
+    content:'';position:absolute;left:50%;bottom:-4px;
+    transform:translateX(-50%) rotate(45deg);
+    width:6px;height:6px;background:#15803d;
+  }
+
+  /* ─── Card mensagem contextual ────────────────────────────── */
+  .card-msg{
+    background:linear-gradient(168deg,rgba(255,255,255,.06) 0%,rgba(255,255,255,.025) 100%);
+    border:1px solid rgba(187,247,208,.14);
+    border-radius:18px;
+    padding:18px 16px;
+    display:flex;gap:14px;align-items:flex-start;
+    margin-bottom:14px;
+  }
+  .card-msg .emoji{
+    font-size:34px;line-height:1;flex-shrink:0;
+    filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));
+  }
+  .card-msg .titulo{
+    font-size:14.5px;font-weight:600;color:#fff;
+    margin-bottom:6px;line-height:1.25;
+  }
+  .card-msg .texto{
+    font-size:13px;color:rgba(255,255,255,.72);line-height:1.5;
+  }
+
+  /* ─── Mini-info dia ──────────────────────────────────────── */
+  .info-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;
+    margin-bottom:14px;
+  }
+  .info-grid .pill{
+    background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .info-grid .pill .k{font-size:10.5px;color:rgba(255,255,255,.5);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+  .info-grid .pill .v{font-size:13.5px;color:#fff;font-weight:600}
+
+  /* ─── Disclaimer ─────────────────────────────────────────── */
+  .disclaimer{
+    font-size:10.5px;color:rgba(255,255,255,.42);
+    line-height:1.55;text-align:center;
+    padding:0 8px;margin-top:6px;
+  }
+  .disclaimer b{color:rgba(255,255,255,.62);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="topbar">Janela terapêutica</div>
+<h1>A força do seu remédio<br>nesta semana</h1>
+<p class="sub">
+  Semaglutida semanal, <b>3º ciclo</b>.<br>
+  Sua próxima dose é em <b>3 dias</b>.
+</p>
+
+<div class="grafico">
+  <div class="legenda">
+    <div>
+      <div class="lbl">FORÇA ESTIMADA</div>
+      <div class="valor">Auge — você está aqui</div>
+    </div>
+    <div class="valor" style="font-size:11px;color:rgba(255,255,255,.55);font-weight:500">
+      D+4 de 7
+    </div>
+  </div>
+
+  <!-- SVG da onda + zona saciedade + marcador -->
+  <svg class="onda" viewBox="0 0 380 220" preserveAspectRatio="none">
+    <defs>
+      <!-- Gradient da curva (fill) -->
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#86efac" stop-opacity=".55"/>
+        <stop offset="40%" stop-color="#4ade80" stop-opacity=".25"/>
+        <stop offset="100%" stop-color="#15803d" stop-opacity="0"/>
+      </linearGradient>
+      <!-- Gradient da zona saciedade -->
+      <linearGradient id="zonaG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#86efac" stop-opacity=".12"/>
+        <stop offset="100%" stop-color="#4ade80" stop-opacity=".03"/>
+      </linearGradient>
+      <!-- Glow do trace -->
+      <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+
+    <!-- Linha de base (sutil) -->
+    <line x1="0" y1="200" x2="380" y2="200" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+
+    <!-- Zona de saciedade (D+1.5 a D+5.5) -->
+    <!-- D=0 em x=0, D=7 em x=380. D+1.5 = 81, D+5.5 = 299 -->
+    <path d="M 81,200 L 81,55 Q 190,5 299,55 L 299,200 Z" fill="url(#zonaG)"/>
+
+    <!-- Linha tracejada superior da zona -->
+    <path d="M 81,55 Q 190,5 299,55" stroke="rgba(134,239,172,.32)" stroke-width="1" stroke-dasharray="3 4" fill="none"/>
+
+    <!-- Curva PREENCHIDA (fill abaixo) -->
+    <!-- Pontos suavizados: D=0(70%), D=1(85%), D=2(95%), D=3(100%PICO),
+                            D=4(95%), D=5(85%), D=6(75%), D=7(65%) -->
+    <path d="
+      M 0,80
+      C 14,72  35,52  54,42
+      C 86,30  124,18 163,18
+      C 200,18 238,28 271,42
+      C 304,55 332,75 380,118
+      L 380,200 L 0,200 Z"
+      fill="url(#g1)"/>
+
+    <!-- Curva TRACE -->
+    <path d="
+      M 0,80
+      C 14,72  35,52  54,42
+      C 86,30  124,18 163,18
+      C 200,18 238,28 271,42
+      C 304,55 332,75 380,118"
+      stroke="#86efac" stroke-width="2.5" fill="none"
+      stroke-linecap="round" filter="url(#glow)"/>
+
+    <!-- Marcador "VOCÊ ESTÁ AQUI" no D+4 -->
+    <!-- D+4 = x=217 (380*4/7). Curva no D+4 ≈ y=28 -->
+    <g transform="translate(217,28)">
+      <!-- Halo pulsante -->
+      <circle class="marcador-halo" r="14" fill="#86efac" opacity=".55"/>
+      <!-- Ponto -->
+      <circle class="marcador-circle" r="6.5" fill="#bbf7d0"/>
+      <circle r="3.2" fill="#15803d"/>
+    </g>
+
+    <!-- Linha vertical sutil do marcador -->
+    <line x1="217" y1="36" x2="217" y2="200" stroke="rgba(134,239,172,.18)" stroke-width="1" stroke-dasharray="2 3"/>
+  </svg>
+
+  <!-- Tags posicionadas absolutamente sobre o SVG -->
+  <div class="tag-zona">🌿 Zona de saciedade</div>
+  <div class="tag-voce">VOCÊ ESTÁ AQUI</div>
+
+  <div class="eixoX">
+    <span>D+0</span><span>D+1</span><span>D+2</span><span>D+3</span>
+    <span class="atual">D+4</span><span>D+5</span><span>D+6</span><span>D+7</span>
+  </div>
+</div>
+
+<!-- Card mensagem contextual -->
+<div class="card-msg">
+  <div class="emoji">💪</div>
+  <div>
+    <div class="titulo">Seu remédio está no auge</div>
+    <div class="texto">
+      A fome está baixa nestes próximos 2 dias. Aproveite pra firmar bons
+      hábitos — refeições calmas, proteína primeiro, água sempre por perto.
+    </div>
+  </div>
+</div>
+
+<!-- Pílulas de info -->
+<div class="info-grid">
+  <div class="pill">
+    <div class="k">PRÓXIMA DOSE</div>
+    <div class="v">D+7 · quinta</div>
+  </div>
+  <div class="pill">
+    <div class="k">SACIEDADE</div>
+    <div class="v">Forte até D+5</div>
+  </div>
+</div>
+
+<div class="disclaimer">
+  <b>Curva estimada</b> baseada na meia-vida média da semaglutida.
+  Variações individuais existem. <b>Não antecipe sua dose</b> — siga
+  exatamente o que seu médico orientou.
+</div>
+
+</body>
+</html>
