@@ -1344,24 +1344,21 @@ tr:hover td{background:var(--g50)}
 #resumoAguaVal,#resumoProtVal{color:var(--g400) !important;font-family:var(--fd);font-size:16px !important;font-weight:500 !important;letter-spacing:-.018em}
 #resumoKcalVal{color:var(--gold-light) !important;font-family:var(--fd);font-size:16px !important;font-weight:500 !important;letter-spacing:-.018em}
 
-/* CARD CALORIAS DO DIA (calBarCard) — era verde escuro aleatório, agora sage */
+/* v3.10.22: calBarCard agora é bloco interno do pilaresAnaliseCard.
+   Regras antigas de fundo/padding/border zeradas — wrapper cuida disso.
+   Mantém só typography essencial. */
 #calBarCard{
-  padding:18px 18px 20px !important;
-  border-radius:20px !important;
-  background:var(--hero-dark) !important;
-  border:1px solid rgba(240,200,90,.2) !important;
-  box-shadow:var(--shadow-card) !important;
-  position:relative;overflow:hidden;
+  padding:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  position:relative;
 }
-#calBarCard::before{content:'';position:absolute;inset:0;background:var(--hero-glow);pointer-events:none}
-#calBarCard > *{position:relative}
-#calBarCard > div:first-child > div:first-child{
-  font-size:11px !important;font-weight:700 !important;letter-spacing:.14em !important;
-  color:rgba(240,200,90,.78) !important;text-transform:uppercase;
-}
-#calBarConsumed{font-family:var(--fd) !important;font-size:26px !important;font-weight:500 !important;letter-spacing:-.025em !important;color:var(--gold-light) !important}
-#calBarMeta,#calBarMetaLbl,#calBarMantLbl{color:rgba(255,255,255,.42) !important}
-#calBarMsg{color:rgba(255,255,255,.55) !important;font-size:11px !important}
+#calBarCard::before{display:none}
+#calBarConsumed{font-family:var(--fd) !important;font-size:22px !important;font-weight:500 !important;letter-spacing:-.01em !important;color:#fff !important}
+#calBarMeta,#calBarMetaLbl,#calBarMantLbl{color:rgba(255,255,255,.55) !important}
+#calBarMsg{color:rgba(255,255,255,.6) !important;font-size:11px !important}
 
 /* FOTO DO PRATO (card destaque) — substituir laranja marrom por sage + gold */
 div[style*="linear-gradient(135deg,rgba(20,10,5,.97)"]{
@@ -1418,7 +1415,8 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   .tab-bar .tb .tb-ic{font-size:20px}
   .ana-msgs{padding:calc(70px + var(--safe-top)) 18px 20px}
   #anaInput{padding:14px 18px calc(22px + var(--safe-bottom))}
-  #heroVazio,#heroAtivo,#quatroGauges,#calBarCard{border-radius:22px !important}
+  #heroVazio,#heroAtivo,#quatroGauges{border-radius:22px !important}
+  #calBarCard{border-radius:0 !important}
   .ce-fab{bottom:calc(80px + var(--safe-bottom));right:14px;padding:12px 18px;font-size:13px}
   .help-fab{bottom:calc(80px + var(--safe-bottom));left:12px;width:44px;height:44px;font-size:18px}
   .calc-form{grid-template-columns:1fr}
@@ -4117,7 +4115,10 @@ try{
        IDs internos das barras (calBarFaixa*, calBarConsumed, calBarMeta,
        protBarFaixa*, etc) preservados pra _aplicarCalBarConfig/
        _aplicarProtBarConfig continuarem funcionando sem refactor. -->
-  <div id="pilaresAnaliseCard" style="background:linear-gradient(160deg,rgba(74,222,128,.05),rgba(74,222,128,.01));border:1px solid rgba(187,247,208,.2);border-radius:18px;padding:18px 16px;margin-bottom:10px">
+  <!-- v3.10.22: fundo escuro sólido (igual ao calBarCard original) pra
+       contrastar com o painel claro do app. Wrapper único com 2 blocos
+       internos transparentes (compartilham o fundo). -->
+  <div id="pilaresAnaliseCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 16px;margin-bottom:10px;color:#fff">
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
@@ -4136,8 +4137,9 @@ try{
       <button id="pTabMes" onclick="setPilaresPeriodo('mes')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Mês</button>
     </div>
 
-    <!-- ══ CALORIAS (markup interno preservado pra _aplicarCalBarConfig) ══ -->
-    <div id="calBarCard" style="margin-bottom:18px">
+    <!-- ══ CALORIAS (markup interno preservado pra _aplicarCalBarConfig).
+         v3.10.22: sem fundo próprio — usa o do wrapper escuro. ══ -->
+    <div id="calBarCard" style="margin-bottom:18px;background:transparent;border:0;padding:0">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
         <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🔥 Calorias</div>
         <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="calBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="calBarMeta">— kcal</span></small></div>
@@ -4169,8 +4171,9 @@ try{
       <div id="calBarStatus" style="display:none"></div>
     </div>
 
-    <!-- ══ PROTEÍNA (markup interno preservado pra _aplicarProtBarConfig) ══ -->
-    <div id="protBarCard">
+    <!-- ══ PROTEÍNA (markup interno preservado pra _aplicarProtBarConfig).
+         v3.10.22: sem fundo próprio. ══ -->
+    <div id="protBarCard" style="background:transparent;border:0;padding:0">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
         <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🥩 Proteína</div>
         <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="protBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="protBarMeta">— g</span></small></div>
@@ -6225,7 +6228,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.21';
+var SANOVA_VERSION = '3.10.22';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
