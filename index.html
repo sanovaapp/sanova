@@ -2892,19 +2892,25 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   letter-spacing:.02em;
 }
 
-/* DUO: Água + Calorias lado a lado */
-.pilar-duo{
+/* v3.10.20: TRIO — Água + Calorias + Proteção muscular lado a lado
+   (antes era DUO). Proteção combina calorias × proteína = leitura central. */
+.pilar-duo,
+.pilar-trio{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
   margin-bottom:10px;
 }
 .pilar-mini{
   background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.06);
   border-radius:14px;
-  padding:12px;
+  padding:10px 8px;
 }
+/* Ring de Proteção com borda colorida dinâmica via classe de estado */
+.pilar-mini.estado-protegida{ border-color:rgba(74,222,128,.4); background:rgba(74,222,128,.06) }
+.pilar-mini.estado-atencao{ border-color:rgba(232,200,120,.5); background:rgba(232,200,120,.06) }
+.pilar-mini.estado-risco{ border-color:rgba(232,168,138,.55); background:rgba(232,168,138,.08) }
 .pilar-mini-btn{
   background:none;border:none;cursor:pointer;
   width:100%;padding:0;
@@ -3975,8 +3981,8 @@ try{
       </button>
     </div>
 
-    <!-- LADO A LADO: Água + Calorias (mesma natureza diária) -->
-    <div class="pilar-duo">
+    <!-- LADO A LADO: Água + Calorias + Proteção muscular (leitura combinada) -->
+    <div class="pilar-trio">
       <!-- Água -->
       <div class="pilar-mini" style="position:relative">
         <button onclick="toggleAguaRapido()" class="pilar-mini-btn" aria-label="Adicionar água">
@@ -4014,6 +4020,22 @@ try{
           <div class="pilar-mini-info">
             <div class="pilar-mini-ttl">🔥 Calorias</div>
             <div class="pilar-mini-val" id="pilarKcalVal">—</div>
+          </div>
+        </button>
+      </div>
+      <!-- v3.10.20: Proteção muscular (combinação proteína × calorias) -->
+      <div class="pilar-mini" id="pilarProtMuscMini">
+        <button onclick="abrirInfoProtecaoMuscular()" class="pilar-mini-btn" aria-label="Entender proteção muscular">
+          <div class="pilar-mini-ring">
+            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
+              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
+              <circle id="pilarProtMuscRing" class="pilar-prog" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08" stroke="#86efac"></circle>
+            </svg>
+            <div class="pilar-mini-pct" id="pilarProtMuscIcon" style="font-size:18px">—</div>
+          </div>
+          <div class="pilar-mini-info">
+            <div class="pilar-mini-ttl">🛡️ Músculo</div>
+            <div class="pilar-mini-val" id="pilarProtMuscVal">—</div>
           </div>
         </button>
       </div>
@@ -6170,7 +6192,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.19';
+var SANOVA_VERSION = '3.10.20';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13745,6 +13767,62 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
   titulo.textContent = tituloTxt;
   titulo.style.color = paleta.ttl;
   msg.innerHTML = mensagemTxt;
+
+  // v3.10.20: alimenta também o MINI ring na linha de Água + Calorias
+  try{
+    var mini = document.getElementById('pilarProtMuscMini');
+    var ring = document.getElementById('pilarProtMuscRing');
+    var iconMini = document.getElementById('pilarProtMuscIcon');
+    var valMini = document.getElementById('pilarProtMuscVal');
+    if(mini && ring && iconMini && valMini){
+      // Reset classes de estado
+      mini.classList.remove('estado-protegida','estado-atencao','estado-risco');
+      var corRing = '#86efac', estadoCls = '', txtCurto = '—', iconCurto = '🛡️';
+      if(estado === 'protegida'){ corRing = '#4ade80'; estadoCls = 'estado-protegida'; txtCurto = 'Protegido'; iconCurto = '💪'; }
+      else if(estado === 'atencao' || estado === 'protBaixa'){ corRing = '#fcd34d'; estadoCls = 'estado-atencao'; txtCurto = 'Atenção'; iconCurto = '⚠️'; }
+      else if(estado === 'risco' || estado === 'duplo'){ corRing = '#f3a88a'; estadoCls = 'estado-risco'; txtCurto = 'Risco'; iconCurto = '🚨'; }
+      if(estadoCls) mini.classList.add(estadoCls);
+      // % representativo: média ponderada de prot e kcal (60% prot, 40% kcal)
+      var pctMini = Math.min(100, Math.round(protPct * 0.6 + kcalPct * 0.4));
+      var circ = 2 * Math.PI * 25;
+      ring.setAttribute('stroke', corRing);
+      ring.style.strokeDashoffset = circ * (1 - pctMini / 100);
+      iconMini.textContent = iconCurto;
+      iconMini.style.fontSize = '20px';
+      valMini.textContent = txtCurto;
+      valMini.style.color = corRing;
+      valMini.style.fontWeight = '700';
+    }
+  }catch(e){ console.warn('[ProtMusc mini]', e); }
+}
+
+// v3.10.20: modal informativo do conceito de proteção muscular
+function abrirInfoProtecaoMuscular(){
+  var ov = document.createElement('div');
+  ov.id = 'infoProtMuscOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(4,15,8,.78);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = function(e){ if(e.target === ov) document.body.removeChild(ov); };
+  var card = document.createElement('div');
+  card.style.cssText = 'background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:18px;padding:24px 22px 18px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);color:#fff;border:1.5px solid rgba(187,247,208,.25)';
+  card.innerHTML =
+    '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#86efac;margin-bottom:6px">🛡️ PROTEÇÃO MUSCULAR — O CONCEITO</div>' +
+    '<div style="font-family:var(--fd,Georgia);font-size:21px;font-weight:500;color:#fff;letter-spacing:-.015em;margin-bottom:14px;line-height:1.25">Proteína sozinha não basta. Calorias sozinhas também não.</div>' +
+    '<div style="font-size:13.5px;color:rgba(255,255,255,.85);line-height:1.7;margin-bottom:14px">Em GLP-1, é fácil bater a meta de <strong>proteína</strong> e ainda assim comer muito pouco. Quando isso acontece, o corpo entra em catabolismo: <strong>quebra músculo pra gerar glicose</strong>, mesmo com proteína em excesso na refeição.</div>' +
+    '<div style="background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.25);border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
+      '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#bbf7d0;margin-bottom:8px">COMO LEMOS</div>' +
+      '<div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.9)">' +
+        '<div style="margin-bottom:6px">💪 <strong style="color:#86efac">Protegido</strong> — proteína ≥ meta E calorias ≥ 80% da meta</div>' +
+        '<div style="margin-bottom:6px">⚠️ <strong style="color:#fcd34d">Atenção</strong> — falta proteína OU calorias entre piso e 80%</div>' +
+        '<div>🚨 <strong style="color:#f3a88a">Risco</strong> — calorias abaixo do piso fisiológico (1200F/1500M)</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:linear-gradient(160deg,#fef8ec,#fef3e0);border:1px solid #e0b864;border-left:4px solid #b8893a;border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
+      '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#7d5a1f;margin-bottom:6px">A REGRA DE OURO</div>' +
+      '<div style="font-size:13.5px;color:#3d2810;line-height:1.6"><strong>"Mais proteína não compensa déficit calórico grande."</strong> Em GLP-1, comer pouco demais é o maior risco pra massa magra — não comer pouca proteína.</div>' +
+    '</div>' +
+    '<button onclick="document.body.removeChild(document.getElementById(\'infoProtMuscOv\'))" style="width:100%;padding:13px;border-radius:11px;border:0;background:linear-gradient(135deg,#22c55e,#15803d);color:#fff;font-family:var(--ss,system-ui);font-size:14px;font-weight:800;cursor:pointer">Entendi 🌿</button>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
 }
 
 
