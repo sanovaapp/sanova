@@ -4032,6 +4032,18 @@ try{
       </button>
     </div>
 
+    <!-- v3.10.19: PROTEÇÃO MUSCULAR HOJE — indicador combinado calorias × proteína.
+         Cor + mensagem dinâmicas em renderProtecaoMuscular(). Esconde antes
+         das 19h se ainda não chegou em 70% das calorias (evita falso alerta
+         no almoço). -->
+    <div id="cardProtecaoMuscular" style="display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1.5px solid transparent;font-family:var(--ss,system-ui)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div id="protMuscIcon" style="font-size:22px">🛡️</div>
+        <div id="protMuscTitulo" style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">PROTEÇÃO MUSCULAR HOJE</div>
+      </div>
+      <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:var(--ink2)"></div>
+    </div>
+
     <!-- Canvas legados mantidos invisíveis para não quebrar drawGauge antigo -->
     <div style="display:none">
       <canvas id="gaugeAgua" width="130" height="80"></canvas>
@@ -6158,7 +6170,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.18';
+var SANOVA_VERSION = '3.10.19';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13632,6 +13644,109 @@ function abrirInfoProteina(){
   document.body.appendChild(ov);
 }
 
+/* ══ v3.10.19: PROTEÇÃO MUSCULAR HOJE ══
+   Indicador combinado: proteína sozinha não basta. Em GLP-1 com déficit
+   calórico severo, o corpo cataboliza aminoácidos do músculo via
+   gluconeogênese, mesmo com proteína em excesso.
+
+   Estados:
+     🟢 PROTEGIDA  · prot ≥ 100% E kcal ≥ 80% da meta (déficit ≤20%)
+     🟡 ATENÇÃO   · prot ≥ 100% E pisoFisiol ≤ kcal < 80% meta
+     🔴 RISCO     · kcal < pisoFisiol (1500M/1200F) — qualquer prot
+     🔴 DUPLO     · prot < 80% E kcal < 80% meta
+     ⚪ AGUARDANDO · hora < 19h E kcal < 70% (paciente ainda vai jantar)
+
+   Tom: acolhedor, sempre empurra COMER MAIS, ancora em literatura.
+   Limites cravados pelo Bruno: 0.80 (déficit máx 20% — Helms/ISSN).
+*/
+function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
+  var card = document.getElementById('cardProtecaoMuscular');
+  var icon = document.getElementById('protMuscIcon');
+  var titulo = document.getElementById('protMuscTitulo');
+  var msg = document.getElementById('protMuscMsg');
+  if(!card || !icon || !titulo || !msg) return;
+  if(!M || !M.meta || M.meta <= 0){ card.style.display = 'none'; return; }
+
+  var sexo = (S && S.profile && S.profile.sex) || 'F';
+  var pisoFisiol = sexo === 'M' ? 1500 : 1200;
+  var kcalMeta = Math.round(M.meta);
+  var kcalSegura = Math.round(kcalMeta * 0.80);   // déficit máx 20%
+  var protMeta = Math.round(M.pm || 0);
+  var protPct = protMeta > 0 ? Math.round((protHoje / protMeta) * 100) : 0;
+  var kcalPct = kcalMeta > 0 ? Math.round((kcalHoje / kcalMeta) * 100) : 0;
+
+  // Janela de espera: antes das 19h, se ainda não chegou em 70% das calorias,
+  // não alerta (paciente ainda vai jantar). Evita falso alarme no almoço.
+  var agora = new Date();
+  var horaLocal = agora.getHours();
+  var janelaEspera = horaLocal < 19 && kcalPct < 70;
+  if(janelaEspera){ card.style.display = 'none'; return; }
+
+  // Se nada foi consumido ainda, esconde
+  if(kcalHoje === 0 && protHoje === 0){ card.style.display = 'none'; return; }
+
+  // Cores e estados
+  var cores = {
+    verde:   { bg:'rgba(74,222,128,.10)', border:'rgba(74,222,128,.45)', ttl:'#86efac', icon:'💪' },
+    amarelo: { bg:'rgba(232,200,120,.10)', border:'rgba(232,200,120,.45)', ttl:'#fcd34d', icon:'⚠️' },
+    vermelho:{ bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', ttl:'#f3a88a', icon:'🚨' }
+  };
+
+  var estado, tituloTxt, mensagemTxt, paleta;
+
+  if(kcalHoje < pisoFisiol){
+    // 🔴 RISCO — abaixo do piso fisiológico (independente de proteína)
+    estado = 'risco';
+    paleta = cores.vermelho;
+    tituloTxt = '🚨 RISCO DE CATABOLISMO';
+    mensagemTxt = '<strong style="color:#fcd34d">' + kcalHoje + ' kcal hoje</strong> está abaixo do piso fisiológico (' + pisoFisiol + ' kcal). ' +
+      'Esse nível, mantido, leva à perda de massa magra <strong>mesmo com proteína dobrada</strong> — o corpo cataboliza músculo pra gerar energia. ' +
+      '<strong>Adiciona uma refeição agora</strong> com gordura boa (azeite, oleaginosas, abacate) + proteína. 🌿';
+  } else if(protPct < 80 && kcalHoje < kcalSegura){
+    // 🔴 DUPLO — proteína baixa E calorias baixas
+    estado = 'duplo';
+    paleta = cores.vermelho;
+    tituloTxt = '🚨 PROTEÇÃO MUSCULAR FRACA';
+    mensagemTxt = 'Hoje faltou <strong>proteína</strong> (' + protPct + '%) <strong>e energia</strong> (' + kcalHoje + ' kcal de ~' + kcalMeta + '). ' +
+      'Esse combo é o que mais custa músculo na janela GLP-1. ' +
+      'Próxima refeição: prioriza <strong>proteína + carbo</strong> (ovo + tapioca + queijo, frango + arroz + feijão). 🌿';
+  } else if(protPct >= 100 && kcalHoje < kcalSegura){
+    // 🟡 ATENÇÃO — proteína OK mas calorias abaixo do limiar seguro
+    estado = 'atencao';
+    paleta = cores.amarelo;
+    tituloTxt = '⚠️ ENERGIA BAIXA, MÚSCULO EM RISCO';
+    mensagemTxt = '💪 Proteína em dia (' + protPct + '%) — ótimo. Mas hoje você comeu pouco (' + kcalHoje + ' kcal vs ~' + kcalMeta + ' de gasto). ' +
+      '<strong>Mesmo com proteína acima da meta, calorias muito baixas obrigam o corpo a quebrar músculo</strong> pra gerar glicose. ' +
+      'Proteína extra não compensa déficit calórico grande. Que tal um lanche com proteína + carbo agora? ' +
+      '<span style="display:block;margin-top:6px;color:rgba(255,255,255,.7)">🌰 Pasta de amendoim + banana · 🥛 Iogurte grego + mel · 🥑 Abacate + ovos</span> 🌿';
+  } else if(protPct >= 100 && kcalHoje >= kcalSegura){
+    // 🟢 PROTEGIDA
+    estado = 'protegida';
+    paleta = cores.verde;
+    tituloTxt = '💪 PROTEÇÃO MUSCULAR EM DIA';
+    mensagemTxt = 'Proteína e energia em dia — <strong style="color:#bbf7d0">músculo protegido</strong> hoje. Continua nessa rotina 🌿';
+  } else if(protPct < 100 && kcalHoje >= kcalSegura){
+    // Calorias OK, proteína ainda faltando
+    estado = 'protBaixa';
+    paleta = cores.amarelo;
+    tituloTxt = '⚠️ FALTA PROTEÍNA HOJE';
+    mensagemTxt = 'Calorias em dia, mas proteína em <strong>' + protPct + '%</strong> da meta (' + protMeta + 'g). ' +
+      'Sem proteína suficiente, parte do peso perdido pode ser massa magra. ' +
+      'Foco da próxima refeição: <strong>proteína primeiro</strong> (frango, ovos, peixe, iogurte grego, whey). 🌿';
+  } else {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  card.style.background = paleta.bg;
+  card.style.borderColor = paleta.border;
+  icon.textContent = paleta.icon;
+  titulo.textContent = tituloTxt;
+  titulo.style.color = paleta.ttl;
+  msg.innerHTML = mensagemTxt;
+}
+
 
 function renderPilares(){
   var dh = getDH();
@@ -13707,6 +13822,13 @@ function renderPilares(){
     if(kcalHoje > 0) elValK.textContent = kcalHoje + ' / ' + kcalMeta + ' kcal';
     else elValK.textContent = 'Toque para registrar';
   }
+
+  // ============ v3.10.19: PROTEÇÃO MUSCULAR HOJE ============
+  // Indicador combinado calorias × proteína. Resolve furo clínico onde
+  // paciente bate proteína mas come pouco e perde músculo mesmo assim.
+  // Bruno (médico): excesso de proteína NÃO compensa déficit calórico
+  // severo — corpo faz gluconeogênese e cataboliza aminoácido do músculo.
+  try{ renderProtecaoMuscular(M, dh, kcalHoje, protHoje); }catch(e){ console.warn('[ProtMusc]', e); }
 
   // ============ EXERCÍCIO (pontos da semana) ============
   var seg = inicioSemana();
