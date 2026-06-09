@@ -37,6 +37,7 @@ on:
           - admin-reconcile-final
           - admin-cleanup-false-positives
           - admin-cleanup-v2
+          - admin-check-payment-methods
 
 jobs:
   call-worker:
