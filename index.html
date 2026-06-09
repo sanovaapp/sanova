@@ -4110,84 +4110,117 @@ try{
        (Calorias do Dia) — decisão Bruno: as calorias do dia sao o dado mais
        imediato pra paciente, balanço energetico e contexto secundário. -->
 
-  <!-- ══ CALORIAS DO DIA ══ -->
-  <div id="calBarCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:16px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(243,168,138,.2)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(243,168,138,.7)">🔥 CALORIAS DO DIA</div>
-      <div id="calBarStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(74,222,128,.15);color:#4ade80">Zona ideal</div>
-    </div>
-    <!-- Barra de zonas (v3.8.8: dinâmica por objetivo) -->
-    <div style="position:relative;height:28px;border-radius:10px;overflow:hidden;margin-bottom:8px">
-      <!-- Faixas de cor — v3.10.6: SIMÉTRICAS (25% cada) -->
-      <div style="position:absolute;inset:0;display:flex">
-        <div id="calBarFaixa0" style="width:25%;background:rgba(243,168,138,.3)"></div>
-        <div id="calBarFaixa1" style="width:25%;background:rgba(74,222,128,.35)"></div>
-        <div id="calBarFaixa2" style="width:25%;background:rgba(232,200,120,.35)"></div>
-        <div id="calBarFaixa3" style="width:25%;background:rgba(243,168,138,.3)"></div>
+  <!-- v3.10.21: Card único "Análise dos pilares" funde Calorias do dia +
+       Proteína do dia. Tabs temporais (Hoje · Semana · 15 dias · Mês),
+       diagnóstico combinado de Proteção Muscular embaixo e acordeão
+       "Entender". Bruno aprovou o preview /tmp/sanova-preview-card-novo-v2.
+       IDs internos das barras (calBarFaixa*, calBarConsumed, calBarMeta,
+       protBarFaixa*, etc) preservados pra _aplicarCalBarConfig/
+       _aplicarProtBarConfig continuarem funcionando sem refactor. -->
+  <div id="pilaresAnaliseCard" style="background:linear-gradient(160deg,rgba(74,222,128,.05),rgba(74,222,128,.01));border:1px solid rgba(187,247,208,.2);border-radius:18px;padding:18px 16px;margin-bottom:10px">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <div style="font-size:18px">📊</div>
+        <div style="font-family:var(--fd,Georgia);font-weight:500;letter-spacing:-.01em;font-size:17px;color:#fff;line-height:1.1">
+          Análise dos pilares
+          <small id="pilaresPeriodoLabel" style="display:block;font-family:var(--ss,system-ui);font-size:10.5px;font-weight:600;color:rgba(187,247,208,.55);letter-spacing:.06em;text-transform:uppercase;margin-top:2px">📅 1 dia · hoje</small>
+        </div>
       </div>
-      <!-- Labels das zonas — v3.10.6: cada label ocupa 25% da barra -->
-      <div style="position:absolute;inset:0;display:flex;align-items:center">
-        <div id="calBarLbl0" style="width:25%;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.5);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Baixo</div>
-        <div id="calBarLbl1" style="width:25%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Emagrec.</div>
-        <div id="calBarLbl2" style="width:25%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.8);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Mant.</div>
-        <div id="calBarLbl3" style="width:25%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.8);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Ganho</div>
-      </div>
-      <!-- Marcador atual -->
-      <div id="calBarMarker" style="position:absolute;top:-3px;bottom:-3px;width:5px;background:#fff;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 12px rgba(255,255,255,1);transition:left .5s ease;left:0%"></div>
     </div>
-    <!-- Valores -->
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <div id="calBarEscala0" style="font-size:10px;color:rgba(255,255,255,.35)">0</div>
-      <div id="calBarEscala1" style="font-size:10px;color:rgba(239,68,68,.6)">800</div>
-      <div id="calBarMetaLbl" style="font-size:10px;color:rgba(74,222,128,.7)">1.800</div>
-      <div id="calBarMantLbl" style="font-size:10px;color:rgba(232,200,120,.6)">2.200</div>
-      <div id="calBarEscala4" style="font-size:10px;color:rgba(255,255,255,.35)">3.000</div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:5px;padding:3px;background:rgba(0,0,0,.18);border-radius:11px;margin-bottom:18px">
+      <button id="pTabHoje" onclick="setPilaresPeriodo('hoje')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:rgba(74,222,128,.18);color:#86efac;box-shadow:inset 0 0 0 1px rgba(74,222,128,.3);font-family:var(--ss,system-ui)">Hoje</button>
+      <button id="pTabSemana" onclick="setPilaresPeriodo('semana')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Semana</button>
+      <button id="pTab15" onclick="setPilaresPeriodo('15d')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">15 dias</button>
+      <button id="pTabMes" onclick="setPilaresPeriodo('mes')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Mês</button>
     </div>
-    <div style="text-align:center">
-      <span id="calBarConsumed" style="font-size:22px;font-weight:900;color:#f3a88a">0</span>
-      <span style="font-size:13px;color:rgba(255,255,255,.4)"> / </span>
-      <span id="calBarMeta" style="font-size:13px;color:rgba(255,255,255,.4)">— kcal</span>
-      <div id="calBarMsg" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-style:italic"></div>
-    </div>
-  </div>
 
-  <!-- v3.10.3: Barra de PROTEÍNA — mesmo padrão visual da calBar.
-       Zonas clínicas GLP-1:
-       <1,2 g/kg = risco sarcopenia · 1,2-1,6 = manutenção massa magra
-       · 1,6-2,4 = ganho · >2,4 = excesso. -->
-  <div id="protBarCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:16px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(74,222,128,.18)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(74,222,128,.7)">🥩 PROTEÍNA DO DIA</div>
-      <div id="protBarStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(74,222,128,.15);color:#4ade80">Zona ideal</div>
-    </div>
-    <!-- v3.10.6: 3 zonas simétricas (Bruno: sem 'excesso'). Cada zona ocupa
-         1/3 da barra visualmente; o marker é posicionado por interpolação
-         linear dentro do trecho onde o valor cai. -->
-    <div style="position:relative;height:28px;border-radius:10px;overflow:hidden;margin-bottom:8px">
-      <div style="position:absolute;inset:0;display:flex">
-        <div id="protBarFaixa0" style="width:33.33%;background:rgba(243,168,138,.3)"></div>
-        <div id="protBarFaixa1" style="width:33.33%;background:rgba(232,200,120,.3)"></div>
-        <div id="protBarFaixa2" style="width:33.34%;background:rgba(74,222,128,.35)"></div>
+    <!-- ══ CALORIAS (markup interno preservado pra _aplicarCalBarConfig) ══ -->
+    <div id="calBarCard" style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🔥 Calorias</div>
+        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="calBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="calBarMeta">— kcal</span></small></div>
       </div>
-      <div style="position:absolute;inset:0;display:flex;align-items:center">
-        <div id="protBarLbl0" style="width:33.33%;text-align:center;font-size:9px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
-        <div id="protBarLbl1" style="width:33.33%;text-align:center;font-size:9px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manutenção</div>
-        <div id="protBarLbl2" style="width:33.34%;text-align:center;font-size:9px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
+      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
+        <div style="position:absolute;inset:0;display:flex">
+          <div id="calBarFaixa0" style="width:25%;background:rgba(243,168,138,.32)"></div>
+          <div id="calBarFaixa1" style="width:25%;background:rgba(74,222,128,.38)"></div>
+          <div id="calBarFaixa2" style="width:25%;background:rgba(232,200,120,.32)"></div>
+          <div id="calBarFaixa3" style="width:25%;background:rgba(243,168,138,.32)"></div>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center">
+          <div id="calBarLbl0" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.6);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Muito baixo</div>
+          <div id="calBarLbl1" style="width:25%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Emagrec.</div>
+          <div id="calBarLbl2" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manut.</div>
+          <div id="calBarLbl3" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Ganho</div>
+        </div>
+        <div id="calBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
       </div>
-      <div id="protBarMarker" style="position:absolute;top:-3px;bottom:-3px;width:5px;background:#fff;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 12px rgba(255,255,255,1);transition:left .5s ease;left:0%"></div>
+      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
+        <div id="calBarEscala0">0</div>
+        <div id="calBarEscala1">800</div>
+        <div id="calBarMetaLbl">1.800</div>
+        <div id="calBarMantLbl">2.200</div>
+        <div id="calBarEscala4">3.000</div>
+      </div>
+      <div id="calBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
+      <!-- Status badge mantido (oculto por padrão, JS antigo pode setar) -->
+      <div id="calBarStatus" style="display:none"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <div id="protBarEscala0" style="font-size:10px;color:rgba(255,255,255,.35)">0</div>
-      <div id="protBarEscala1" style="font-size:10px;color:rgba(239,68,68,.6)">—</div>
-      <div id="protBarEscala2" style="font-size:10px;color:rgba(232,200,120,.7)">—</div>
-      <div id="protBarEscala3" style="font-size:10px;color:rgba(74,222,128,.7)">—</div>
+
+    <!-- ══ PROTEÍNA (markup interno preservado pra _aplicarProtBarConfig) ══ -->
+    <div id="protBarCard">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🥩 Proteína</div>
+        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="protBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="protBarMeta">— g</span></small></div>
+      </div>
+      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
+        <div style="position:absolute;inset:0;display:flex">
+          <div id="protBarFaixa0" style="width:33.33%;background:rgba(243,168,138,.32)"></div>
+          <div id="protBarFaixa1" style="width:33.33%;background:rgba(232,200,120,.32)"></div>
+          <div id="protBarFaixa2" style="width:33.34%;background:rgba(74,222,128,.38)"></div>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center">
+          <div id="protBarLbl0" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
+          <div id="protBarLbl1" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manutenção</div>
+          <div id="protBarLbl2" style="width:33.34%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
+        </div>
+        <div id="protBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
+        <div id="protBarEscala0">0</div>
+        <div id="protBarEscala1">—</div>
+        <div id="protBarEscala2">—</div>
+        <div id="protBarEscala3">—</div>
+      </div>
+      <div id="protBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
+      <div id="protBarStatus" style="display:none"></div>
     </div>
-    <div style="text-align:center">
-      <span id="protBarConsumed" style="font-size:22px;font-weight:900;color:#4ade80">0</span>
-      <span style="font-size:13px;color:rgba(255,255,255,.4)"> / </span>
-      <span id="protBarMeta" style="font-size:13px;color:rgba(255,255,255,.4)">— g</span>
-      <div id="protBarMsg" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;font-style:italic"></div>
+
+    <!-- ══ DIAGNÓSTICO de Proteção Muscular (atualiza junto com tabs) ══ -->
+    <div id="diagProtMusc" style="margin-top:20px;padding:14px;border-radius:13px;display:flex;align-items:center;gap:13px;background:rgba(232,200,120,.1);border:1.5px solid rgba(232,200,120,.45)">
+      <div id="diagProtMuscIcon" style="font-size:32px;line-height:1;flex-shrink:0">⚠️</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:rgba(255,255,255,.55);margin-bottom:3px">Proteção muscular</div>
+        <div id="diagProtMuscTtl" style="font-family:var(--fd,Georgia);font-weight:500;font-size:17px;letter-spacing:-.005em;line-height:1.15;color:#fcd34d;margin-bottom:3px">Aguardando dados</div>
+        <div id="diagProtMuscSub" style="font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.4">Registre suas refeições pra ver a análise.</div>
+      </div>
     </div>
+
+    <!-- ══ Acordeão "Entender" ══ -->
+    <details style="margin-top:10px">
+      <summary style="list-style:none;cursor:pointer;font-size:11.5px;color:rgba(187,247,208,.65);text-align:center;padding:8px 0 4px">▸ O que significa "proteção muscular"</summary>
+      <div style="padding:10px 4px 0;font-size:12px;line-height:1.6;color:rgba(255,255,255,.78)">
+        É a <strong style="color:#fff">leitura combinada</strong> de proteína × calorias.
+        Em GLP-1, é fácil bater a meta de proteína mas comer pouco demais. Quando isso acontece,
+        o corpo entra em catabolismo: quebra músculo pra gerar glicose, <strong style="color:#fff">mesmo
+        com proteína em excesso</strong> na refeição.
+        <div style="margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.08);border-left:3px solid #e0b864;border-radius:7px;color:#fde68a;font-size:11.5px">
+          ⭐ <strong>Regra de ouro:</strong> mais proteína não compensa déficit calórico grande.
+        </div>
+      </div>
+    </details>
   </div>
 
   <!-- v3.9.35: Saldo Energético (Balanço) agora aparece DEPOIS das Calorias do dia. -->
@@ -6192,7 +6225,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.20';
+var SANOVA_VERSION = '3.10.21';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -13796,6 +13829,154 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
   }catch(e){ console.warn('[ProtMusc mini]', e); }
 }
 
+/* ══ v3.10.21: ANÁLISE DOS PILARES — tabs temporais + diagnóstico combinado ══
+   Card único substitui calBarCard + protBarCard isolados. Tabs (Hoje/Semana/
+   15d/Mês) trocam o agregado das barras + diagnóstico de Proteção Muscular.
+*/
+window._pilaresPeriodo = window._pilaresPeriodo || 'hoje';
+
+function setPilaresPeriodo(p){
+  if(!['hoje','semana','15d','mes'].includes(p)) return;
+  window._pilaresPeriodo = p;
+  // visual das tabs
+  var tabs = { hoje:'pTabHoje', semana:'pTabSemana', '15d':'pTab15', mes:'pTabMes' };
+  Object.keys(tabs).forEach(function(periodo){
+    var btn = document.getElementById(tabs[periodo]);
+    if(!btn) return;
+    var ativo = periodo === p;
+    btn.style.background = ativo ? 'rgba(74,222,128,.18)' : 'transparent';
+    btn.style.color = ativo ? '#86efac' : 'rgba(255,255,255,.55)';
+    btn.style.boxShadow = ativo ? 'inset 0 0 0 1px rgba(74,222,128,.3)' : 'none';
+  });
+  // label do header
+  var labels = { hoje:'📅 1 dia · hoje', semana:'📅 7 dias · médias', '15d':'📅 15 dias · médias', mes:'📅 30 dias · médias' };
+  var lbl = document.getElementById('pilaresPeriodoLabel');
+  if(lbl) lbl.textContent = labels[p] || labels.hoje;
+  // re-renderiza
+  try{ renderPilaresAnalise(); }catch(e){ console.warn('[Pilares] re-render:', e); }
+}
+
+function _diasParaPeriodo(p){ return ({ hoje:1, semana:7, '15d':15, mes:30 })[p] || 1; }
+
+function _calcMediaPeriodo(p){
+  if(p === 'hoje'){
+    var dh = (typeof getDH === 'function') ? (getDH() || {}) : {};
+    var kcal = (typeof getKcalConsumed === 'function') ? getKcalConsumed(dh) : (dh.kcalConsumed || 0);
+    var prot = dh.proteinG || 0;
+    return { kcalMedio: Math.round(kcal), proteinaMedia: Math.round(prot), dias: 1, diasComDados: (kcal > 0 || prot > 0) ? 1 : 0 };
+  }
+  var dias = _diasParaPeriodo(p);
+  var refData = new Date(); refData.setHours(0,0,0,0);
+  var totalK = 0, totalP = 0, contagem = 0;
+  for(var i = 0; i < dias; i++){
+    var dt = new Date(refData); dt.setDate(dt.getDate() - i);
+    var ds = (typeof fmtData === 'function') ? fmtData(dt) : dt.toISOString().slice(0,10);
+    var d = (S.daily || []).find(function(x){ return x.date === ds; });
+    if(!d) continue;
+    var k = (typeof getKcalConsumed === 'function') ? getKcalConsumed(d) : (d.kcalConsumed || 0);
+    var pr = d.proteinG || 0;
+    if(k > 0 || pr > 0){ totalK += k; totalP += pr; contagem++; }
+  }
+  return {
+    kcalMedio: contagem > 0 ? Math.round(totalK / contagem) : 0,
+    proteinaMedia: contagem > 0 ? Math.round(totalP / contagem) : 0,
+    dias: dias,
+    diasComDados: contagem,
+  };
+}
+
+function renderPilaresAnalise(){
+  var M = (typeof calcMetrics === 'function') ? calcMetrics() : null;
+  var p = window._pilaresPeriodo || 'hoje';
+  var dados = _calcMediaPeriodo(p);
+  // Atualiza barras (reusa cfg + aplicar existentes — passa valor agregado)
+  if(M){
+    try{
+      if(typeof _configCalBarPorObj === 'function' && typeof _aplicarCalBarConfig === 'function'){
+        var cfgCal = _configCalBarPorObj(M, dados.kcalMedio);
+        _aplicarCalBarConfig(cfgCal, dados.kcalMedio);
+      }
+    }catch(e){ console.warn('[Pilares] calBar:', e); }
+    try{
+      if(typeof _configProtBarPorPeso === 'function' && typeof _aplicarProtBarConfig === 'function'){
+        var cfgProt = _configProtBarPorPeso(M, dados.proteinaMedia);
+        _aplicarProtBarConfig(cfgProt, dados.proteinaMedia);
+      }
+    }catch(e){ console.warn('[Pilares] protBar:', e); }
+  }
+  // Diagnóstico combinado
+  renderDiagPilares(M, dados, p);
+}
+
+function renderDiagPilares(M, dados, periodo){
+  var diag = document.getElementById('diagProtMusc');
+  var icon = document.getElementById('diagProtMuscIcon');
+  var ttl = document.getElementById('diagProtMuscTtl');
+  var sub = document.getElementById('diagProtMuscSub');
+  if(!diag || !icon || !ttl || !sub) return;
+
+  // Sem dados ou perfil incompleto
+  if(!M || !M.meta || dados.diasComDados === 0){
+    icon.textContent = '⏳';
+    ttl.textContent = 'Aguardando dados';
+    sub.textContent = periodo === 'hoje' ? 'Registre suas refeições pra ver a análise.' : 'Sem dados suficientes nesse período.';
+    diag.style.background = 'rgba(255,255,255,.04)';
+    diag.style.borderColor = 'rgba(255,255,255,.1)';
+    ttl.style.color = 'rgba(255,255,255,.85)';
+    return;
+  }
+
+  var kcal = dados.kcalMedio, prot = dados.proteinaMedia;
+  var protMeta = Math.round(M.pm || 0);
+  var kcalMeta = Math.round(M.meta || 0);
+  var sexo = (S && S.profile && S.profile.sex) || 'F';
+  var pisoFisiol = sexo === 'M' ? 1500 : 1200;
+  var kcalSegura = Math.round(kcalMeta * 0.80);
+  var protPct = protMeta > 0 ? Math.round((prot / protMeta) * 100) : 0;
+
+  var paleta, tituloTxt, mensagemTxt;
+  var sufixo = periodo === 'hoje' ? '' : (' · média ' + (periodo === 'semana' ? '7d' : (periodo === '15d' ? '15d' : '30d')));
+
+  if(kcal < pisoFisiol){
+    paleta = { bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', cor:'#f3a88a', icon:'🚨' };
+    tituloTxt = 'Risco — catabolismo provável';
+    mensagemTxt = '<strong>' + kcal + ' kcal' + (periodo === 'hoje' ? ' hoje' : '/dia') + '</strong> abaixo do piso fisiológico (' + pisoFisiol + '). Esse nível leva à perda de massa magra <strong>mesmo com proteína dobrada</strong>. Adiciona uma refeição com gordura boa + proteína 🌿';
+  } else if(protPct < 80 && kcal < kcalSegura){
+    paleta = { bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', cor:'#f3a88a', icon:'🚨' };
+    tituloTxt = 'Risco crítico — proteína E calorias baixas';
+    mensagemTxt = 'Falta proteína (' + protPct + '%) E energia. Esse combo é o que mais custa músculo na janela GLP-1. Próxima refeição: proteína + carbo 🌿';
+  } else if(protPct >= 100 && kcal < kcalSegura){
+    paleta = { bg:'rgba(232,200,120,.1)', border:'rgba(232,200,120,.45)', cor:'#fcd34d', icon:'⚠️' };
+    tituloTxt = 'Atenção — músculo em risco';
+    mensagemTxt = '💪 Proteína em dia (' + protPct + '%). Mas calorias baixas (' + kcal + ' vs ~' + kcalMeta + '). <strong>Proteína extra não compensa déficit calórico grande</strong> — corpo cataboliza músculo. Lanche com proteína + carbo agora? 🌿';
+  } else if(protPct >= 100 && kcal >= kcalSegura){
+    paleta = { bg:'rgba(74,222,128,.1)', border:'rgba(74,222,128,.4)', cor:'#86efac', icon:'💪' };
+    tituloTxt = 'Protegida — músculo em dia';
+    mensagemTxt = 'Proteína e energia em dia — <strong>massa magra preservada</strong>' + sufixo + '. Segue assim 🌿';
+  } else {
+    paleta = { bg:'rgba(232,200,120,.1)', border:'rgba(232,200,120,.45)', cor:'#fcd34d', icon:'⚠️' };
+    tituloTxt = 'Falta proteína — atenção';
+    mensagemTxt = 'Calorias OK, mas proteína em <strong>' + protPct + '%</strong> da meta. Sem proteína suficiente, parte do peso perdido pode ser massa magra. Foco da próxima refeição: proteína primeiro 🌿';
+  }
+
+  diag.style.background = paleta.bg;
+  diag.style.borderColor = paleta.border;
+  icon.textContent = paleta.icon;
+  ttl.textContent = tituloTxt;
+  ttl.style.color = paleta.cor;
+  sub.innerHTML = mensagemTxt;
+}
+
+// v3.10.21: cardProtecaoMuscular antigo (v3.10.19) ficou redundante.
+// Forçamos a ficar oculto — diagnóstico agora vive dentro do pilaresAnaliseCard.
+(function _ocultarCardAntigoProtecaoMuscular(){
+  function go(){
+    var c = document.getElementById('cardProtecaoMuscular');
+    if(c) c.style.display = 'none';
+  }
+  if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', go); } else { go(); }
+})();
+
 // v3.10.20: modal informativo do conceito de proteção muscular
 function abrirInfoProtecaoMuscular(){
   var ov = document.createElement('div');
@@ -13907,6 +14088,8 @@ function renderPilares(){
   // Bruno (médico): excesso de proteína NÃO compensa déficit calórico
   // severo — corpo faz gluconeogênese e cataboliza aminoácido do músculo.
   try{ renderProtecaoMuscular(M, dh, kcalHoje, protHoje); }catch(e){ console.warn('[ProtMusc]', e); }
+  // v3.10.21: novo card "Análise dos pilares" com tabs temporais + diagnóstico
+  try{ renderPilaresAnalise(); }catch(e){ console.warn('[PilaresAnalise]', e); }
 
   // ============ EXERCÍCIO (pontos da semana) ============
   var seg = inicioSemana();
