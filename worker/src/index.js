@@ -35,7 +35,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.21.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.22.0' }, 200, origin, env);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
@@ -1085,45 +1085,64 @@ async function handleMpWebhook(request, env) {
 
   try {
     // ── PREAPPROVAL (status da assinatura mudou) ──
+    // v1.22.0: só ativa se charged_quantity > 0 (cobrança real).
+    // Cogo case: preapproval inicial fica pending mas paciente paga via
+    // preapproval REAL diferente (criada pelo plano). Só ativamos quando
+    // confirmamos cobrança efetiva.
     if (type === 'preapproval' || type === 'subscription_preapproval') {
       const pa = await getPreapproval(dataId, env);
-      // pa.status: pending | authorized | paused | cancelled
-      let status = 'trial';
+      const charged = (pa.summarized && pa.summarized.charged_quantity) || 0;
+      let status = null;
       let extraFields = { mp_preapproval_id: pa.id };
 
-      if (pa.status === 'authorized') {
+      if (pa.status === 'authorized' && charged > 0) {
         status = 'active';
-        extraFields.subscription_started_at = pa.date_created || new Date().toISOString();
+        extraFields.subscription_started_at =
+          (pa.summarized && pa.summarized.last_charged_date) ||
+          pa.date_created ||
+          new Date().toISOString();
       } else if (pa.status === 'cancelled' || pa.status === 'paused') {
         status = 'canceled';
         extraFields.subscription_ends_at = new Date().toISOString();
       }
 
-      const userId = await _resolveUserId(pa, env);
-      if (userId) {
-        await updateSubscriptionByUser(userId, { status, ...extraFields }, env);
-      } else {
-        // Fallback: tenta achar pelo preapproval_id ja gravado
-        await updateSubscriptionByPreapproval(pa.id, { status, ...extraFields }, env);
+      if (status) {
+        const userId = await _resolveUserId(pa, env);
+        if (userId) {
+          await updateSubscriptionByUser(userId, { status, ...extraFields }, env);
+        } else {
+          await updateSubscriptionByPreapproval(pa.id, { status, ...extraFields }, env);
+        }
       }
-      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ ok: true, preapproval_status: pa.status, charged }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // ── PAYMENT (cobranca recorrente confirmada) ──
-    // v1.14.0: MP nao copia external_reference do preapproval_plan pro payment
-    // individual. Usa preapproval_id como fallback pra achar o user_id.
+    // v1.22.0: AUTO-RECONCILIACAO. Usa point_of_interaction.transaction_data.
+    // subscription_id (ID REAL da preapproval) que vem no payment.
+    // - MP nao copia external_reference do preapproval_plan pro payment.
+    // - A preapproval REAL tem external_reference=sanova_<userId> (uniq).
+    // Sem precisar de admin-cleanup-v2 manual: cada payment approved ativa
+    // o paciente automaticamente em segundos.
     if (type === 'payment' || type === 'subscription_authorized_payment') {
       const pay = await getPayment(dataId, env);
-      const extRef = pay.external_reference || '';
-      let userId = extRef.startsWith('sanova_') ? extRef.replace(/^sanova_/, '') : null;
-
-      // Fallback v1.14.0: se sem external_reference, busca pela preapproval
-      let preapprovalId = pay.preapproval_id || null;
-      if (!userId && preapprovalId) {
+      const tdata = pay.point_of_interaction && pay.point_of_interaction.transaction_data;
+      const realSubId = (tdata && tdata.subscription_id) || pay.preapproval_id || null;
+      let userId = null;
+      let preapprovalReal = null;
+      if (realSubId) {
         try {
-          const pa = await getPreapproval(preapprovalId, env);
-          userId = await _resolveUserId(pa, env);
-        } catch (e) { console.warn('[mp-webhook] getPreapproval fallback falhou:', e.message); }
+          preapprovalReal = await getPreapproval(realSubId, env);
+          userId = await _resolveUserId(preapprovalReal, env);
+        } catch (e) {
+          console.warn('[mp-webhook] getPreapproval real falhou:', e.message);
+        }
+      }
+      // Fallback: external_reference direto no payment (caso raro)
+      if (!userId && pay.external_reference && pay.external_reference.startsWith('sanova_')) {
+        userId = pay.external_reference.replace(/^sanova_/, '');
       }
 
       if (pay.status === 'approved') {
@@ -1131,20 +1150,26 @@ async function handleMpWebhook(request, env) {
           status: 'active',
           subscription_started_at: pay.date_approved || new Date().toISOString(),
         };
-        if (preapprovalId) update.mp_preapproval_id = preapprovalId;
+        if (realSubId) update.mp_preapproval_id = realSubId;
         if (userId) {
           await updateSubscriptionByUser(userId, update, env);
-        } else if (preapprovalId) {
-          await updateSubscriptionByPreapproval(preapprovalId, update, env);
+          console.log('[mp-webhook] AUTO-ATIVADO user=' + userId.slice(0, 8) + '... preapproval=' + realSubId);
+        } else if (realSubId) {
+          await updateSubscriptionByPreapproval(realSubId, update, env);
         }
       } else if (pay.status === 'refunded' || pay.status === 'charged_back') {
         if (userId) {
           await updateSubscriptionByUser(userId, { status: 'canceled' }, env);
-        } else if (preapprovalId) {
-          await updateSubscriptionByPreapproval(preapprovalId, { status: 'canceled' }, env);
+        } else if (realSubId) {
+          await updateSubscriptionByPreapproval(realSubId, { status: 'canceled' }, env);
         }
       }
-      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({
+        ok: true,
+        payment_status: pay.status,
+        real_subscription_id: realSubId,
+        user_atualizado: userId ? userId.slice(0, 8) + '...' : null,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Tipo desconhecido — apenas reconhece
