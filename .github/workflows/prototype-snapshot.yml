@@ -40,6 +40,7 @@ jobs:
             { file: 'prototypes/janela-terapeutica/v1.html', name: 'v1-onda-organica' },
             { file: 'prototypes/janela-terapeutica/v2.html', name: 'v2-mapa-semana' },
             { file: 'prototypes/janela-terapeutica/v3.html', name: 'v3-curva-clinica' },
+            { file: 'prototypes/janela-terapeutica/v4.html', name: 'v4-profissional' },
           ];
 
           const browser = await chromium.launch();
