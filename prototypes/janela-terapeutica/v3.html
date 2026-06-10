@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=412,initial-scale=1,viewport-fit=cover">
+<title>Sanova · Janela Terapêutica v3</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     V3 — Curva Clínica
+     Versão final pós-feedback Bruno + Márcia:
+       · Termos clínicos (paciente em semana 3 já leu bula)
+       · Curva refletindo estado estacionário (oscilação ~30-50%)
+       · Gradiente horizontal na fill por zona (forte/leve/antecipação)
+       · Tabela de 3 fases com SENTIDO: clínica × sensação × ação
+       · Fase atual destacada (Márcia olha e sabe onde está)
+     ═══════════════════════════════════════════════════════════════════ */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    width:412px;
+    min-height:1020px;
+    background:linear-gradient(180deg,#031208 0%,#04180c 50%,#031208 100%);
+    font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif;
+    color:rgba(255,255,255,.94);
+    -webkit-font-smoothing:antialiased;
+    padding:24px 18px 32px;
+  }
+
+  /* ─── Header ───────────────────────────────────────────────── */
+  .meta{
+    display:flex;align-items:center;gap:8px;
+    font-size:10px;font-weight:700;letter-spacing:.22em;
+    color:#86efac;text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .meta::before{
+    content:'';width:6px;height:6px;border-radius:99px;
+    background:#86efac;box-shadow:0 0 12px rgba(134,239,172,.7);
+  }
+  .meta .sep{
+    color:rgba(255,255,255,.18);font-weight:400;letter-spacing:0;
+  }
+  .meta b{color:rgba(255,255,255,.62);font-weight:700}
+  h1{
+    font-size:25px;line-height:1.18;font-weight:600;
+    color:#fff;margin-bottom:6px;letter-spacing:-.014em;
+  }
+  .clinical{
+    font-size:12px;color:rgba(255,255,255,.5);line-height:1.5;
+    margin-bottom:22px;letter-spacing:.005em;
+  }
+  .clinical b{color:rgba(255,255,255,.74);font-weight:500}
+  .clinical .dot{color:rgba(255,255,255,.22);margin:0 6px}
+
+  /* ─── Card gráfico ─────────────────────────────────────────── */
+  .grafico{
+    position:relative;
+    background:linear-gradient(168deg,rgba(16,80,38,.32) 0%, rgba(8,40,20,.18) 100%);
+    border:1px solid rgba(187,247,208,.10);
+    border-radius:20px;
+    padding:14px 0 0;
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .grafico-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:0 16px 6px;
+  }
+  .grafico-head .titulo-eixo{
+    font-size:10px;color:rgba(255,255,255,.45);
+    letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+  }
+  .grafico-head .titulo-eixo b{color:rgba(255,255,255,.72)}
+  .grafico-head .pos{
+    font-size:11px;color:#86efac;font-weight:700;
+    letter-spacing:.04em;
+  }
+  svg.curva{display:block;width:100%;height:230px}
+
+  /* ─── Eixo X dias ──────────────────────────────────────────── */
+  .eixoX{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    padding:6px 0 12px;
+    border-top:1px solid rgba(255,255,255,.05);
+  }
+  .eixoX .d{
+    text-align:center;
+    font-size:9.5px;color:rgba(255,255,255,.4);
+    letter-spacing:.08em;text-transform:uppercase;
+    line-height:1.35;
+  }
+  .eixoX .d .n{
+    display:block;font-size:13px;font-weight:600;
+    color:rgba(255,255,255,.6);margin-top:1px;
+  }
+  .eixoX .d.dose{position:relative}
+  .eixoX .d.dose::before{
+    content:'';position:absolute;left:50%;top:-9px;
+    transform:translateX(-50%);
+    width:10px;height:10px;border-radius:99px;
+    background:#fbbf24;
+    box-shadow:0 0 10px rgba(251,191,36,.6);
+  }
+  .eixoX .d.hoje .n,
+  .eixoX .d.hoje{color:#86efac;font-weight:700}
+  .eixoX .d.hoje .n{color:#fff}
+
+  /* ─── Marcador HOJE pulsante ───────────────────────────────── */
+  @keyframes pulseDot{
+    0%,100%{ transform: scale(1); }
+    50%{ transform: scale(1.16); }
+  }
+  @keyframes pulseHalo{
+    0%{ opacity:.45; transform: scale(.85); }
+    100%{ opacity:0; transform: scale(2.6); }
+  }
+  .pulse-dot{animation: pulseDot 2.4s ease-in-out infinite; transform-origin: center;}
+  .pulse-halo{animation: pulseHalo 2.4s ease-out infinite; transform-origin: center;}
+
+  /* ─── Tabela narrativa (a "tabela com sentido") ─────────────── */
+  .tabela-fases{
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:18px;
+    overflow:hidden;
+    margin-bottom:14px;
+    background:rgba(255,255,255,.02);
+  }
+  .tab-header{
+    display:grid;
+    grid-template-columns: 96px 1fr;
+    padding:10px 14px;
+    background:rgba(0,0,0,.18);
+    font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:rgba(255,255,255,.4);font-weight:700;
+    border-bottom:1px solid rgba(255,255,255,.04);
+  }
+  .fase{
+    display:grid;
+    grid-template-columns: 96px 1fr;
+    padding:14px 14px;
+    border-bottom:1px solid rgba(255,255,255,.04);
+    align-items:flex-start;
+    transition: background .2s;
+  }
+  .fase:last-child{border-bottom:0}
+  .fase.ativa{
+    background:linear-gradient(96deg,rgba(74,222,128,.10) 0%,rgba(74,222,128,.02) 100%);
+    border-left:3px solid #86efac;
+    padding-left:11px;
+  }
+  .fase .col-faixa{
+    padding-right:8px;
+  }
+  .fase .col-faixa .dia{
+    font-size:11.5px;font-weight:700;color:rgba(255,255,255,.62);
+    letter-spacing:.02em;
+  }
+  .fase.ativa .col-faixa .dia{color:#fff}
+  .fase .col-faixa .nome{
+    font-size:10px;color:rgba(255,255,255,.42);
+    letter-spacing:.04em;margin-top:2px;line-height:1.3;
+  }
+  .fase.ativa .col-faixa .nome{color:#86efac;font-weight:600}
+
+  .fase .col-conteudo{
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .fase .linha{
+    display:flex;gap:8px;align-items:flex-start;font-size:12.5px;
+    color:rgba(255,255,255,.74);line-height:1.45;
+  }
+  .fase .linha .marca{
+    flex-shrink:0;width:50px;
+    font-size:9.5px;color:rgba(255,255,255,.4);
+    letter-spacing:.08em;text-transform:uppercase;
+    font-weight:700;padding-top:2px;
+  }
+  .fase .linha .txt{flex:1}
+  .fase.ativa .linha .txt{color:rgba(255,255,255,.92)}
+  .fase .linha .txt b{color:#bbf7d0;font-weight:600}
+
+  .fase .badge-agora{
+    display:inline-block;
+    margin-top:6px;
+    background:#22c55e;color:#fff;
+    padding:2px 8px;border-radius:99px;
+    font-size:9px;font-weight:800;letter-spacing:.12em;
+  }
+
+  /* ─── Rodapé clínico ──────────────────────────────────────── */
+  .disclaimer{
+    font-size:10.5px;color:rgba(255,255,255,.4);
+    line-height:1.6;text-align:center;
+    padding:0 10px;margin-top:8px;
+  }
+  .disclaimer b{color:rgba(255,255,255,.62);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="meta">
+  Janela Terapêutica
+  <span class="sep">·</span>
+  <b>Semana 3</b>
+</div>
+
+<h1>Sua curva esta semana</h1>
+
+<p class="clinical">
+  <b>Semaglutida 0,5 mg semanal</b><span class="dot">·</span>
+  3º ciclo (estado estacionário)<span class="dot">·</span>
+  próxima dose em <b>3 dias</b>
+</p>
+
+<!-- ═══════════════ GRÁFICO ═══════════════ -->
+<div class="grafico">
+  <div class="grafico-head">
+    <div class="titulo-eixo">
+      Concentração plasmática <b>estimada</b>
+    </div>
+    <div class="pos">D+4 de 7</div>
+  </div>
+
+  <svg class="curva" viewBox="0 0 380 230" preserveAspectRatio="none">
+    <defs>
+      <!--
+        Gradient HORIZONTAL da fill, dividido nas 3 zonas:
+          0-12%  (D+0)          : verde forte (subindo pro pico)
+          12-71% (D+1 a D+5)    : verde forte (saciedade plena, Cmax)
+          71-86% (D+5 a D+6)    : verde claro (reentrada gradual)
+          86-100% (D+7)         : âmbar suave (janela antecipação)
+      -->
+      <linearGradient id="fillZonas" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#4ade80" stop-opacity=".34"/>
+        <stop offset="14%"  stop-color="#4ade80" stop-opacity=".42"/>
+        <stop offset="60%"  stop-color="#22c55e" stop-opacity=".40"/>
+        <stop offset="74%"  stop-color="#86efac" stop-opacity=".26"/>
+        <stop offset="86%"  stop-color="#fcd34d" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="#f59e0b" stop-opacity=".18"/>
+      </linearGradient>
+
+      <!-- Gradient vertical pra suavizar fundo -->
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#fff" stop-opacity="1"/>
+        <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <mask id="fadeMask">
+        <rect width="380" height="230" fill="url(#fade)"/>
+      </mask>
+
+      <!-- Trace gradient (mesma lógica de cores na linha) -->
+      <linearGradient id="traceZonas" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#86efac"/>
+        <stop offset="55%"  stop-color="#86efac"/>
+        <stop offset="74%"  stop-color="#a7f3d0"/>
+        <stop offset="88%"  stop-color="#fcd34d"/>
+        <stop offset="100%" stop-color="#f59e0b"/>
+      </linearGradient>
+
+      <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="2.4" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- Linhas de referência horizontais -->
+    <g stroke="rgba(255,255,255,.06)" stroke-width="1" stroke-dasharray="2 4">
+      <line x1="14" y1="50"  x2="370" y2="50"/>
+      <line x1="14" y1="115" x2="370" y2="115"/>
+      <line x1="14" y1="180" x2="370" y2="180"/>
+    </g>
+    <g font-size="8.5" fill="rgba(255,255,255,.32)" letter-spacing=".1em" font-weight="700">
+      <text x="6" y="53">Cmax</text>
+      <text x="6" y="118">~70%</text>
+      <text x="6" y="183">Cmin</text>
+    </g>
+
+    <!--
+      Curva em estado estacionário semanal — oscilacao ~30-40%.
+      Steady-state, NAO 1o ciclo. Pontos:
+      D+0  x=14   y=88   (acabou de aplicar — ainda em ~75%)
+      D+1  x=64   y=68
+      D+2  x=114  y=50   (subindo)
+      D+3  x=164  y=40   (Cmax)
+      D+4  x=214  y=44   (perto do pico)
+      D+5  x=264  y=64
+      D+6  x=314  y=98
+      D+7  x=370  y=128  (Cmin antes da proxima dose)
+    -->
+
+    <!-- Curva FILL com gradiente horizontal por zona -->
+    <path d="
+      M 14,88
+      C 30,80   46,72   64,68
+      C 84,62   98,52  114,50
+      C 134,46  148,40 164,40
+      C 180,40  198,42 214,44
+      C 234,48  248,58 264,64
+      C 286,76  298,90 314,98
+      C 334,106 350,118 370,128
+      L 370,200 L 14,200 Z"
+      fill="url(#fillZonas)"/>
+
+    <!-- Curva TRACE -->
+    <path d="
+      M 14,88
+      C 30,80   46,72   64,68
+      C 84,62   98,52  114,50
+      C 134,46  148,40 164,40
+      C 180,40  198,42 214,44
+      C 234,48  248,58 264,64
+      C 286,76  298,90 314,98
+      C 334,106 350,118 370,128"
+      stroke="url(#traceZonas)" stroke-width="2.8" fill="none"
+      stroke-linecap="round" filter="url(#softGlow)"/>
+
+    <!-- Linha vertical HOJE (D+4 → x=214) discreta -->
+    <line x1="214" y1="20" x2="214" y2="200" stroke="rgba(134,239,172,.32)" stroke-width="1" stroke-dasharray="3 4"/>
+
+    <!-- Tag HOJE no topo -->
+    <g transform="translate(214,16)">
+      <rect x="-26" y="-12" width="52" height="16" rx="3" fill="#22c55e"/>
+      <text x="0" y="0" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" letter-spacing=".14em">HOJE</text>
+    </g>
+
+    <!-- Marcador HOJE sobre a curva (D+4, y=44) -->
+    <g transform="translate(214,44)">
+      <circle class="pulse-halo" r="14" fill="#86efac" opacity=".5"/>
+      <circle class="pulse-dot" r="7" fill="#bbf7d0"/>
+      <circle r="3.5" fill="#15803d"/>
+    </g>
+
+    <!-- Tag "Próxima dose" no fim -->
+    <g transform="translate(370,128)">
+      <circle r="6" fill="#fbbf24"/>
+      <text x="0" y="2.5" text-anchor="middle" font-size="8" font-weight="800" fill="#0a0a0a">💉</text>
+    </g>
+  </svg>
+
+  <!-- Eixo X dias -->
+  <div class="eixoX">
+    <div class="d dose"><div>D+0</div><span class="n">Dom</span></div>
+    <div class="d"><div>D+1</div><span class="n">Seg</span></div>
+    <div class="d"><div>D+2</div><span class="n">Ter</span></div>
+    <div class="d"><div>D+3</div><span class="n">Qua</span></div>
+    <div class="d hoje"><div>D+4</div><span class="n">Qui</span></div>
+    <div class="d"><div>D+5</div><span class="n">Sex</span></div>
+    <div class="d"><div>D+6</div><span class="n">Sáb</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════ TABELA NARRATIVA — 3 FASES COM SENTIDO ═══════════════ -->
+<div class="tabela-fases">
+  <div class="tab-header">
+    <div>Faixa</div>
+    <div>O que acontece <span style="opacity:.6">·</span> Como você sente <span style="opacity:.6">·</span> O que fazer</div>
+  </div>
+
+  <!-- FASE 1 — Saciedade plena (ATIVA) -->
+  <div class="fase ativa">
+    <div class="col-faixa">
+      <div class="dia">D+1 a D+5</div>
+      <div class="nome">Saciedade plena</div>
+      <div class="badge-agora">AGORA</div>
+    </div>
+    <div class="col-conteudo">
+      <div class="linha">
+        <div class="marca">Clínica</div>
+        <div class="txt">
+          Concentração próxima do <b>Cmax</b>. Receptores GLP-1 saturados — esvaziamento gástrico lento.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Você</div>
+        <div class="txt">
+          A fome <b>quase sumiu</b>. Saciedade chega cedo. Pouco interesse por álcool e doce.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Ação</div>
+        <div class="txt">
+          Aproveite pra firmar hábitos: <b>refeição calma</b>, proteína primeiro, hidratar entre uma e outra.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2 — Reentrada gradual -->
+  <div class="fase">
+    <div class="col-faixa">
+      <div class="dia">D+5 a D+6</div>
+      <div class="nome">Reentrada gradual</div>
+    </div>
+    <div class="col-conteudo">
+      <div class="linha">
+        <div class="marca">Clínica</div>
+        <div class="txt">
+          Concentração caindo (~25-30% ao dia). Receptores começam a desocupar.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Você</div>
+        <div class="txt">
+          A fome volta <b>leve, previsível</b>. Pode aparecer ansiedade ou vontade de algo doce. <b>Não é recaída</b> — é farmacologia.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Ação</div>
+        <div class="txt">
+          Mantém a estrutura das refeições. Tempo entre elas mais curto se precisar.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 3 — Janela de antecipação -->
+  <div class="fase">
+    <div class="col-faixa">
+      <div class="dia">D+7</div>
+      <div class="nome">Janela de antecipação</div>
+    </div>
+    <div class="col-conteudo">
+      <div class="linha">
+        <div class="marca">Clínica</div>
+        <div class="txt">
+          Concentração no <b>Cmin</b> antes da próxima dose. Esvaziamento gástrico próximo do normal.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Você</div>
+        <div class="txt">
+          Fome pode voltar com mais força. Risco de compulsão sobe — sobretudo à noite.
+        </div>
+      </div>
+      <div class="linha">
+        <div class="marca">Ação</div>
+        <div class="txt">
+          Cuide do <b>ambiente</b>: tire gatilhos da vista. Próxima dose em 24h — não antecipe.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="disclaimer">
+  <b>Curva estimada</b> de concentração plasmática em estado estacionário,
+  baseada na meia-vida média da semaglutida (~7 dias). Resposta clínica
+  individual varia. <b>Não antecipe a dose</b> — siga a prescrição.
+</div>
+
+</body>
+</html>
