@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sanova — ícone "store" (1024×1024).
+  Folha vetorial minimalista. Sem padding adicional aqui (use a variante
+  "maskable" pra Android, que tem safe area 20%).
+  Paleta: gradient verde escuro Sanova.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bgGrad" cx="0.5" cy="0.32" r="0.85">
+      <stop offset="0%"  stop-color="#0a3a20"/>
+      <stop offset="55%" stop-color="#052413"/>
+      <stop offset="100%" stop-color="#031208"/>
+    </radialGradient>
+    <linearGradient id="leafGrad" x1="0.2" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0%"   stop-color="#bbf7d0"/>
+      <stop offset="45%"  stop-color="#86efac"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </linearGradient>
+    <linearGradient id="veinGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#15803d" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#052413" stop-opacity=".25"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feOffset dx="0" dy="18" result="o"/>
+      <feComponentTransfer in="o" result="o2">
+        <feFuncA type="linear" slope=".42"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="o2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fundo arredondado (estilo iOS rounded square) -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bgGrad)"/>
+
+  <!--
+    Folha estilizada — 2 lobos (folha de manjericão / hortelã).
+    Centrada em (512, 540). Altura útil ~620px (margem segura ~200px de cada lado).
+    Desenhada como path curvo simétrico. Sem haste, símbolo é a folha em si.
+  -->
+  <g filter="url(#softShadow)">
+    <!-- Folha (lado esquerdo + direito unidos) -->
+    <path d="
+      M 512,180
+      C 360,260  280,400  280,560
+      C 280,720  380,830  512,860
+      C 644,830  744,720  744,560
+      C 744,400  664,260  512,180
+      Z"
+      fill="url(#leafGrad)"/>
+
+    <!-- Linha central (nervura principal) -->
+    <path d="M 512,200 L 512,840"
+      stroke="url(#veinGrad)" stroke-width="14" stroke-linecap="round" fill="none"/>
+
+    <!-- Nervuras laterais (4 pares, sutis) -->
+    <g stroke="url(#veinGrad)" stroke-width="7" fill="none" stroke-linecap="round" opacity=".68">
+      <path d="M 512,340 C 460,360  410,400  370,470"/>
+      <path d="M 512,340 C 564,360  614,400  654,470"/>
+      <path d="M 512,460 C 450,485  395,535  355,610"/>
+      <path d="M 512,460 C 574,485  629,535  669,610"/>
+      <path d="M 512,580 C 460,610  420,660  395,720"/>
+      <path d="M 512,580 C 564,610  604,660  629,720"/>
+      <path d="M 512,690 C 480,720  455,755  445,790"/>
+      <path d="M 512,690 C 544,720  569,755  579,790"/>
+    </g>
+
+    <!-- Highlight sutil no topo da folha (brilho) -->
+    <path d="
+      M 512,180
+      C 420,255  370,360  365,470
+      C 380,400  430,330  512,260
+      Z"
+      fill="#fff" opacity=".22"/>
+  </g>
+</svg>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sanova — variante "maskable" (1024×1024).
+  Mesmo desenho mas com folha reduzida pra caber na safe area Android
+  (20% de padding nos 4 lados — Android recorta em forma variavel).
+  Fundo solido em verde escuro pra preencher TODA a area mascarada.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bgGrad" cx="0.5" cy="0.32" r="0.85">
+      <stop offset="0%"  stop-color="#0a3a20"/>
+      <stop offset="55%" stop-color="#052413"/>
+      <stop offset="100%" stop-color="#031208"/>
+    </radialGradient>
+    <linearGradient id="leafGrad" x1="0.2" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0%"   stop-color="#bbf7d0"/>
+      <stop offset="45%"  stop-color="#86efac"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </linearGradient>
+    <linearGradient id="veinGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#15803d" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#052413" stop-opacity=".25"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo cobre 100% do canvas (Android pode mascarar em qualquer forma) -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bgGrad)"/>
+
+  <!--
+    Safe area: 60-964 (804px). Centralizado em 512.
+    Folha encolhida pra ficar dentro dessa janela.
+    Mesma proporcao geral, mas em escala 0.78 (lobo encolhe 22%).
+  -->
+  <g transform="translate(512 512) scale(0.78) translate(-512 -512)">
+    <path d="
+      M 512,180
+      C 360,260  280,400  280,560
+      C 280,720  380,830  512,860
+      C 644,830  744,720  744,560
+      C 744,400  664,260  512,180
+      Z"
+      fill="url(#leafGrad)"/>
+
+    <path d="M 512,200 L 512,840"
+      stroke="url(#veinGrad)" stroke-width="14" stroke-linecap="round" fill="none"/>
+
+    <g stroke="url(#veinGrad)" stroke-width="7" fill="none" stroke-linecap="round" opacity=".68">
+      <path d="M 512,340 C 460,360  410,400  370,470"/>
+      <path d="M 512,340 C 564,360  614,400  654,470"/>
+      <path d="M 512,460 C 450,485  395,535  355,610"/>
+      <path d="M 512,460 C 574,485  629,535  669,610"/>
+      <path d="M 512,580 C 460,610  420,660  395,720"/>
+      <path d="M 512,580 C 564,610  604,660  629,720"/>
+      <path d="M 512,690 C 480,720  455,755  445,790"/>
+      <path d="M 512,690 C 544,720  569,755  579,790"/>
+    </g>
+
+    <path d="
+      M 512,180
+      C 420,255  370,360  365,470
+      C 380,400  430,330  512,260
+      Z"
+      fill="#fff" opacity=".22"/>
+  </g>
+</svg>

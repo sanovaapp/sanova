@@ -19,6 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional } from './pro.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
 // Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
@@ -59,7 +60,27 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.24.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.25.0' }, 200, origin, env);
+      }
+
+      // ─── Painel Profissional (Fase 1) ────────────────────────
+      if (url.pathname === '/api/pro-register' && request.method === 'POST') {
+        return await handleProRegister(request, env, origin);
+      }
+      if (url.pathname === '/api/pro-me' && request.method === 'GET') {
+        return await handleProMe(request, env, origin);
+      }
+      if (url.pathname === '/api/pro-patients' && request.method === 'GET') {
+        return await handleProPatients(request, env, origin);
+      }
+      if (url.pathname === '/api/pro-patient' && request.method === 'GET') {
+        return await handleProPatient(request, env, origin);
+      }
+      if (url.pathname === '/api/link-professional' && request.method === 'POST') {
+        return await handleLinkProfessional(request, env, origin);
+      }
+      if (url.pathname === '/api/unlink-professional' && request.method === 'POST') {
+        return await handleUnlinkProfessional(request, env, origin);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout
