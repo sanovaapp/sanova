@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.1' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -1778,9 +1778,13 @@ async function handleAdminFixtureBootstrap(env) {
       );
     }
 
+    // v1.28.1: trial_ends_at NOT NULL — bootstrap precisa popular
+    // mesmo virando active na sequencia.
     const subPatch = {
       user_id: userId,
       status: 'active',
+      trial_started_at: new Date().toISOString(),
+      trial_ends_at: new Date(Date.now() + 30 * 86400000).toISOString(),
       subscription_started_at: new Date().toISOString(),
       subscription_ends_at: new Date(Date.now() + 30 * 86400000).toISOString(),
       mp_preapproval_id: 'fixture-simulated-' + Date.now(),
