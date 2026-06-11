@@ -12,15 +12,15 @@ name: Prints — pacote visual
 #   · Captura TODOS pageerrors com stack trace (caca o innerHTML null).
 
 on:
-  workflow_dispatch:
-    inputs:
-      simulate_active:
-        description: 'Status do paciente (active = paywall fechado)'
-        type: choice
-        default: 'active'
-        options:
-          - active
-          - trial
+  workflow_dispatch: {}
+
+# v3 (Fable):
+#   · SANOVA_ORIGIN como env do job (prepara migracao de dominio futuro).
+#   · Conta fixture@sanova.app dedicada (admin-fixture-bootstrap).
+#     Nao mexe na subscription real do fundador.
+env:
+  SANOVA_ORIGIN: https://sanovaapp.github.io/sanova
+  WORKER_BASE: https://sanova-api.contatosanovaapp.workers.dev
 
 jobs:
   prints:
@@ -40,27 +40,16 @@ jobs:
           npm install -D @playwright/test@1.49.0
           npx playwright install --with-deps chromium
 
-      - name: Pre — simular status + seed fixture completa
-        env:
-          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
-        run: |
-          set -e
-          BASE="https://sanova-api.contatosanovaapp.workers.dev"
-          ACTION="admin-${{ github.event.inputs.simulate_active == 'active' && 'simulate-active' || 'revert-trial' }}"
-          echo "== status =="
-          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/$ACTION" | head -c 400
-          echo
-          echo "== seed fixture =="
-          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/admin-seed-fixture-completa" | head -c 1200
-          echo
-
-      - name: Obter magic link
+      - name: Bootstrap fixture (cria user + seed + active + magic link)
         id: link
         env:
           ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
         run: |
           set -e
-          RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "https://sanova-api.contatosanovaapp.workers.dev/api/admin-magic-link-bruno")
+          echo "== fixture bootstrap =="
+          RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$WORKER_BASE/api/admin-fixture-bootstrap")
+          echo "$RAW" | head -c 1200
+          echo
           LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('action_link',''))")
           if [ -z "$LINK" ]; then
             echo "Erro: magic link nao retornado"; echo "$RAW"; exit 1
@@ -70,12 +59,14 @@ jobs:
       - name: Captura das 11 telas
         env:
           MAGIC_LINK: ${{ steps.link.outputs.magic_link }}
+          SANOVA_ORIGIN: ${{ env.SANOVA_ORIGIN }}
         run: |
           mkdir -p prints
           cat > prints.mjs <<'PWEND'
           import { chromium } from '@playwright/test';
 
           const MAGIC = process.env.MAGIC_LINK;
+          const ORIGIN = process.env.SANOVA_ORIGIN || 'https://sanovaapp.github.io/sanova';
           if (!MAGIC) { console.error('MAGIC_LINK vazio'); process.exit(1); }
 
           const browser = await chromium.launch();
@@ -102,13 +93,33 @@ jobs:
 
           let N = 1;
           async function snap(name) {
-            // Expande todos os <details> antes do snap (Fable cravou).
+            // Expande TUDO antes do snap (Fable v3): nativos <details> +
+            // collapsibles custom do Sanova (botoes com onclick que tem
+            // display:none nas secoes: "Entenda...", "Como calculei...", etc).
             await page.evaluate(() => {
               try {
                 document.querySelectorAll('details').forEach(d => d.open = true);
+                document.querySelectorAll('[aria-expanded="false"]').forEach(el => {
+                  try { el.click(); } catch (e) {}
+                });
+                const textosToggle = [
+                  /^▸/, /^▾/, /^▼/, /^▶/,
+                  /entenda/i, /como calculei/i, /saiba mais/i,
+                  /detalhes/i, /análise clínica/i,
+                ];
+                const candidatos = Array.from(document.querySelectorAll('button, summary, [onclick], [role="button"]'));
+                for (const el of candidatos) {
+                  const t = (el.textContent || '').trim().slice(0, 80);
+                  if (!t || !textosToggle.some(rx => rx.test(t))) continue;
+                  const next = el.nextElementSibling;
+                  const pn = el.parentElement && el.parentElement.nextElementSibling;
+                  const target = (next && getComputedStyle(next).display === 'none') ? next
+                                : (pn && getComputedStyle(pn).display === 'none') ? pn : null;
+                  if (target) { try { el.click(); } catch (e) {} }
+                }
               } catch (e) {}
             });
-            await page.waitForTimeout(400);
+            await page.waitForTimeout(500);
             const path = `prints/${String(N++).padStart(2,'0')}-${name}.png`;
             await page.screenshot({ path, fullPage: true });
             console.log('Snap:', path);
@@ -141,7 +152,7 @@ jobs:
 
           // ─── 1. ONBOARDING (estado limpo, sem login) ──────────────
           console.log('1/11 onboarding');
-          await page.goto('https://sanovaapp.github.io/sanova/', { waitUntil: 'load', timeout: 45000 });
+          await page.goto(ORIGIN + '/', { waitUntil: 'load', timeout: 45000 });
           await page.waitForTimeout(3000);
           await snap('onboarding');
 
@@ -152,7 +163,7 @@ jobs:
           const initialUrl = page.url();
           if (!initialUrl.includes('/sanova/')) {
             const hash = await page.evaluate(() => location.hash);
-            await page.goto('https://sanovaapp.github.io/sanova/' + (hash || ''), { waitUntil: 'load', timeout: 45000 });
+            await page.goto(ORIGIN + '/' + (hash || ''), { waitUntil: 'load', timeout: 45000 });
             await page.waitForTimeout(8000);  // sync busca app_state
           }
           // Aguarda render do Painel com fixture
