@@ -472,20 +472,25 @@ jobs:
       - name: Force push da pasta prints/ para branch orfao 'prints-latest'
         if: success()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -ex
           WORK=$(mktemp -d)
           cp -r prints/. "$WORK/"
           cd "$WORK"
-          git init -q
-          git checkout -q -b prints-latest
+          git init
+          git checkout -b prints-latest
           git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" add .
+          ls -la
           git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" \
-            commit -q -m "prints $(date -u +%FT%TZ) — run ${{ github.run_id }}"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            commit -m "prints $(date -u +%FT%TZ) — run ${{ github.run_id }}"
+          git log --oneline
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git remote -v
           # --force porque branch eh efemera, history de 1 commit, sobrescreve a cada run
-          git push --force -q origin prints-latest:prints-latest
+          git push --force origin HEAD:refs/heads/prints-latest 2>&1
+          echo "==== confirmando branch via API ===="
+          gh api repos/${{ github.repository }}/branches/prints-latest --jq '.name + " @ " + .commit.sha' || (echo "BRANCH NAO ENCONTRADA NA API" && exit 1)
           echo "TARBALL URL: https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-latest"
 
       - name: Resumo
