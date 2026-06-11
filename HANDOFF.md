@@ -189,6 +189,19 @@ Tem fallback local (estimarPratoLocal) se cair
 PENDÊNCIA futura: migrar pro Cloudflare do Bruno (Manus é transitório, créditos acabaram mas Worker ainda roda)
 Modo dev: 7 toques no logo + senha (perguntar ao Bruno; SHA-256 em DEV_HASH no index.html)
 ⚠️ v3.10.25 (Fable #12): senha nunca em texto cru no repo. Pré-TWA Play Store: mover validação pro Worker (rota POST /api/dev-auth) e remover DEV_HASH client-side, OU strip do modo dev no build de produção via flag.
+
+🔒 REGRA INVIOLAVEL (cravada Fable 11/06/2026):
+Nenhum valor de credencial vai em texto cru — nem em sessão pública, nem
+em arquivo do repo, nem em commit message, nem em response de endpoint
+admin. Vale TAMBEM pra conta descartavel (fixture@sanova.app rotacionada
+a cada call do bootstrap pra invalidar senhas historicas).
+
+🔓 DECISAO CONSCIENTE REVERSIVEL (Fable 11/06/2026):
+Link de sessao publica do Claude Code expoe roadmap/pricing/pitch.
+Aceito risco enquanto a base eh ~2 usuarios. DISPARADOR pra revogar:
+quando o piloto com profissionais comecar (eles entram na orbita real
+de competidores como GlipOne). Revogar via UI do Claude Code → regenerar
+link novo se precisar.
 Schema S.caneta (medicação/estoque):
 Código
 📦 HISTÓRICO DE VERSÕES RECENTES

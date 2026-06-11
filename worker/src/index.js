@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.27.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -1648,11 +1648,19 @@ async function handleAdminSetEmailTemplates(env) {
 //
 // Por que conta separada: simulate-active/revert-trial no usuario do Bruno
 // fazem a assinatura real dele oscilar entre estados durante runs.
+//
+// v1.28.0 (Fable seguranca): senha NUNCA em texto. Gerada inline (UUID
+// descartavel) — magic link nao precisa dela. Se user ja existe, faz
+// PATCH com nova UUID a cada call, invalidando a senha antiga (que
+// estava em texto cru em commits anteriores). Regra cravada no HANDOFF.
 const FIXTURE_EMAIL = 'fixture@sanova.app';
-const FIXTURE_PASSWORD = 'sanova-fixture-2026-v1';
 
 async function handleAdminFixtureBootstrap(env) {
   try {
+    // Senha descartavel: UUID gerado AGORA, usado 1x na chamada admin,
+    // nunca exposto na response. Magic link funciona sem precisar dela.
+    const senhaDescartavel = crypto.randomUUID();
+
     let userId = await findUserByEmail(FIXTURE_EMAIL, env);
     if (!userId) {
       const createResp = await fetch(
@@ -1666,7 +1674,7 @@ async function handleAdminFixtureBootstrap(env) {
           },
           body: JSON.stringify({
             email: FIXTURE_EMAIL,
-            password: FIXTURE_PASSWORD,
+            password: senhaDescartavel,
             email_confirm: true,
             user_metadata: { kind: 'fixture-prints', created_by: 'admin-fixture-bootstrap' },
           }),
@@ -1680,6 +1688,26 @@ async function handleAdminFixtureBootstrap(env) {
         );
       }
       userId = created.id;
+    } else {
+      // User existente: ROTACIONA a senha a cada call. Invalida senhas
+      // antigas que possam ter vazado em commits/sessoes anteriores.
+      try {
+        await fetch(
+          'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users/' + userId,
+          {
+            method: 'PUT',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ password: senhaDescartavel }),
+          }
+        );
+      } catch (e) {
+        // Rotacao falhou nao bloqueia o seed. Loga e segue.
+        console.warn('[fixture-bootstrap] rotacao de senha falhou:', e.message);
+      }
     }
 
     const hoje = new Date();
