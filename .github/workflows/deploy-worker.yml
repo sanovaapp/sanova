@@ -20,7 +20,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # v1.26.0+: wrangler 4 (instalado em /worker) exige Node >=22.
+          # Sem isso, wrangler-action faz fallback pra 3.90 e 'secret bulk'
+          # quebra com API nova do Cloudflare ('5 secrets failed to upload').
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: worker/package-lock.json
 
