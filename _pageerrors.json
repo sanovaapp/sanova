@@ -1,0 +1,7 @@
+[
+  {
+    "msg": "Cannot set properties of null (setting 'innerHTML')",
+    "stack": "TypeError: Cannot set properties of null (setting 'innerHTML')\n    at render (https://sanovaapp.github.io/sanova/:14956:26)\n    at https://sanovaapp.github.io/sanova/:21892:5",
+    "when": "2026-06-11T23:01:33.061Z"
+  }
+]
