@@ -173,6 +173,60 @@ jobs:
           // Aguarda render do Painel com fixture
           await page.waitForTimeout(2500);
 
+          // v3.1 (Fable): forca anamnese concluida + recarrega pra app
+          // entrar no Painel ao inves de fluxo de onboarding.
+          await page.evaluate(() => {
+            try {
+              localStorage.setItem('sanova_ativo', '1');
+              localStorage.setItem('sanova_termo_aceito', JSON.stringify({
+                versao: 'v1', aceitoEm: new Date().toISOString(),
+              }));
+            } catch (e) {}
+          });
+          await page.reload({ waitUntil: 'load', timeout: 30000 });
+          await page.waitForTimeout(3500);
+
+          // v3.1 Fable — DIAGNOSTICO pos-login (cobranca da auditoria):
+          const diag = await page.evaluate(() => {
+            try {
+              const raw = localStorage.getItem('equilibra_v5') || '';
+              const S = raw ? JSON.parse(raw) : null;
+              return {
+                LS_equilibra_v5_bytes: raw.length,
+                LS_sanova_ativo: localStorage.getItem('sanova_ativo'),
+                sanova_version: window.SANOVA_VERSION || null,
+                rota_ativa: (typeof window._viewAtual !== 'undefined' ? window._viewAtual : null)
+                          || document.body.dataset.view
+                          || (document.querySelector('#dashboard:not(.hidden)') ? 'dashboard' : null)
+                          || 'desconhecida',
+                profile_completo: !!(S && S.profile && S.profile.name && S.profile.weightKg),
+                daily_dias: (S && Array.isArray(S.daily)) ? S.daily.length : 0,
+                weights_count: (S && Array.isArray(S.weights)) ? S.weights.length : 0,
+                _meta_fixture: S && S._meta && S._meta.fixture,
+              };
+            } catch (e) { return { erro: e.message }; }
+          });
+          console.log('=== DIAGNOSTICO POS-LOGIN ===');
+          console.log(JSON.stringify(diag, null, 2));
+
+          // v3.1 Fable — ASSERT: painel logado renderizou.
+          // Se nao tem nenhum dos elementos-chave, abortar com exit 1.
+          const painelOk = await page.evaluate(() => {
+            return !!(
+              document.querySelector('#heroPesoAtual') ||
+              document.querySelector('#painelHojeBar') ||
+              document.querySelector('#pilarProtMuscMini') ||
+              document.querySelector('#calBarCard')
+            );
+          });
+          if (!painelOk) {
+            console.error('[ABORT] Painel logado nao renderizou — anamnese pode ter sido exibida');
+            console.error('Diagnostico:', JSON.stringify(diag, null, 2));
+            await browser.close();
+            process.exit(1);
+          }
+          console.log('[ok] painel logado renderizado');
+
           // ─── 2. PAINEL — topo (sem rolar) ─────────────────────────
           console.log('2/11 painel-topo');
           await page.evaluate(() => window.scrollTo(0, 0));
@@ -282,6 +336,32 @@ jobs:
           console.log('Done.');
           PWEND
           node prints.mjs 2>&1 | tee prints.log
+
+      # v3.1 Fable: hash-check final. Se 3+ PNGs tem MD5 identico, o
+      # script provavelmente renderizou a mesma tela varias vezes
+      # (ex: onboarding repetido em vez de painel) — falha o run.
+      - name: Hash check (deteca telas duplicadas)
+        run: |
+          set -e
+          cd prints
+          declare -A hashes
+          for f in *.png; do
+            h=$(md5sum "$f" | awk '{print $1}')
+            hashes[$h]="${hashes[$h]:-} $f"
+          done
+          DUPLICADAS=0
+          for h in "${!hashes[@]}"; do
+            arr=(${hashes[$h]})
+            if [ "${#arr[@]}" -ge 3 ]; then
+              echo "[FAIL] $h aparece em ${#arr[@]} arquivos: ${hashes[$h]}"
+              DUPLICADAS=$((DUPLICADAS + 1))
+            fi
+          done
+          if [ "$DUPLICADAS" -gt 0 ]; then
+            echo "::error::$DUPLICADAS grupos de PNGs identicos — script renderizou a mesma tela. Investigar."
+            exit 1
+          fi
+          echo "[ok] cada tela tem hash unico"
 
       - name: Empacotar
         id: pack
