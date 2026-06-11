@@ -6233,7 +6233,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.24';
+var SANOVA_VERSION = '3.10.25';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -18264,7 +18264,11 @@ function saldoDoDia(date){
     proteinaMeta: M.pm,
     proteinaPct: M.pm > 0 ? Math.round(cal.prot / M.pm * 100) : 0,
     refeicoes: cal.refeicoes,
-    estimado: cal.estimado || false
+    estimado: cal.estimado || false,
+    // v3.10.25 (auditoria Fable pré-piloto): um dia só é "completo" se
+    // (kcal registrada >= 60% da meta) OU (>= 2 refeições registradas).
+    // Sem isso, subregistro vira "déficit" falso na agregação semanal.
+    completo: (cal.kcal >= M.meta * 0.6) || (cal.refeicoes >= 2)
   };
 }
 
@@ -18340,14 +18344,19 @@ function saldoJanela(diasN, dataRef){
   }
   if(!dias.length) return null;
 
+  // v3.10.25 (Fable): agregados (defMedio, protPct, perda) só sobre dias COMPLETOS.
+  // Dia parcial = subregistro virando déficit falso. Número errado com disclaimer
+  // continua errado — então calcula só sobre o que é confiável.
+  var diasCompletos = dias.filter(function(s){ return s.completo; });
+
   var defTotal = 0, defMedio = 0;
   var protTotal = 0, protMeta = 0, protPct = 0;
-  dias.forEach(function(s){
+  diasCompletos.forEach(function(s){
     defTotal += s.deficit;
     protTotal += s.proteinaG;
     protMeta += s.proteinaMeta;
   });
-  defMedio = Math.round(defTotal / dias.length);
+  defMedio = diasCompletos.length > 0 ? Math.round(defTotal / diasCompletos.length) : 0;
   protPct = protMeta > 0 ? Math.round(protTotal / protMeta * 100) : 0;
 
   // Estimativa de perda — usar fator de adaptação metabólica
@@ -18360,11 +18369,13 @@ function saldoJanela(diasN, dataRef){
   return {
     diasN: diasN,
     diasComDados: dias.length,
+    diasCompletos: diasCompletos.length,
+    diasParciais: dias.length - diasCompletos.length,
     deficitTotal: defTotal,
     deficitMedio: defMedio,
     proteinaPct: protPct,
-    proteinaMediaG: dias.length > 0 ? Math.round(protTotal / dias.length) : 0,
-    proteinaMediaMeta: dias.length > 0 ? Math.round(protMeta / dias.length) : 0,
+    proteinaMediaG: diasCompletos.length > 0 ? Math.round(protTotal / diasCompletos.length) : 0,
+    proteinaMediaMeta: diasCompletos.length > 0 ? Math.round(protMeta / diasCompletos.length) : 0,
     perdaMin: Math.max(0, perdaEstimadaMin),
     perdaMax: Math.max(0, perdaEstimadaMax),
     fatorAdapt: fatorAdapt,
@@ -18674,8 +18685,21 @@ function renderSaldoHoje(box){
 
 function renderSaldoSemana(box){
   var jan = saldoJanela(7);
-  if(!jan || jan.diasComDados < 3){
-    box.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.55);text-align:center;padding:20px 10px;line-height:1.5">Registre refeições por <strong>3+ dias</strong> nos últimos 7 dias para ver balanço semanal.<br><span style="color:rgba(255,255,255,.45);font-size:11px">Atualmente: ' + (jan ? jan.diasComDados : 0) + ' dia' + ((jan && jan.diasComDados === 1) ? '' : 's') + ' com dados</span></div>';
+  // v3.10.25 (Fable): gate de qualidade. Dia "completo" = kcal ≥ 60% da meta
+  // OU ≥ 2 refeições registradas. Sem ≥3 dias completos, o déficit médio
+  // estaria sendo calculado sobre subregistro — então mostra estado honesto.
+  if(!jan || jan.diasCompletos < 3){
+    var c = jan ? jan.diasCompletos : 0;
+    var p = jan ? jan.diasParciais : 0;
+    var detalheParciais = p > 0 ? ' e parcialmente em outros ' + p : '';
+    box.innerHTML =
+      '<div style="padding:18px 14px;background:rgba(252,211,77,.04);border:1px solid rgba(252,211,77,.18);border-radius:12px;text-align:left">' +
+        '<div style="font-size:12px;font-weight:700;color:#fcd34d;letter-spacing:.04em;margin-bottom:8px">📋 Dados incompletos esta semana</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.55">' +
+          'Você registrou refeições completas em <strong>' + c + ' de 7 dias</strong>' + detalheParciais + '.<br>' +
+          'Registre as refeições completas para uma estimativa real do seu balanço energético.' +
+        '</div>' +
+      '</div>';
     return;
   }
 
@@ -18683,7 +18707,10 @@ function renderSaldoSemana(box){
   var defStr = (jan.deficitMedio > 0 ? '−' : '+') + Math.abs(jan.deficitMedio);
 
   var html = '<div style="margin-bottom:12px">';
-  html += '<div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Últimos 7 dias · ' + jan.diasComDados + ' com dados</div>';
+  // v3.10.25: label reflete dias COMPLETOS (não só "com dados").
+  var labelDias = jan.diasCompletos + ' com dados completos';
+  if(jan.diasParciais > 0) labelDias += ' · ' + jan.diasParciais + ' parc.';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Últimos 7 dias · ' + labelDias + '</div>';
   html += '<div style="font-size:28px;font-weight:800;color:' + defColor + ';font-family:var(--fd);line-height:1">' + defStr + ' kcal</div>';
   html += '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">déficit médio diário</div>';
   html += '</div>';
@@ -18758,8 +18785,20 @@ function renderSaldoQuinzena(box){
   var comp = compararEstimadoVsReal(14);
   var jan = saldoJanela(14);
 
-  if(!jan || jan.diasComDados < 7){
-    box.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.55);text-align:center;padding:20px 10px;line-height:1.5">Para ver o balanço de 15 dias,<br>registre refeições em pelo menos <strong>7 dos últimos 14 dias</strong>.<br><span style="color:rgba(255,255,255,.45);font-size:11px">Atualmente: ' + (jan ? jan.diasComDados : 0) + ' dia(s) com dados</span></div>';
+  // v3.10.25 (Fable): mesma regra da semanal. ≥7 dias COMPLETOS pra mostrar
+  // balanço de 14d. Senão estado honesto.
+  if(!jan || jan.diasCompletos < 7){
+    var c = jan ? jan.diasCompletos : 0;
+    var p = jan ? jan.diasParciais : 0;
+    var detalheParciais = p > 0 ? ' e parcialmente em outros ' + p : '';
+    box.innerHTML =
+      '<div style="padding:18px 14px;background:rgba(252,211,77,.04);border:1px solid rgba(252,211,77,.18);border-radius:12px;text-align:left">' +
+        '<div style="font-size:12px;font-weight:700;color:#fcd34d;letter-spacing:.04em;margin-bottom:8px">📋 Dados incompletos nesta janela</div>' +
+        '<div style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.55">' +
+          'Você registrou refeições completas em <strong>' + c + ' de 14 dias</strong>' + detalheParciais + '.<br>' +
+          'Para o balanço de 15 dias, registre refeições completas em pelo menos 7 dias.' +
+        '</div>' +
+      '</div>';
     return;
   }
 
