@@ -170,43 +170,84 @@ jobs:
             await page.goto(ORIGIN + '/' + (hash || ''), { waitUntil: 'load', timeout: 45000 });
             await page.waitForTimeout(8000);  // sync busca app_state
           }
-          // Aguarda sync 'aoLogar' (~3-8s). NAO da reload — reload faz
-          // sync rodar de novo e o gate de anamnese pode sobrescrever
-          // equilibra_v5 com state minimo antes do sync 2 puxar a nuvem.
-          await page.waitForTimeout(7000);
+          // Aguarda sessao Supabase consolidar.
+          await page.waitForTimeout(5000);
 
-          // v3.1.1 Fable — DIAGNOSTICO ANTES do gate forcado:
-          const diagAntes = await page.evaluate(() => {
+          // v3.2.2 Fable — DIAGNOSTICO ANTES do force-sync:
+          const diagAntes = await page.evaluate(async () => {
             try {
               const raw = localStorage.getItem('equilibra_v5') || '';
               const S = raw ? JSON.parse(raw) : null;
+              let user = null;
+              try {
+                if (window.sb && window.sb.auth) {
+                  const r = await window.sb.auth.getUser();
+                  user = r && r.data && r.data.user
+                    ? { id: r.data.user.id.slice(0,8) + '...', email: r.data.user.email }
+                    : null;
+                }
+              } catch (e) {}
               return {
                 bytes: raw.length,
                 daily_dias: (S && Array.isArray(S.daily)) ? S.daily.length : 0,
                 weights_count: (S && Array.isArray(S.weights)) ? S.weights.length : 0,
                 profile_name: (S && S.profile && S.profile.name) || null,
                 ativo: localStorage.getItem('sanova_ativo'),
+                sb_existe: !!window.sb,
+                sb_user: user,
               };
             } catch (e) { return { erro: e.message }; }
           });
-          console.log('=== ANTES do gate ===');
+          console.log('=== ANTES do force-sync ===');
           console.log(JSON.stringify(diagAntes, null, 2));
 
-          // v3.1.2 (Fable): preserva state que o sync escreveu.
-          // Anamnese concluida + recarrega UI via bootApp/carregar
-          // (NAO reload da pagina).
-          await page.evaluate(() => {
+          // v3.2.2 Fable — FORCE SYNC: busca app_state direto via sb.from
+          // e escreve em localStorage. Bypassa aoLogar que nao roda em
+          // tempo habil apos magic link.
+          const forced = await page.evaluate(async () => {
             try {
+              if (!window.sb || !window.sb.auth) return { ok: false, motivo: 'sb_nao_existe' };
+              const userResp = await window.sb.auth.getUser();
+              const user = userResp && userResp.data && userResp.data.user;
+              if (!user) return { ok: false, motivo: 'sem_sessao' };
+              const r = await window.sb.from('app_state').select('state').eq('user_id', user.id).maybeSingle();
+              if (!r.data || !r.data.state) {
+                return { ok: false, motivo: 'app_state_vazio', user_id_curto: user.id.slice(0,8) + '...' };
+              }
+              const state = r.data.state;
+              localStorage.setItem('equilibra_v5', JSON.stringify(state));
               localStorage.setItem('sanova_ativo', '1');
               localStorage.setItem('sanova_termo_aceito', JSON.stringify({
                 versao: 'v1', aceitoEm: new Date().toISOString(),
               }));
+              return {
+                ok: true,
+                user_id_curto: user.id.slice(0,8) + '...',
+                bytes: JSON.stringify(state).length,
+                daily_dias: Array.isArray(state.daily) ? state.daily.length : 0,
+                weights_count: Array.isArray(state.weights) ? state.weights.length : 0,
+                profile_name: state.profile && state.profile.name,
+                fixture_marker: state._meta && state._meta.fixture,
+              };
+            } catch (e) { return { ok: false, motivo: 'exception', msg: e.message }; }
+          });
+          console.log('=== FORCE-SYNC ===');
+          console.log(JSON.stringify(forced, null, 2));
+          if (!forced.ok) {
+            console.error('[ABORT] force-sync falhou:', forced.motivo);
+            await browser.close();
+            process.exit(1);
+          }
+
+          // Recarrega UI sem perder o localStorage (que acabamos de escrever).
+          await page.evaluate(() => {
+            try {
               if (typeof esconderGate === 'function') esconderGate();
               if (typeof carregar === 'function') carregar();
               if (typeof bootApp === 'function') bootApp();
               if (typeof go === 'function') go('home');
               if (typeof render === 'function') render();
-            } catch (e) { console.log('gate err:', e.message); }
+            } catch (e) { console.log('boot err:', e.message); }
           });
           await page.waitForTimeout(3500);
 
