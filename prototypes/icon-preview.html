@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=412,initial-scale=1">
+<title>Sanova · Ícone — preview</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#04140a;
+    font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+    color:rgba(255,255,255,.92);
+    padding:32px 20px 60px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1{font-size:18px;font-weight:600;margin-bottom:8px;letter-spacing:-.01em}
+  .sub{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:28px;line-height:1.5}
+  h2{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+     color:rgba(255,255,255,.45);margin:22px 0 14px}
+  .row{display:flex;align-items:flex-end;gap:18px;margin-bottom:6px}
+  .item{text-align:center}
+  .item .lbl{font-size:9.5px;color:rgba(255,255,255,.42);margin-top:6px;letter-spacing:.04em}
+  .ic{display:block;background:transparent}
+  .ic-512{width:160px;height:160px;border-radius:35px;overflow:hidden}
+  .ic-192{width:96px;height:96px;border-radius:21px;overflow:hidden}
+  .ic-48{width:48px;height:48px;border-radius:10px;overflow:hidden}
+  /* simula launcher Android com bg cinza */
+  .launcher{
+    margin-top:24px;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.06);border-radius:14px;
+    padding:18px 16px;
+  }
+  .launcher .nome{font-size:11px;color:rgba(255,255,255,.62);margin-top:5px;text-align:center}
+  /* simula formas Android pra maskable: circle, squircle, rounded */
+  .mask-circle{border-radius:50%!important}
+  .mask-squircle{border-radius:30%!important}
+  .mask-rounded{border-radius:14%!important}
+</style>
+</head>
+<body>
+
+<h1>🌿 Ícone Sanova</h1>
+<p class="sub">
+  Rascunho vetorial. <b>Você aprova antes do build do TWA.</b><br>
+  Folha geométrica simétrica, gradient verde, sombra suave.
+</p>
+
+<h2>Versão "store" (loja Play / 1-pager)</h2>
+<div class="row">
+  <div class="item">
+    <div class="ic ic-512">
+      <img src="../assets/icon/sanova-icon-1024.svg" width="160" height="160" alt="">
+    </div>
+    <div class="lbl">160px</div>
+  </div>
+  <div class="item">
+    <div class="ic ic-192">
+      <img src="../assets/icon/sanova-icon-1024.svg" width="96" height="96" alt="">
+    </div>
+    <div class="lbl">96px</div>
+  </div>
+  <div class="item">
+    <div class="ic ic-48">
+      <img src="../assets/icon/sanova-icon-1024.svg" width="48" height="48" alt="">
+    </div>
+    <div class="lbl">48px</div>
+  </div>
+</div>
+
+<h2>Versão "maskable" — como Android recorta</h2>
+<p class="sub" style="margin-bottom:14px">
+  Android pode cortar o ícone em círculo, squircle ou rounded. A folha
+  precisa ficar dentro da safe area (~80% central).
+</p>
+<div class="row">
+  <div class="item">
+    <div class="ic mask-circle" style="width:120px;height:120px;overflow:hidden">
+      <img src="../assets/icon/sanova-icon-maskable.svg" width="120" height="120" alt="">
+    </div>
+    <div class="lbl">círculo</div>
+  </div>
+  <div class="item">
+    <div class="ic mask-squircle" style="width:120px;height:120px;overflow:hidden">
+      <img src="../assets/icon/sanova-icon-maskable.svg" width="120" height="120" alt="">
+    </div>
+    <div class="lbl">squircle</div>
+  </div>
+  <div class="item">
+    <div class="ic mask-rounded" style="width:120px;height:120px;overflow:hidden">
+      <img src="../assets/icon/sanova-icon-maskable.svg" width="120" height="120" alt="">
+    </div>
+    <div class="lbl">rounded</div>
+  </div>
+</div>
+
+<h2>No launcher (Pixel)</h2>
+<div class="launcher">
+  <div class="row" style="justify-content:center">
+    <div class="item">
+      <div class="ic mask-squircle" style="width:72px;height:72px;overflow:hidden">
+        <img src="../assets/icon/sanova-icon-maskable.svg" width="72" height="72" alt="">
+      </div>
+      <div class="nome">Sanova</div>
+    </div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:24px">
+  Se aprovar, eu gero PNGs (192/512/1024) via workflow e troco
+  no <code>manifest.json</code>.
+</p>
+
+</body>
+</html>
