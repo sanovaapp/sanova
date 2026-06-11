@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.26.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.27.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -145,6 +145,14 @@ export default {
       // refeicoes com proteina. Resolve race com sync (updatedAt + ownedBy).
       if (url.pathname === '/api/admin-seed-fixture-completa' && request.method === 'GET') {
         return await handleAdminSeedFixtureCompleta(env);
+      }
+
+      // v1.27.0 (Fable prints v3): bootstrap completo de conta fixture
+      // dedicada (fixture@sanova.app). Cria user se nao existe, seeda
+      // app_state, marca subscription active, gera magic link. 1 chamada.
+      // Evita mexer na subscription real do fundador durante prints.
+      if (url.pathname === '/api/admin-fixture-bootstrap' && request.method === 'GET') {
+        return await handleAdminFixtureBootstrap(env);
       }
 
       // v1.6.0: aplica templates de email branded Sanova via Supabase Management API.
@@ -1634,6 +1642,166 @@ async function handleAdminSetEmailTemplates(env) {
 // Insere/atualiza app_state do Bruno no Supabase via service_role
 // com profile completo. E2E (apos sync) puxa esse estado e o app
 // nao mostra anamnese.
+// v1.27.0 (Fable prints v3): bootstrap completo da conta fixture@sanova.app.
+// Numa chamada: cria user (se nao existe), seeda fixture realista,
+// marca subscription active, gera magic link. Workflow chama 1x e navega.
+//
+// Por que conta separada: simulate-active/revert-trial no usuario do Bruno
+// fazem a assinatura real dele oscilar entre estados durante runs.
+const FIXTURE_EMAIL = 'fixture@sanova.app';
+const FIXTURE_PASSWORD = 'sanova-fixture-2026-v1';
+
+async function handleAdminFixtureBootstrap(env) {
+  try {
+    let userId = await findUserByEmail(FIXTURE_EMAIL, env);
+    if (!userId) {
+      const createResp = await fetch(
+        'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users',
+        {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: FIXTURE_EMAIL,
+            password: FIXTURE_PASSWORD,
+            email_confirm: true,
+            user_metadata: { kind: 'fixture-prints', created_by: 'admin-fixture-bootstrap' },
+          }),
+        }
+      );
+      const created = await createResp.json().catch(() => ({}));
+      if (!createResp.ok) {
+        return new Response(
+          JSON.stringify({ ok: false, stage: 'create_user', detail: created }, null, 2),
+          { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+        );
+      }
+      userId = created.id;
+    }
+
+    const hoje = new Date();
+    const dStr = (d) => d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    const minusDias = (n) => { const x = new Date(hoje); x.setDate(x.getDate() - n); return x; };
+
+    const weights = [];
+    for (let i = 6; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 92.0 + (i * 0.1) });
+
+    const daily = [];
+    for (let i = 6; i >= 0; i--) {
+      daily.push({
+        date: dStr(minusDias(i)),
+        refeicoes: [
+          { kcal: 520, proteina: 42, kcalFonte: 'estimado' },
+          { kcal: 720, proteina: 58, kcalFonte: 'estimado' },
+          { kcal: 480, proteina: 32, kcalFonte: 'estimado' },
+        ],
+        waterMl: 2200,
+        sintomas: [],
+      });
+    }
+
+    const state = {
+      profile: {
+        name: 'Fixture (paciente teste)', sex: 'M', age: 40, heightCm: 178,
+        weightKg: 92.6, weightStartKg: 114, weightGoalKg: 85,
+        atividade: 'Moderada', activityLevel: 'Moderada',
+        objetivo: 'reconstruir', exercicioResistido: true,
+        startDate: '2025-12-01',
+      },
+      caneta: {
+        tipo: 'frasco', farmaco: 'Tirzepatida', dose: '5', freq: 'semanal',
+        concRotuloMg: 10, concRotuloMl: 1, volumeFrasco: 2,
+        ultima: dStr(minusDias(3)),
+      },
+      daily, weights,
+      applications: [
+        { date: dStr(minusDias(10)), dose: '5' },
+        { date: dStr(minusDias(3)), dose: '5' },
+      ],
+      insights: [],
+      ownedBy: userId,
+      updatedAt: Date.now(),
+      _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString(), fixture: 'completa-v1' },
+    };
+
+    const seedResp = await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/app_state?on_conflict=user_id',
+      {
+        method: 'POST',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=representation',
+        },
+        body: JSON.stringify({ user_id: userId, state }),
+      }
+    );
+    const seedData = await seedResp.json().catch(() => ({}));
+    if (!seedResp.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, stage: 'seed_state', detail: seedData }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    const subPatch = {
+      user_id: userId,
+      status: 'active',
+      subscription_started_at: new Date().toISOString(),
+      subscription_ends_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+      mp_preapproval_id: 'fixture-simulated-' + Date.now(),
+    };
+    const subResp = await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/subscriptions?on_conflict=user_id',
+      {
+        method: 'POST',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=representation',
+        },
+        body: JSON.stringify(subPatch),
+      }
+    );
+    const subData = await subResp.json().catch(() => ({}));
+
+    const link = await generateMagicLink(
+      FIXTURE_EMAIL,
+      'https://sanovaapp.github.io/sanova/',
+      env
+    );
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        email: FIXTURE_EMAIL,
+        user_id_curto: userId.slice(0, 8) + '...',
+        action_link: link.properties?.action_link || link.action_link,
+        fixture: 'completa-v1',
+        subscription: subResp.ok ? (Array.isArray(subData) ? subData[0] : subData) : { erro: subData },
+        contadores: {
+          dias_completos: daily.length,
+          pesagens: weights.length,
+          aplicacoes: state.applications.length,
+        },
+      }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
 // v1.25.0 (Fable prints v2): seed completo, simulando paciente em uso ativo.
 // - 7 dias daily com 3 refeicoes COM proteina (kcal+prot reais)
 // - 7 pesagens descendentes (~93 -> 92 kg) pra calcMA7 ter dados
