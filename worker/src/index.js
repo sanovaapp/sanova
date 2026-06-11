@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.2' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -1719,15 +1719,26 @@ async function handleAdminFixtureBootstrap(env) {
     const weights = [];
     for (let i = 6; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 92.0 + (i * 0.1) });
 
+    // v1.28.2 (Fable Turno 5 P0 #5): o seed escrevia refeicoes[].proteina por item mas
+    // NAO escrevia os agregados dh.proteinG / dh.kcalConsumed / dh.kcalFromProt que o
+    // app usa pra renderizar os Pilares de hoje. Resultado: lista mostrava "3 refeicoes
+    // 1720 kcal" mas Pilares ficavam 0% prot, 0% kcal. Agora seed escreve os agregados.
     const daily = [];
     for (let i = 6; i >= 0; i--) {
+      const refeicoes = [
+        { kcal: 520, proteina: 42, kcalFonte: 'estimado' },
+        { kcal: 720, proteina: 58, kcalFonte: 'estimado' },
+        { kcal: 480, proteina: 32, kcalFonte: 'estimado' },
+      ];
+      const totKcal = refeicoes.reduce((s, r) => s + r.kcal, 0);
+      const totProt = refeicoes.reduce((s, r) => s + r.proteina, 0);
       daily.push({
         date: dStr(minusDias(i)),
-        refeicoes: [
-          { kcal: 520, proteina: 42, kcalFonte: 'estimado' },
-          { kcal: 720, proteina: 58, kcalFonte: 'estimado' },
-          { kcal: 480, proteina: 32, kcalFonte: 'estimado' },
-        ],
+        refeicoes,
+        proteinG: totProt,
+        kcalConsumed: totKcal,
+        kcalFromPhoto: totKcal,
+        kcalFromProt: 0,
         waterMl: 2200,
         sintomas: [],
       });

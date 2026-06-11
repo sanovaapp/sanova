@@ -6233,7 +6233,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.25';
+var SANOVA_VERSION = '3.10.26';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -8661,9 +8661,9 @@ function anaStepObjetivo(cb){
   setTimeout(function(){
     anaMsg('bot','🎯 <strong>Qual seu objetivo agora?</strong><br><br>Isso ajusta sua meta de proteína e calorias. Pode trocar depois no Perfil quando mudar de fase.');
     anaOpts([
-      {ic:'🔥',lb:'Emagrecer',sub:'Perder gordura mantendo músculo (1,6 g/kg)',v:'emagrecer'},
-      {ic:'💪',lb:'Reconstruir músculo',sub:'Já está magro/sarcopênico — ganhar massa (2,0 g/kg)',v:'reconstruir'},
-      {ic:'⚖️',lb:'Manter peso',sub:'Já chegou na meta — manutenção (1,8 g/kg)',v:'manter'}
+      {ic:'🔥',lb:'Emagrecer',sub:'Perder gordura mantendo músculo (1,8 g/kg de massa magra)',v:'emagrecer'},
+      {ic:'💪',lb:'Reconstruir músculo',sub:'Já está magro/sarcopênico — ganhar massa (2,0 g/kg de massa magra)',v:'reconstruir'},
+      {ic:'⚖️',lb:'Manter peso',sub:'Já chegou na meta — manutenção (1,8 g/kg de massa magra)',v:'manter'}
     ],function(v){
       ANA.data.objetivo = v;
       if(typeof _anaSalvar === 'function') _anaSalvar();
@@ -14311,6 +14311,13 @@ function toggleEntendaMeta(){
     var w=M.w,tmb=Math.round(M.tmb),tdee=Math.round(M.tdee),meta=Math.round(M.meta),
         agua=Math.round(M.agua),prot=Math.round(M.pm),def=Math.round(M.def),
         ativ=S.profile.activityLevel||'Moderada',sex=S.profile.sex==='F'?'ela':'ele';
+    // v3.10.26 (Fable P0 #1+#2): explainer renderiza as variaveis REAIS do
+    // calculo (M.protCalc.coef × M.protCalc.lbm OU piso × pesoIdeal pra proteina;
+    // calMult do objetivo + flag pisoAplicado pra calorias). Toda equacao
+    // impressa precisa ser aritmeticamente verdadeira com os numeros exibidos.
+    var pc=M.protCalc;
+    var objKey2=(typeof getObjetivoAtual==='function')?getObjetivoAtual():'emagrecer';
+    var objCfg2=OBJETIVOS[objKey2]||OBJETIVOS.emagrecer;
     var html='';
     // Água
     html+='<div style="background:rgba(110,231,183,.08);border-left:3px solid #6ee7b7;border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:10px">';
@@ -14319,24 +14326,55 @@ function toggleEntendaMeta(){
     html+='Com seu nível de atividade <strong>'+ativ.toLowerCase()+'</strong>, adicionamos mais 200ml. ';
     html+='⚠️ Os GLP-1 <strong>suprimem a sede</strong> — você pode estar desidratado sem sentir. Beba mesmo sem sede.';
     html+='</div>';
-    // Proteína
+    // Proteína — equação aritmeticamente verdadeira com base no caminho real do cálculo
     html+='<div style="background:rgba(74,222,128,.08);border-left:3px solid #4ade80;border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:10px">';
     html+='<div style="font-size:13px;font-weight:800;color:#4ade80;margin-bottom:4px">🥩 Por que '+prot+'g de proteína?</div>';
-    html+='A meta mínima é <strong>1,6g de proteína pura por kg de peso</strong>: 1,6 × '+w.toFixed(1)+' = <strong>'+prot+'g</strong>. ';
+    if(pc){
+      if(pc.pisoUsado){
+        // Piso de segurança ativo: peso ideal × 1,0
+        html+='Sua massa magra estimada renderia menos do que o piso de segurança clínico. ';
+        html+='Aplicamos o piso: <strong>peso ideal '+pc.pesoIdeal.toFixed(1)+'kg × 1,0 g/kg = '+prot+'g</strong>. ';
+        html+='Esse piso protege contra sarcopenia quando a massa magra calculada está baixa demais. ';
+      } else {
+        // Caminho principal: massa magra (Boer) × coef do objetivo
+        var coefStr=pc.coef.toFixed(1).replace('.', ',');
+        html+='Seu objetivo é <strong>'+objCfg2.label.toLowerCase()+'</strong>, que aplica <strong>'+coefStr+'g por kg de massa magra</strong>. ';
+        html+='Sua massa magra estimada (fórmula Boer, a partir de altura e sexo) é <strong>'+pc.lbm.toFixed(1)+'kg</strong>. ';
+        html+='Conta: <strong>'+coefStr+' × '+pc.lbm.toFixed(1)+' = '+prot+'g</strong>. ';
+      }
+    } else {
+      html+='Meta calculada a partir do seu peso (<strong>'+w.toFixed(1)+'kg</strong>): <strong>'+prot+'g</strong>. ';
+    }
     html+='Com GLP-1 você come menos — por isso cada grama importa mais. Sem proteína suficiente, o corpo ';
     html+='usa <strong>músculo como energia</strong> durante o emagrecimento. Isso é sarcopenia — você perde firmeza, força e metabolismo.';
     html+='</div>';
-    // Calorias / déficit
+    // Calorias / déficit — texto reflete o objetivo ativo (calMult) e o piso fisiológico
     html+='<div style="background:rgba(232,200,120,.08);border-left:3px solid #e8c878;border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:10px">';
     html+='<div style="font-size:13px;font-weight:800;color:#e8c878;margin-bottom:4px">🔥 Por que '+meta+' kcal?</div>';
     html+='Seu metabolismo em repouso (TMB) é <strong>'+tmb+' kcal</strong> — energia que seu corpo gasta só existindo. ';
     html+='Com sua atividade '+ativ.toLowerCase()+', seu gasto total diário (GET) é <strong>'+tdee+' kcal</strong>. ';
-    // v3.9.30: filosofia v3.1.41 — meta = GET dinâmico. Em GLP-1 a propria
-    // medicacao gera deficit (paciente come menos por saciedade). Nao forcamos.
-    html+='Sua meta diária é <strong>'+meta+' kcal</strong> — equivalente ao seu gasto total. ';
-    html+='<strong>Em GLP-1, o próprio remédio reduz a fome</strong> e você naturalmente come abaixo dessa meta. ';
-    html+='É o déficit que faz emagrecer — e ele vem espontaneamente, sem forçar. ';
-    html+='Por isso a meta é honesta (igual ao gasto) em vez de um número artificialmente baixo que te frustaria.';
+    var calMult2=(objCfg2 && objCfg2.calMult) || 1.00;
+    if(M.pisoAplicado){
+      // Piso fisiológico segurou a meta (anti-anorexia). Mostrar isso explicitamente.
+      var pisoMinDisp=(S.profile.sex==='M')?1500:1200;
+      html+='Pelo seu objetivo (<strong>'+objCfg2.label.toLowerCase()+'</strong>), o cálculo seria '+tdee+' × '+calMult2.toFixed(2).replace('.',',')+' = '+Math.round(tdee*calMult2)+' kcal — abaixo do piso fisiológico de segurança ('+pisoMinDisp+' kcal). ';
+      html+='Por isso sua meta foi elevada para <strong>'+meta+' kcal</strong>, evitando déficit excessivo.';
+    } else if(calMult2 === 1.00){
+      // Manter peso: meta = GET
+      html+='Pelo seu objetivo (<strong>'+objCfg2.label.toLowerCase()+'</strong>), sua meta diária é igual ao gasto: <strong>'+meta+' kcal</strong>. ';
+      html+='<strong>Em GLP-1, o próprio remédio reduz a fome</strong> e você naturalmente come abaixo dessa meta. ';
+      html+='É o déficit que faz emagrecer — e ele vem espontaneamente, sem forçar.';
+    } else if(calMult2 < 1.00){
+      // Emagrecer: meta enxuta (GET × <1)
+      var multStr=calMult2.toFixed(2).replace('.',',');
+      html+='Pelo seu objetivo (<strong>'+objCfg2.label.toLowerCase()+'</strong>), aplicamos uma meta enxuta: <strong>'+tdee+' × '+multStr+' = '+meta+' kcal</strong>. ';
+      html+='Esse alvo cria um déficit moderado <em>somado</em> à redução de fome do GLP-1. Comer abaixo dessa meta já é esperado e saudável.';
+    } else {
+      // Reconstruir: meta generosa (GET × >1)
+      var multStrG=calMult2.toFixed(2).replace('.',',');
+      html+='Pelo seu objetivo (<strong>'+objCfg2.label.toLowerCase()+'</strong>), aplicamos uma meta generosa: <strong>'+tdee+' × '+multStrG+' = '+meta+' kcal</strong>. ';
+      html+='O leve superávit dá matéria-prima pra reconstruir massa magra junto ao exercício resistido.';
+    }
     html+='</div>';
     body.innerHTML=html;
     body.style.display='block';
@@ -14953,7 +14991,11 @@ function render(){
     if(dh&&dh.waterMl){var ap2=Math.min(100,Math.round((dh.waterMl/M.agua)*100));el('aguaBarWrap').style.display='block';el('aguaPct').textContent=ap2+'%';el('aguaFill').style.width=ap2+'%';el('aguaFill').className='pbar-fill'+(ap2<50?' danger':ap2<80?' warn':'');}
     else{var _abw=el('aguaBarWrap');if(_abw)_abw.style.display='none';}
     var _peq=el('peqEl');if(_peq)_peq.innerHTML='<b>Equivalência proteica:</b><br>'+proteqiv(Math.round(M.pm));
-    el('efTMB').innerHTML='Seu perfil → <strong>TMB: '+Math.round(M.tmb)+' kcal/dia</strong>';el('efMeta').innerHTML='GET: '+Math.round(M.tdee)+' → Meta: <strong>'+Math.round(M.meta)+' kcal/dia</strong>';
+    // v3.10.26 (Fable P0 bug innerHTML null): efTMB/efMeta vivem dentro do collapsible "Como calculei"
+    // (kpiExplain). render() é chamado em qualquer mudança de state, então toda re-renderização
+    // com o collapsible fechado explodia aqui sem o null-check.
+    var _eft=el('efTMB');if(_eft)_eft.innerHTML='Seu perfil → <strong>TMB: '+Math.round(M.tmb)+' kcal/dia</strong>';
+    var _efm=el('efMeta');if(_efm)_efm.innerHTML='GET: '+Math.round(M.tdee)+' → Meta: <strong>'+Math.round(M.meta)+' kcal/dia</strong>';
     // v3.10.25 (Fable P1 #5): mostrar a base real (massa magra Boer ou piso peso ideal)
     var _baseProt;
     if(M.protCalc && M.protCalc.pisoUsado){
@@ -14963,7 +15005,7 @@ function render(){
     } else {
       _baseProt = 'Peso: '+rd(cw||0,1)+'kg';
     }
-    el('efProt').innerHTML=_baseProt+' → Mín: <strong>'+Math.round(M.pm)+'g</strong> | Ideal: <strong>'+Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g</strong>';
+    var _efp=el('efProt');if(_efp)_efp.innerHTML=_baseProt+' → Mín: <strong>'+Math.round(M.pm)+'g</strong> | Ideal: <strong>'+Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g</strong>';
     var diet=buildDiet(M);
     if(diet){el('dietCard').style.display='block';el('dietSub').textContent='Meta: ~'+Math.round(M.meta)+' kcal, ~'+Math.round(M.pm)+'g proteína.';var dm2=el('dietMeals');dm2.innerHTML='';diet.forEach(function(meal){var d=document.createElement('div');d.className='diet-meal';d.innerHTML='<div class="diet-time">'+meal.t+'</div><div><div class="diet-desc">'+meal.d+'</div><div class="diet-prot">'+meal.p+'</div></div>';dm2.appendChild(d);});}
     else{var _dc=el('dietCard');if(_dc)_dc.style.display='none';}
@@ -16086,7 +16128,7 @@ var FAQ=[
   {cat:'⚖️ Sobre o peso',ic:'⚖️',q:'Engordei um pouco essa semana. Errei?',a:'Não necessariamente. Variações de 1 a 2 kg no dia a dia são normais — refletem água, sal, intestino e ciclo menstrual. Confie na tendência de 7 a 14 dias, não no peso de um único dia. Pese sempre no mesmo horário (manhã, em jejum) para ter consistência.'},
 /* ─── 🍽️ ALIMENTAÇÃO ─── */
   {cat:'🍽️ Alimentação',ic:'🍽️',q:'O que comer quando não tenho fome?',a:'Com GLP-1 a fome diminui muito — mas o corpo continua precisando de nutrientes, especialmente proteína. A estratégia não é esperar a fome chegar: coma por horário, em volumes menores, priorizando proteína.<br><br><strong>Opções de alta proteína com pouco volume:</strong><br>• 2 ovos mexidos = 12g de proteína pura<br>• Iogurte grego 200g = 20g de proteína pura<br>• Atum em lata 100g = 26g de proteína pura<br>• Queijo cottage 100g = 12g de proteína pura<br><br>Se passar mais de 4-5 horas sem comer nada, seu corpo começa a buscar energia nos músculos.'},
-  {cat:'🍽️ Alimentação',ic:'🍽️',q:'Quanto de proteína preciso por dia?',a:'A recomendação para quem usa GLP-1 é entre 1,2g e 1,6g de <strong>proteína pura</strong> por quilo de peso por dia.<br><br><strong>⚠️ Atenção — confusão muito comum:</strong> Proteína pura não é o mesmo que peso do alimento. Quando você come 100g de frango, não ingere 100g de proteína — ingere cerca de 31g de proteína pura.<br><br><strong>Tabela de proteína pura por alimento:</strong><br>• Peito de frango cozido 100g = 31g<br>• Atum em lata escorrido 100g = 26g<br>• Patinho cozido 100g = 28g<br>• Ovo inteiro 1 unidade = 6g<br>• Iogurte grego 200g = 20g<br>• Whey protein 1 scoop (30g pó) = 22-25g<br>• Grão-de-bico cozido 100g = 9g<br><br>O Sanova calcula sua meta personalizada e mostra gramas de proteína pura — não o peso do alimento.'},
+  {cat:'🍽️ Alimentação',ic:'🍽️',q:'Quanto de proteína preciso por dia?',a:'A recomendação para quem usa GLP-1 é cerca de <strong>1,8g de proteína pura por kg de massa magra por dia</strong> (sistema do Sanova), ou cerca de 2,0g/kg para quem busca reconstruir massa muscular. É mais alta que a recomendação geral (1,2–1,6g/kg de peso) porque o déficit do GLP-1 é mais agressivo e a massa magra precisa de proteção extra.<br><br><strong>⚠️ Atenção — confusão muito comum:</strong> Proteína pura não é o mesmo que peso do alimento. Quando você come 100g de frango, não ingere 100g de proteína — ingere cerca de 31g de proteína pura.<br><br><strong>Tabela de proteína pura por alimento:</strong><br>• Peito de frango cozido 100g = 31g<br>• Atum em lata escorrido 100g = 26g<br>• Patinho cozido 100g = 28g<br>• Ovo inteiro 1 unidade = 6g<br>• Iogurte grego 200g = 20g<br>• Whey protein 1 scoop (30g pó) = 22-25g<br>• Grão-de-bico cozido 100g = 9g<br><br>O Sanova calcula sua meta personalizada e mostra gramas de proteína pura — não o peso do alimento.'},
   {cat:'🍽️ Alimentação',ic:'🍽️',q:'Posso comer carboidrato?',a:'Sim — e carboidrato é importante, especialmente para quem está treinando. É o principal combustível para o exercício de força. Cortar carboidrato demais causa fadiga, queda de rendimento no treino e pode acelerar a perda muscular.<br><br><strong>Prefira carboidratos de digestão lenta:</strong><br>✅ Arroz integral · Batata doce · Aveia · Frutas com casca · Pão integral<br><br><strong>Evite em excesso:</strong><br>❌ Refrigerante · Doces · Pão branco · Suco de fruta (prefira a fruta inteira)<br><br><strong>Dica prática:</strong> Coma uma porção de carboidrato antes do treino — uma batata doce pequena ou uma fruta. Isso garante energia para o exercício e protege seus músculos.'},
   {cat:'🍽️ Alimentação',ic:'🍽️',q:'Posso tomar whey protein?',a:'Sim — pode ser muito útil. Com o apetite reduzido, whey protein é uma forma prática de complementar a proteína sem precisar comer grande volume de comida. Escolha versões sem açúcar adicionado.<br><br><strong>⚠️ Atenção na leitura do rótulo:</strong> Um scoop de whey (30g de pó) não é 30g de proteína — verifique sempre a coluna "Proteínas" na tabela nutricional. A maioria entrega 20 a 25g de proteína por scoop de 30g.<br><br>Se tiver intolerância à lactose: prefira whey isolado ou proteínas vegetais como ervilha e soja.'},
   {cat:'🍽️ Alimentação',ic:'🍽️',q:'O que comer no dia da aplicação?',a:'Não existe restrição no dia da aplicação. Mas como os efeitos ficam mais fortes nas primeiras 24-48 horas, muitas pessoas sentem mais enjoo nesse período.<br><br><strong>Nesse caso:</strong><br>✅ Refeições menores e mais frequentes · Proteínas leves (ovo, iogurte) · Muita água<br>❌ Evite frituras · Bebidas gaseificadas · Refeições muito volumosas'},
@@ -16373,7 +16415,7 @@ var BIBLIOTECA = [
     titulo: 'Por que proteína é essencial em GLP-1',
     frase: 'Sem proteína suficiente, o emagrecimento queima músculo — e você "murcha".',
     corpo: 'Quando você está em déficit calórico (GLP-1 facilita isso), seu corpo precisa decidir: <strong>de onde tirar a energia que falta?</strong>.<br><br>Se houver proteína suficiente na alimentação, o corpo prioriza <strong>queimar gordura</strong>.<br><br>Se a proteína estiver baixa, o corpo começa a <strong>quebrar músculo</strong> para usar como combustível. Isso é catabolismo muscular.<br><br>Consequências de perder músculo:<br>• <strong>Flacidez</strong> — pele sem suporte muscular<br>• <strong>TMB cai</strong> — músculo gasta calorias em repouso, sem ele você gasta menos<br>• <strong>Recuperação metabólica difícil</strong> — após parar a medicação, o peso volta mais rápido<br>• <strong>Fragilidade física</strong> — perda de força, queda de qualidade de vida',
-    medicamento: 'A meta de proteína em GLP-1 deve ser <strong>maior</strong> que a recomendação geral, justamente porque o déficit é mais agressivo:<br><br>• Sedentário em GLP-1: <strong>1,6 g/kg de peso/dia</strong> (mínimo)<br>• Ativo em GLP-1: <strong>1,8-2,0 g/kg/dia</strong><br>• Quem faz musculação: <strong>2,0-2,2 g/kg/dia</strong><br><br>Combinado com <strong>exercício resistido</strong> (musculação 2-3x/semana), a proteína protege quase 100% da massa magra durante o emagrecimento.',
+    medicamento: 'A meta de proteína em GLP-1 deve ser <strong>maior</strong> que a recomendação geral, justamente porque o déficit é mais agressivo. O Sanova trabalha com <strong>proteína por kg de massa magra</strong> (não peso total), que é a referência clínica precisa:<br><br>• Emagrecer (sistema padrão): <strong>1,8 g/kg de massa magra/dia</strong><br>• Reconstruir músculo / sarcopenia: <strong>2,0 g/kg de massa magra/dia</strong><br>• Manter peso pós-meta: <strong>1,8 g/kg de massa magra/dia</strong><br><br>Combinado com <strong>exercício resistido</strong> (musculação 2-3x/semana), a proteína protege quase 100% da massa magra durante o emagrecimento.',
     exemplo: 'Estudo Cava et al (2017): pacientes em déficit calórico moderado.<br><br>• Grupo só dieta: perdeu peso, mas <strong>~30% veio de músculo</strong><br>• Grupo dieta + proteína alta + musculação: perdeu peso, e <strong>~95% veio de gordura</strong><br><br>Mesma perda na balança. Resultado totalmente diferente no corpo.'
   },
   {

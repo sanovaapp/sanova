@@ -343,10 +343,13 @@ jobs:
             await snap('saude');
           });
 
-          // ─── 8. MINHA JORNADA ─────────────────────────────────────
+          // ─── 8. MINHA JORNADA (acompanhamento semanal) ────────────
+          // v3.5 Fable Turno 5: a rota go('jornada') vai pro "Mapa da jornada"
+          // (timeline geral). A tela que ela quer auditar — Progresso de peso,
+          // ritmo semanal, perdaSemana(MA7), tendencia — vive em go('jornadaAcomp').
           await cena('8/11 jornada', async () => {
-            console.log('8/11 jornada');
-            await page.evaluate(() => { if (typeof go === 'function') go('jornada'); });
+            console.log('8/11 jornada (jornadaAcomp)');
+            await page.evaluate(() => { if (typeof go === 'function') go('jornadaAcomp'); });
             await page.waitForTimeout(2000);
             await snap('jornada');
           });
@@ -397,9 +400,10 @@ jobs:
           PWEND
           node prints.mjs 2>&1 | tee prints.log
 
-      # v3.1 Fable: hash-check final. Se 3+ PNGs tem MD5 identico, o
-      # script provavelmente renderizou a mesma tela varias vezes
-      # (ex: onboarding repetido em vez de painel) — falha o run.
+      # v3.1 Fable: hash-check final. v3.4 (Turno 5 Fable): threshold apertado
+      # pra >=2 — no run anterior 03-painel-completo.png e 04-balanco-semana-expandido.png
+      # sairam byte-identicas e o threshold >=3 deixou passar. Agora qualquer
+      # par identico falha o run.
       - name: Hash check (deteca telas duplicadas)
         run: |
           set -e
@@ -412,7 +416,7 @@ jobs:
           DUPLICADAS=0
           for h in "${!hashes[@]}"; do
             arr=(${hashes[$h]})
-            if [ "${#arr[@]}" -ge 3 ]; then
+            if [ "${#arr[@]}" -ge 2 ]; then
               echo "[FAIL] $h aparece em ${#arr[@]} arquivos: ${hashes[$h]}"
               DUPLICADAS=$((DUPLICADAS + 1))
             fi
