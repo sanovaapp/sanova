@@ -173,15 +173,16 @@ jobs:
           // Aguarda sessao Supabase consolidar.
           await page.waitForTimeout(5000);
 
-          // v3.2.2 Fable — DIAGNOSTICO ANTES do force-sync:
+          // v3.2.3 Fable — DIAGNOSTICO ANTES do force-sync:
           const diagAntes = await page.evaluate(async () => {
             try {
               const raw = localStorage.getItem('equilibra_v5') || '';
               const S = raw ? JSON.parse(raw) : null;
+              const sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
               let user = null;
               try {
-                if (window.sb && window.sb.auth) {
-                  const r = await window.sb.auth.getUser();
+                if (sb && sb.auth) {
+                  const r = await sb.auth.getUser();
                   user = r && r.data && r.data.user
                     ? { id: r.data.user.id.slice(0,8) + '...', email: r.data.user.email }
                     : null;
@@ -193,7 +194,7 @@ jobs:
                 weights_count: (S && Array.isArray(S.weights)) ? S.weights.length : 0,
                 profile_name: (S && S.profile && S.profile.name) || null,
                 ativo: localStorage.getItem('sanova_ativo'),
-                sb_existe: !!window.sb,
+                sb_existe: !!sb,
                 sb_user: user,
               };
             } catch (e) { return { erro: e.message }; }
@@ -201,16 +202,15 @@ jobs:
           console.log('=== ANTES do force-sync ===');
           console.log(JSON.stringify(diagAntes, null, 2));
 
-          // v3.2.2 Fable — FORCE SYNC: busca app_state direto via sb.from
-          // e escreve em localStorage. Bypassa aoLogar que nao roda em
-          // tempo habil apos magic link.
+          // v3.2.3 Fable — FORCE SYNC via window.SanovaSB() (accessor real).
           const forced = await page.evaluate(async () => {
             try {
-              if (!window.sb || !window.sb.auth) return { ok: false, motivo: 'sb_nao_existe' };
-              const userResp = await window.sb.auth.getUser();
+              const sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+              if (!sb || !sb.auth) return { ok: false, motivo: 'sb_nao_existe' };
+              const userResp = await sb.auth.getUser();
               const user = userResp && userResp.data && userResp.data.user;
               if (!user) return { ok: false, motivo: 'sem_sessao' };
-              const r = await window.sb.from('app_state').select('state').eq('user_id', user.id).maybeSingle();
+              const r = await sb.from('app_state').select('state').eq('user_id', user.id).maybeSingle();
               if (!r.data || !r.data.state) {
                 return { ok: false, motivo: 'app_state_vazio', user_id_curto: user.id.slice(0,8) + '...' };
               }
