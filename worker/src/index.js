@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.25.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.26.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -139,6 +139,12 @@ export default {
       // pra E2E nao depender de localStorage (que sync sobrescreve).
       if (url.pathname === '/api/admin-seed-bruno-profile' && request.method === 'GET') {
         return await handleAdminSeedProfile(env);
+      }
+
+      // v1.25.0 (Fable prints v2): seed completo com 7d daily + 7 pesagens +
+      // refeicoes com proteina. Resolve race com sync (updatedAt + ownedBy).
+      if (url.pathname === '/api/admin-seed-fixture-completa' && request.method === 'GET') {
+        return await handleAdminSeedFixtureCompleta(env);
       }
 
       // v1.6.0: aplica templates de email branded Sanova via Supabase Management API.
@@ -1628,6 +1634,127 @@ async function handleAdminSetEmailTemplates(env) {
 // Insere/atualiza app_state do Bruno no Supabase via service_role
 // com profile completo. E2E (apos sync) puxa esse estado e o app
 // nao mostra anamnese.
+// v1.25.0 (Fable prints v2): seed completo, simulando paciente em uso ativo.
+// - 7 dias daily com 3 refeicoes COM proteina (kcal+prot reais)
+// - 7 pesagens descendentes (~93 -> 92 kg) pra calcMA7 ter dados
+// - Aplicacao recente da caneta (3d atras)
+// - updatedAt: Date.now() (ms) e ownedBy garantem que sync NAO sobrescreve.
+//
+// Fable apontou: prints v1 mostrava '0g protein, 0 check-ins, 0 dias usando'
+// por race com aoLogar (sync puxava state vazio do Supabase e sobrescrevia
+// seed local do Playwright). Solucao: seedar AQUI, antes do magic link, e o
+// sync legitimo do client vai puxar essa fixture.
+async function handleAdminSeedFixtureCompleta(env) {
+  const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
+  try {
+    const userId = await findUserByEmail(BRUNO_EMAIL, env);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'bruno_nao_encontrado' }, null, 2),
+        { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+      );
+    }
+
+    const hoje = new Date();
+    const dStr = (d) => d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    const minusDias = (n) => {
+      const x = new Date(hoje);
+      x.setDate(x.getDate() - n);
+      return x;
+    };
+
+    // 7 pesagens descendentes: 92.6 -> 92.0
+    const weights = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = minusDias(i);
+      weights.push({ date: dStr(d), weight: 92.0 + (i * 0.1) });
+    }
+
+    // 7 dias com 3 refeicoes cada (kcal + proteina REAIS).
+    // Garante: kcal/dia >= 60% da meta_calorica (~2400 kcal estimada para Bruno)
+    // E >= 2 refeicoes/dia → dias completos no gate da Fable.
+    const daily = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = minusDias(i);
+      daily.push({
+        date: dStr(d),
+        refeicoes: [
+          { kcal: 520, proteina: 42, kcalFonte: 'estimado' },  // cafe
+          { kcal: 720, proteina: 58, kcalFonte: 'estimado' },  // almoco
+          { kcal: 480, proteina: 32, kcalFonte: 'estimado' },  // jantar
+        ],
+        waterMl: 2200,
+        sintomas: [],
+      });
+    }
+    // Total/dia: 1720 kcal · 132g proteina
+
+    const state = {
+      profile: {
+        name: 'Bruno', sex: 'M', age: 40, heightCm: 178,
+        weightKg: 92.6, weightStartKg: 114, weightGoalKg: 85,
+        atividade: 'Moderada', activityLevel: 'Moderada',
+        objetivo: 'reconstruir', exercicioResistido: true,
+        startDate: '2025-12-01',
+      },
+      caneta: {
+        tipo: 'frasco', farmaco: 'Tirzepatida', dose: '5', freq: 'semanal',
+        concRotuloMg: 10, concRotuloMl: 1, volumeFrasco: 2,
+        ultima: dStr(minusDias(3)),
+      },
+      daily,
+      weights,
+      applications: [
+        { date: dStr(minusDias(10)), dose: '5' },
+        { date: dStr(minusDias(3)), dose: '5' },
+      ],
+      insights: [],
+      ownedBy: userId,
+      updatedAt: Date.now(),
+      _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString(), fixture: 'completa-v1' },
+    };
+
+    const url = 'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/app_state?on_conflict=user_id';
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=representation',
+      },
+      body: JSON.stringify({ user_id: userId, state }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return new Response(
+      JSON.stringify({
+        ok: resp.ok,
+        httpStatus: resp.status,
+        email: BRUNO_EMAIL,
+        user_id_curto: userId.slice(0, 8) + '...',
+        fixture: 'completa-v1',
+        contadores: {
+          dias_completos: daily.length,
+          refeicoes_total: daily.length * 3,
+          pesagens: weights.length,
+          aplicacoes: state.applications.length,
+          kcal_por_dia: 520 + 720 + 480,
+          prot_por_dia: 42 + 58 + 32,
+        },
+        supabase_resp: Array.isArray(data) ? data[0] : data,
+      }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  }
+}
+
 async function handleAdminSeedProfile(env) {
   const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
   try {

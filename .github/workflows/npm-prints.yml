@@ -1,14 +1,21 @@
 name: Prints — pacote visual
 
-# Captura as 7 telas principais do app em 412x915 e empacota num zip.
-# Canal visual permanente Bruno → Fable (auditoria de UX). Roda quando
-# precisamos confirmar que uma mudanca visual nao quebrou nada.
+# Captura as telas principais do app em 412x915 e empacota num zip.
+# Canal visual permanente Bruno → Fable (auditoria de UX).
+#
+# v2 (Fable):
+#   · Seed via Worker (/api/admin-seed-fixture-completa) — 7d daily com
+#     refeicoes com proteina + 7 pesagens + aplicacao recente. Sem race.
+#   · 11 telas (vs 7 v1). Inclui Analise dos pilares, Balanco expandido,
+#     Metabolismo expandido.
+#   · Expande todos os <details> antes de cada snap.
+#   · Captura TODOS pageerrors com stack trace (caca o innerHTML null).
 
 on:
   workflow_dispatch:
     inputs:
       simulate_active:
-        description: 'Status do paciente seed (active = paywall ativo)'
+        description: 'Status do paciente (active = paywall fechado)'
         type: choice
         default: 'active'
         options:
@@ -33,16 +40,18 @@ jobs:
           npm install -D @playwright/test@1.49.0
           npx playwright install --with-deps chromium
 
-      - name: Pre — simular status + seed
+      - name: Pre — simular status + seed fixture completa
         env:
           ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
         run: |
           set -e
           BASE="https://sanova-api.contatosanovaapp.workers.dev"
           ACTION="admin-${{ github.event.inputs.simulate_active == 'active' && 'simulate-active' || 'revert-trial' }}"
-          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/$ACTION" | head -c 300
+          echo "== status =="
+          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/$ACTION" | head -c 400
           echo
-          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/admin-seed-bruno-profile" | head -c 300
+          echo "== seed fixture =="
+          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BASE/api/admin-seed-fixture-completa" | head -c 1200
           echo
 
       - name: Obter magic link
@@ -54,13 +63,11 @@ jobs:
           RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "https://sanova-api.contatosanovaapp.workers.dev/api/admin-magic-link-bruno")
           LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('action_link',''))")
           if [ -z "$LINK" ]; then
-            echo "Erro: magic link nao retornado"
-            echo "$RAW"
-            exit 1
+            echo "Erro: magic link nao retornado"; echo "$RAW"; exit 1
           fi
           echo "magic_link=$LINK" >> $GITHUB_OUTPUT
 
-      - name: Captura das 7 telas
+      - name: Captura das 11 telas
         env:
           MAGIC_LINK: ${{ steps.link.outputs.magic_link }}
         run: |
@@ -79,22 +86,41 @@ jobs:
             locale: 'pt-BR',
           });
           const page = await ctx.newPage();
-          page.on('pageerror', e => console.log('[pageerror]', e.message));
 
+          // Captura TODOS pageerrors com stack trace pra Fable analisar.
+          const erros = [];
+          page.on('pageerror', e => {
+            const entry = { msg: e.message, stack: (e.stack || '').slice(0, 800), when: new Date().toISOString() };
+            erros.push(entry);
+            console.log('[pageerror]', entry.msg);
+          });
+          page.on('console', m => {
+            if (m.type() === 'error') {
+              console.log('[console.error]', m.text().slice(0, 300));
+            }
+          });
+
+          let N = 1;
           async function snap(name) {
+            // Expande todos os <details> antes do snap (Fable cravou).
+            await page.evaluate(() => {
+              try {
+                document.querySelectorAll('details').forEach(d => d.open = true);
+              } catch (e) {}
+            });
+            await page.waitForTimeout(400);
             const path = `prints/${String(N++).padStart(2,'0')}-${name}.png`;
             await page.screenshot({ path, fullPage: true });
             console.log('Snap:', path);
           }
-          let N = 1;
 
-          // ─── 1. Tela de ONBOARDING (estado limpo, sem login) ──────
-          console.log('1/7 onboarding');
+          // ─── 1. ONBOARDING (estado limpo, sem login) ──────────────
+          console.log('1/11 onboarding');
           await page.goto('https://sanovaapp.github.io/sanova/', { waitUntil: 'load', timeout: 45000 });
           await page.waitForTimeout(3000);
           await snap('onboarding');
 
-          // ─── 2. Login via magic link ──────────────────────────────
+          // ─── Login via magic link (sync puxa fixture do Supabase) ─
           console.log('Login...');
           await page.goto(MAGIC, { waitUntil: 'load', timeout: 45000 });
           await page.waitForTimeout(3500);
@@ -102,68 +128,47 @@ jobs:
           if (!initialUrl.includes('/sanova/')) {
             const hash = await page.evaluate(() => location.hash);
             await page.goto('https://sanovaapp.github.io/sanova/' + (hash || ''), { waitUntil: 'load', timeout: 45000 });
-            await page.waitForTimeout(8000);
+            await page.waitForTimeout(8000);  // sync busca app_state
           }
+          // Aguarda render do Painel com fixture
+          await page.waitForTimeout(2500);
 
-          // Seed completo (perfil + dados de exemplo pra Painel respirar)
-          const seed = () => page.evaluate(() => {
+          // ─── 2. PAINEL — topo (sem rolar) ─────────────────────────
+          console.log('2/11 painel-topo');
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.waitForTimeout(500);
+          await snap('painel-topo');
+
+          // ─── 3. PAINEL — fullPage com Analise dos pilares ────────
+          console.log('3/11 painel-completo');
+          // Garante que a tab Painel esta ativa
+          await page.evaluate(() => { if (typeof go === 'function') go('home'); });
+          await page.waitForTimeout(1200);
+          await snap('painel-completo');
+
+          // ─── 4. BALANCO ENERGETICO — semana expandido ─────────────
+          console.log('4/11 balanco-semana');
+          // setPilaresPeriodo OU clica botao Semana se houver
+          await page.evaluate(() => {
             try {
-              const today = new Date();
-              const dStr = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-              const daily = [];
-              const weights = [];
-              for (let i = 6; i >= 0; i--) {
-                const d = new Date(today); d.setDate(d.getDate() - i);
-                daily.push({
-                  date: dStr(d),
-                  refeicoes: [
-                    { kcal: 480, proteina: 38, kcalFonte: 'estimado' },
-                    { kcal: 620, proteina: 55, kcalFonte: 'estimado' },
-                    { kcal: 380, proteina: 28, kcalFonte: 'estimado' },
-                  ],
-                  waterMl: 1800,
-                  sintomas: []
-                });
-                weights.push({ date: dStr(d), weight: 92 - (i * 0.2) });
-              }
-              const S = {
-                profile: {
-                  name: 'Bruno', sex: 'M', age: 40, heightCm: 178,
-                  weightKg: 92, weightStartKg: 114, weightGoalKg: 85,
-                  atividade: 'Moderada', activityLevel: 'Moderada',
-                  objetivo: 'reconstruir', exercicioResistido: true,
-                  startDate: '2025-12-01',
-                },
-                caneta: {
-                  tipo: 'frasco', farmaco: 'Tirzepatida', dose: '5', freq: 'semanal',
-                  concRotuloMg: 10, concRotuloMl: 1, volumeFrasco: 2,
-                  ultima: dStr(new Date(today.getTime() - 3*86400000)),
-                },
-                daily, weights,
-                applications: [
-                  { date: dStr(new Date(today.getTime() - 10*86400000)), dose: '5' },
-                  { date: dStr(new Date(today.getTime() - 3*86400000)), dose: '5' },
-                ],
-                insights: [],
-                _meta: { schemaVersion: 31, seededByE2E: true },
-              };
-              localStorage.setItem('equilibra_v5', JSON.stringify(S));
-              localStorage.setItem('sanova_ativo', '1');
-              if (typeof window.carregar === 'function') window.carregar();
-            } catch (e) { console.log('seed err:', e.message); }
+              // Tenta acionar a aba "Semana" do card Balanço
+              if (typeof setPilaresPeriodo === 'function') setPilaresPeriodo('semana');
+              // E expande qualquer <details> da analise clinica
+              document.querySelectorAll('details').forEach(d => d.open = true);
+            } catch (e) {}
           });
-          await seed();
-          await page.reload({ waitUntil: 'load', timeout: 45000 });
-          await page.waitForTimeout(4000);
-          await seed();
-          await page.waitForTimeout(2000);
+          await page.waitForTimeout(1200);
+          // Rola pro card Balanco (procura por elemento com texto)
+          await page.evaluate(() => {
+            const titulos = Array.from(document.querySelectorAll('div,h2,h3'));
+            const t = titulos.find(el => /balan[çc]o energ/i.test(el.textContent || ''));
+            if (t) t.scrollIntoView({behavior:'instant', block:'start'});
+          });
+          await page.waitForTimeout(800);
+          await snap('balanco-semana-expandido');
 
-          // ─── 3. PAINEL (fullPage cobre Pilares + Análise + Balanço) ───
-          console.log('2/7 painel');
-          await snap('painel');
-
-          // ─── 4. MEDICAÇÃO ─────────────────────────────────────────
-          console.log('3/7 medicacao');
+          // ─── 5. MEDICACAO ─────────────────────────────────────────
+          console.log('5/11 medicacao');
           await page.evaluate(() => { if (typeof fecharMais === 'function') fecharMais(); });
           const tabMed = await page.$('#nb-caneta');
           if (tabMed) {
@@ -172,8 +177,8 @@ jobs:
             await snap('medicacao');
           }
 
-          // ─── 5. CHECK-IN (tela de registro / saude) ───────────────
-          console.log('4/7 checkin');
+          // ─── 6. CHECK-IN ──────────────────────────────────────────
+          console.log('6/11 checkin');
           const tabCheck = await page.$('#nb-checkin');
           if (tabCheck) {
             await tabCheck.click();
@@ -181,25 +186,60 @@ jobs:
             await snap('checkin');
           }
 
-          // ─── 6. MINHA JORNADA (via Mais → "Mapa da jornada") ──────
-          console.log('5/7 jornada');
+          // ─── 7. SAUDE (sintomas / janela) ────────────────────────
+          console.log('7/11 saude');
+          const tabSaude = await page.$('#nb-saude');
+          if (tabSaude) {
+            await tabSaude.click();
+            await page.waitForTimeout(1500);
+            await snap('saude');
+          }
+
+          // ─── 8. MINHA JORNADA ─────────────────────────────────────
+          console.log('8/11 jornada');
           await page.evaluate(() => { if (typeof go === 'function') go('jornada'); });
           await page.waitForTimeout(2000);
           await snap('jornada');
 
-          // ─── 7. PERFIL / AJUSTES ──────────────────────────────────
-          console.log('6/7 perfil');
-          await page.evaluate(() => { if (typeof go === 'function') go('perfil'); });
+          // ─── 9. METABOLISMO E METAS — expandido ──────────────────
+          console.log('9/11 metabolismo');
+          await page.evaluate(() => {
+            try {
+              if (typeof go === 'function') go('perfil');
+            } catch (e) {}
+          });
           await page.waitForTimeout(1500);
-          await snap('perfil');
+          // Procura a secao Metabolismo dentro do Perfil e rola
+          await page.evaluate(() => {
+            const titulos = Array.from(document.querySelectorAll('div,h2,h3'));
+            const t = titulos.find(el => /metabolismo|metas/i.test(el.textContent || '') && el.textContent.length < 200);
+            if (t) t.scrollIntoView({behavior:'instant', block:'start'});
+          });
+          await page.waitForTimeout(800);
+          await snap('metabolismo-metas');
 
-          // ─── 8. MAIS (drawer aberto) ──────────────────────────────
-          console.log('7/7 mais');
+          // ─── 10. PERFIL (rola pro fim) ───────────────────────────
+          console.log('10/11 perfil-fim');
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+          await page.waitForTimeout(800);
+          await snap('perfil-fim');
+
+          // ─── 11. MAIS (drawer aberto) ────────────────────────────
+          console.log('11/11 mais');
           await page.evaluate(() => { if (typeof go === 'function') go('home'); });
           await page.waitForTimeout(1500);
           await page.evaluate(() => { if (typeof abrirMais === 'function') abrirMais(); });
           await page.waitForTimeout(1000);
           await snap('mais-drawer');
+
+          // Salva erros pra artifact
+          if (erros.length) {
+            const { writeFileSync } = await import('fs');
+            writeFileSync('prints/_pageerrors.json', JSON.stringify(erros, null, 2));
+            console.log(`[!] ${erros.length} pageerror(s) capturado(s) em prints/_pageerrors.json`);
+          } else {
+            console.log('[ok] zero pageerrors');
+          }
 
           await browser.close();
           console.log('Done.');
@@ -210,8 +250,8 @@ jobs:
         id: pack
         run: |
           STAMP=$(date -u +%Y%m%d-%H%M)
-          NAME="sanova-prints-${STAMP}.zip"
-          (cd prints && zip -qr "../$NAME" *.png)
+          NAME="sanova-prints-v2-${STAMP}.zip"
+          (cd prints && zip -qr "../$NAME" *.png _pageerrors.json 2>/dev/null || (cd prints && zip -qr "../$NAME" *.png))
           echo "zip_name=$NAME" >> $GITHUB_OUTPUT
           ls -lh "$NAME"
 
@@ -230,12 +270,20 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Pacote visual"
+            echo "## Pacote visual v2"
             echo ""
             echo "Status seed: ${{ github.event.inputs.simulate_active }}"
+            echo "Fixture: completa-v1 (7d daily, 7 pesagens, aplicacao recente)"
             echo ""
-            echo "Arquivos:"
+            echo "### Arquivos"
             ls -la prints/ 2>/dev/null || echo "(sem prints)"
+            echo ""
+            echo "### Pageerrors capturados"
+            if [ -f prints/_pageerrors.json ]; then
+              cat prints/_pageerrors.json
+            else
+              echo "(zero pageerrors)"
+            fi
             echo ""
             echo "Zip: ${{ steps.pack.outputs.zip_name }}"
           } >> $GITHUB_STEP_SUMMARY
