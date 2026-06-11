@@ -465,13 +465,39 @@ jobs:
           gh release upload prints-latest sanova-prints-latest.zip --clobber
           echo "ASSET URL: https://github.com/${{ github.repository }}/releases/download/prints-latest/sanova-prints-latest.zip"
 
+      # v3.3 (Fable turno 4): release-assets.githubusercontent.com nao chega
+      # na rede dela. codeload.github.com chega. Solucao: branch orfao
+      # 'prints-latest' com 1 commit (history vazia, repo nao incha) que ela
+      # baixa via https://codeload.github.com/<repo>/tar.gz/refs/heads/prints-latest
+      - name: Force push da pasta prints/ para branch orfao 'prints-latest'
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          WORK=$(mktemp -d)
+          cp -r prints/. "$WORK/"
+          cd "$WORK"
+          git init -q
+          git checkout -q -b prints-latest
+          git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" add .
+          git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" \
+            commit -q -m "prints $(date -u +%FT%TZ) — run ${{ github.run_id }}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          # --force porque branch eh efemera, history de 1 commit, sobrescreve a cada run
+          git push --force -q origin prints-latest:prints-latest
+          echo "TARBALL URL: https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-latest"
+
       - name: Resumo
         if: always()
         run: |
           {
-            echo "## Pacote visual v2"
+            echo "## Pacote visual"
             echo ""
-            echo "**URL pública fixa (assets de Release):**"
+            echo "**Tarball (codeload — pra Fable):**"
+            echo "https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-latest"
+            echo ""
+            echo "**Zip (Release asset — humanos):**"
             echo "https://github.com/${{ github.repository }}/releases/download/prints-latest/sanova-prints-latest.zip"
             echo ""
             echo "Status seed: ${{ github.event.inputs.simulate_active }}"
