@@ -239,17 +239,12 @@ jobs:
             process.exit(1);
           }
 
-          // Recarrega UI sem perder o localStorage (que acabamos de escrever).
-          await page.evaluate(() => {
-            try {
-              if (typeof esconderGate === 'function') esconderGate();
-              if (typeof carregar === 'function') carregar();
-              if (typeof bootApp === 'function') bootApp();
-              if (typeof go === 'function') go('home');
-              if (typeof render === 'function') render();
-            } catch (e) { console.log('boot err:', e.message); }
-          });
-          await page.waitForTimeout(3500);
+          // v3.2.4: depois do force-sync, page.reload() pra app re-montar
+          // com state CHEIO ja no localStorage. aoLogar detecta empate de
+          // updatedAt e nao zera nada. sanova_ativo='1' sobrevive reload —
+          // app entra direto no Painel sem gate visual.
+          await page.reload({ waitUntil: 'load', timeout: 30000 });
+          await page.waitForTimeout(6000);
 
           // v3.1 Fable — DIAGNOSTICO DEPOIS do gate forcado:
           const diag = await page.evaluate(() => {
