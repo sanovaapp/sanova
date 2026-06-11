@@ -187,7 +187,8 @@ Backend IA (análise de prato): proxy Manus.space (sanovaai-ep4phnhk.manus.space
 Endpoints: /api/analyze-photo, /api/analyze-text
 Tem fallback local (estimarPratoLocal) se cair
 PENDÊNCIA futura: migrar pro Cloudflare do Bruno (Manus é transitório, créditos acabaram mas Worker ainda roda)
-Modo dev: 7 toques no logo + senha sanova2026
+Modo dev: 7 toques no logo + senha (perguntar ao Bruno; SHA-256 em DEV_HASH no index.html)
+⚠️ v3.10.25 (Fable #12): senha nunca em texto cru no repo. Pré-TWA Play Store: mover validação pro Worker (rota POST /api/dev-auth) e remover DEV_HASH client-side, OU strip do modo dev no build de produção via flag.
 Schema S.caneta (medicação/estoque):
 Código
 📦 HISTÓRICO DE VERSÕES RECENTES

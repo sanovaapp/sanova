@@ -3809,7 +3809,7 @@ try{
           <div id="heroPesoAtual" style="font-size:15px;font-weight:800;color:#fff;line-height:1">—</div>
         </div>
         <div style="flex:1;min-width:0;text-align:center;border-right:1px solid rgba(255,255,255,.08);padding:0 6px">
-          <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.4);margin-bottom:2px">Esta semana</div>
+          <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.4);margin-bottom:2px">Últimos 7 dias</div>
           <div id="heroPesoSemana" style="font-size:15px;font-weight:800;color:#bbf7d0;line-height:1">—</div>
         </div>
         <div style="flex:1;min-width:0;text-align:center;padding-left:6px">
@@ -4456,7 +4456,7 @@ try{
           <button class="exp-btn" onclick="toggleExp('eAgua',this)">O que é? <span class="exp-arr">▾</span></button>
           <div class="exp-box" id="eAgua"><strong>Hidratação em GLP-1.</strong> A medicação reduz a sede junto com a fome — você desidrata sem perceber.<br><br><strong>📚 Por que importa:</strong> desidratação é a causa #1 de constipação em pacientes GLP-1, além de tontura, queda de pressão e mau hálito.<br><br><strong>Cálculo:</strong> ~35 ml por kg + ajuste por atividade. Pessoa de 70 kg moderada ≈ 2.650 ml/dia. Distribua: 1 copo a cada 1-2 horas, sem esperar sede.</div>
         </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🥩 Meta mínima proteína <span class="tip" onclick="mostrarDica('proteina')">ⓘ</span></div><div class="kv" id="kPMin">—</div><div class="kh">1,6g/kg</div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🥩 Meta mínima proteína <span class="tip" onclick="mostrarDica('proteina')">ⓘ</span></div><div class="kv" id="kPMin">—</div><div class="kh" id="kPMinUnidade">—</div>
           <button class="exp-btn" onclick="toggleExp('ePMin',this)">O que é? <span class="exp-arr">▾</span></button>
           <div class="exp-box" id="ePMin"><strong>Proteína = nutriente, NÃO o peso do alimento.</strong> "100g de proteína" não é "100g de bife".<br><br><strong>📚 Equivalências reais:</strong><br>• Bife magro 100g = ~26g de proteína<br>• Frango grelhado 100g = ~31g<br>• Ovo inteiro = ~6g por unidade<br>• Iogurte grego 100g = ~10g<br>• Whey scoop 30g = ~24g<br><br>Para bater 100g de proteína no dia, você precisa de ~320g de frango OU combinação (2 ovos + 200g frango + 1 iogurte + 1 whey ≈ 108g).</div>
         </div>
@@ -5831,7 +5831,7 @@ try{
       </div>
       <div style="text-align:center;background:rgba(255,255,255,.06);border-radius:10px;padding:10px 6px">
         <div id="histSemanas" style="font-size:20px;font-weight:900;color:#86efac">—</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">semanas</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">completas</div>
       </div>
     </div>
   </div>
@@ -7669,13 +7669,15 @@ var WBX={Sedentário:0,Leve:200,Moderada:400,Alta:700};
 // v3.9.32: 'detail' simplificado de jargao tecnico (GET-20%, GET+15%) pra
 // linguagem direta. Marcia: '1,8 g/kg proteina · meta = GET - 20%' soava
 // formula academica. Termos clinicos relevantes ficam em '<dica>'.
+// v3.10.25 (Fable P1 #5): 'g/kg' aqui é g por kg de MASSA MAGRA (LBM Boer),
+// não peso corporal. Sem isso o nutrólogo faz a conta 93×1,8 e o número não bate.
 var OBJETIVOS = {
   emagrecer:   { protMin: 1.8, calMult: 0.80, icon: '🔥', label: 'Emagrecer',
-                 desc: 'Perder gordura mantendo músculo', detail: '1,8 g proteína / kg · meta calórica enxuta' },
+                 desc: 'Perder gordura mantendo músculo', detail: '1,8 g proteína / kg de massa magra · meta calórica enxuta' },
   reconstruir: { protMin: 2.0, calMult: 1.15, icon: '💪', label: 'Reconstruir músculo',
-                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g proteína / kg · meta calórica generosa' },
+                 desc: 'Ganhar massa magra após GLP-1', detail: '2,0 g proteína / kg de massa magra · meta calórica generosa' },
   manter:      { protMin: 1.8, calMult: 1.00, icon: '⚖️', label: 'Manter peso',
-                 desc: 'Manutenção pós-meta', detail: '1,8 g proteína / kg · meta = seu gasto' }
+                 desc: 'Manutenção pós-meta', detail: '1,8 g proteína / kg de massa magra · meta = seu gasto' }
 };
 function getObjetivoAtual(){
   var k = (window.S && S.profile && S.profile.objetivo) || 'emagrecer';
@@ -7765,12 +7767,12 @@ var APRES={
 };
 
 var MS=[
-  {kg:1,ic:'🌱',msg:'Primeiro quilograma perdido!',sub:'A jornada começou de verdade.'},
-  {kg:2,ic:'💪',msg:'2 kg perdidos',sub:'Consistência gerando resultado.'},
-  {kg:5,ic:'🏅',msg:'5 kg — marco importante!',sub:'Você provou consistência.'},
-  {kg:10,ic:'🏆',msg:'10 kg — conquista extraordinária!',sub:'Transformação de saúde real.'},
-  {kg:15,ic:'⭐',msg:'15 kg — marco importante para sua saúde!',sub:'Redução expressiva de risco metabólico.'},
-  {kg:20,ic:'🌟',msg:'20 kg perdidos — impressionante!',sub:'Uma jornada que merece orgulho.'}
+  {kg:1,ic:'🌱',msg:'Marco: 1 kg ultrapassado!',sub:'A jornada começou de verdade.'},
+  {kg:2,ic:'💪',msg:'Marco: 2 kg ultrapassados',sub:'Consistência gerando resultado.'},
+  {kg:5,ic:'🏅',msg:'Marco: 5 kg ultrapassados',sub:'Você provou consistência.'},
+  {kg:10,ic:'🏆',msg:'Marco: 10 kg ultrapassados!',sub:'Transformação de saúde real.'},
+  {kg:15,ic:'⭐',msg:'Marco: 15 kg ultrapassados!',sub:'Redução expressiva de risco metabólico.'},
+  {kg:20,ic:'🌟',msg:'Marco: 20 kg ultrapassados!',sub:'Uma jornada que merece orgulho.'}
 ];
 
 var SINT=[
@@ -9753,6 +9755,36 @@ function calcMA7(){
   return arr.map(function(r,i){var sl=arr.slice(Math.max(0,i-6),i+1),s=0;sl.forEach(function(x){s+=x.weight;});return{date:r.date,avg:s/sl.length};});
 }
 function perdaSemana(ma){if(ma.length<8) return null;return ma[ma.length-8].avg-ma[ma.length-1].avg;}
+// v3.10.25 (Fable P1 #3): helper unificado de ritmo semanal.
+// Antes existiam DOIS caminhos: Progresso de peso usava só perdaSemana(MA7) e mostrava
+// '—' se < 8 pesagens; Minha jornada tinha fallback pra perda/semanas. Resultado:
+// mesmo paciente via '—' numa tela e '-0.37 kg/semana' na outra.
+// Agora: cascata MA7 → fallback média total → null. Mesma resposta nos 2 lugares.
+// Retorna { valor: number|null, fonte: 'ma7'|'media_total'|null, motivo?: string }
+function calcRitmoSemanalUnificado(){
+  var weights = (S.weights||[]).slice().sort(porData);
+  if(weights.length < 2){
+    return { valor: null, fonte: null, motivo: 'precisa de 2 pesagens' };
+  }
+  // 1ª escolha: média móvel 7 dias com >= 8 pontos (mais estável)
+  var ma = calcMA7();
+  var rlMA = perdaSemana(ma);
+  if(rlMA !== null) return { valor: rlMA, fonte: 'ma7' };
+  // Fallback: perda total / semanas (precisa janela >= 7 dias)
+  var primeiro = weights[0];
+  var ultimo = weights[weights.length-1];
+  var perd = primeiro.weight - ultimo.weight;
+  var dias = (typeof diasEntre === 'function') ? diasEntre(primeiro.date, ultimo.date) : 0;
+  if(dias < 7){
+    return { valor: null, fonte: null, motivo: 'precisa de pesagens em pelo menos 7 dias' };
+  }
+  return { valor: perd / (dias / 7), fonte: 'media_total' };
+}
+// Formato compartilhado pelo Progresso de peso e Minha jornada — uma string só.
+function formatarRitmoSemanal(r){
+  if(!r || r.valor === null) return '—';
+  return (r.valor >= 0 ? '−' : '+') + Math.abs(r.valor).toFixed(2).replace('.', ',');
+}
 // v3.9.31: refactor v3.1.41 zerou M.perda, mas a logica antiga usava ele
 // (1.3*est, 0.7*est). Resultado: qualquer perda virava 'Acelerado 🚀' (1.3*0=0).
 // Refeito com referencia fisiologica fixa pra GLP-1 (literatura: STEP/SURMOUNT):
@@ -9965,19 +9997,10 @@ function renderHistoricoMelhorado(){
   }
 
   // KPI 2: KG/SEMANA (ritmo)
-  // v3.1.46: melhor UX — quando dados insuficientes (precisa 8+ pesagens p/ MA),
-  // mostra valor calculado simples ao invés de "—" cego
+  // v3.10.25 (Fable P1 #3): helper unificado — mesma resposta no Progresso de peso.
   var elRitmo = document.getElementById('histRitmo');
   if(elRitmo){
-    if(rl !== null){
-      elRitmo.textContent = (rl >= 0 ? '−' : '+') + rd(Math.abs(rl), 2);
-    } else if(perd !== null && sem !== null && sem > 0){
-      // Fallback: ritmo médio total = perda total ÷ semanas
-      var ritmoMedio = perd / sem;
-      elRitmo.textContent = (ritmoMedio >= 0 ? '−' : '+') + rd(Math.abs(ritmoMedio), 2);
-    } else {
-      elRitmo.textContent = '—';
-    }
+    elRitmo.textContent = formatarRitmoSemanal(calcRitmoSemanalUnificado());
   }
 
   // KPI 3: SEMANAS de tratamento
@@ -14777,8 +14800,10 @@ function renderProgresso(cw,sw,rl,dh,ma){
   // KPIs
   var _pp=el('pkPerd');if(_pp)_pp.textContent=perd&&perd>0?'−'+rd(perd,1)+' kg':'—';
   var _pfa=el('pkFaltam');if(_pfa)_pfa.textContent=gw&&cw?rd(Math.max(0,cw-gw),1)+' kg':'—';
-  var maArr=ma||calcMA7();var rl2=rl!==null?rl:perdaSemana(maArr);
-  var _pri=el('pkRitmo');if(_pri)_pri.textContent=rl2!==null?rd(rl2,2)+' kg/sem':'—';
+  // v3.10.25 (Fable P1 #3): mesmo helper unificado da Minha jornada.
+  var _r = calcRitmoSemanalUnificado();
+  var rl2 = _r.valor;
+  var _pri=el('pkRitmo');if(_pri)_pri.textContent=formatarRitmoSemanal(_r);
 
   // Projeção para meta
   if(gw&&cw&&rl2&&rl2>0){
@@ -14906,6 +14931,16 @@ function render(){
     // Agora indica que a perda real vem do consumo registrado (saldoDoDia).
     el('kPEst').textContent='vem do consumo real';
     el('kPMin').textContent=Math.round(M.pm)+'g';el('kPIdeal').textContent=Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g';el('kAgua').textContent=Math.round(M.agua);
+    // v3.10.25 (Fable P1 #5): unidade honesta — 'X,Yg/kg de massa magra'.
+    // Quando piso de seguranca (peso ideal x 1.0) ganha, copy reflete isso.
+    var _kuni = el('kPMinUnidade');
+    if(_kuni && M.protCalc){
+      if(M.protCalc.pisoUsado){
+        _kuni.textContent = 'piso · peso ideal';
+      } else {
+        _kuni.textContent = M.protCalc.coef.toFixed(1).replace('.', ',') + 'g/kg de massa magra';
+      }
+    }
     // v3.1.5: mostrar fatores que compõem a meta
     var _kSub=el('kPMinSub');
     if(_kSub && M.protCalc){
@@ -14918,7 +14953,17 @@ function render(){
     if(dh&&dh.waterMl){var ap2=Math.min(100,Math.round((dh.waterMl/M.agua)*100));el('aguaBarWrap').style.display='block';el('aguaPct').textContent=ap2+'%';el('aguaFill').style.width=ap2+'%';el('aguaFill').className='pbar-fill'+(ap2<50?' danger':ap2<80?' warn':'');}
     else{var _abw=el('aguaBarWrap');if(_abw)_abw.style.display='none';}
     var _peq=el('peqEl');if(_peq)_peq.innerHTML='<b>Equivalência proteica:</b><br>'+proteqiv(Math.round(M.pm));
-    el('efTMB').innerHTML='Seu perfil → <strong>TMB: '+Math.round(M.tmb)+' kcal/dia</strong>';el('efMeta').innerHTML='GET: '+Math.round(M.tdee)+' → Meta: <strong>'+Math.round(M.meta)+' kcal/dia</strong>';el('efProt').innerHTML='Peso: '+rd(cw||0,1)+'kg → Mín: <strong>'+Math.round(M.pm)+'g</strong> | Ideal: <strong>'+Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g</strong>';
+    el('efTMB').innerHTML='Seu perfil → <strong>TMB: '+Math.round(M.tmb)+' kcal/dia</strong>';el('efMeta').innerHTML='GET: '+Math.round(M.tdee)+' → Meta: <strong>'+Math.round(M.meta)+' kcal/dia</strong>';
+    // v3.10.25 (Fable P1 #5): mostrar a base real (massa magra Boer ou piso peso ideal)
+    var _baseProt;
+    if(M.protCalc && M.protCalc.pisoUsado){
+      _baseProt = 'Piso de segurança · peso ideal '+rd(M.protCalc.pesoIdeal||0,1)+'kg × 1,0';
+    } else if(M.protCalc){
+      _baseProt = 'Massa magra '+rd(M.protCalc.lbm||0,1)+'kg (Boer) × '+M.protCalc.coef.toFixed(1).replace('.', ',');
+    } else {
+      _baseProt = 'Peso: '+rd(cw||0,1)+'kg';
+    }
+    el('efProt').innerHTML=_baseProt+' → Mín: <strong>'+Math.round(M.pm)+'g</strong> | Ideal: <strong>'+Math.round(M.pi1)+'–'+Math.round(M.pi2)+'g</strong>';
     var diet=buildDiet(M);
     if(diet){el('dietCard').style.display='block';el('dietSub').textContent='Meta: ~'+Math.round(M.meta)+' kcal, ~'+Math.round(M.pm)+'g proteína.';var dm2=el('dietMeals');dm2.innerHTML='';diet.forEach(function(meal){var d=document.createElement('div');d.className='diet-meal';d.innerHTML='<div class="diet-time">'+meal.t+'</div><div><div class="diet-desc">'+meal.d+'</div><div class="diet-prot">'+meal.p+'</div></div>';dm2.appendChild(d);});}
     else{var _dc=el('dietCard');if(_dc)_dc.style.display='none';}
