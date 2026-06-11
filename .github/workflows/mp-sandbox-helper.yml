@@ -38,6 +38,8 @@ on:
           - admin-cleanup-false-positives
           - admin-cleanup-v2
           - admin-check-payment-methods
+          - admin-fixture-bootstrap
+          - admin-seed-fixture-completa
 
 jobs:
   call-worker:
