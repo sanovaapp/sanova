@@ -26,6 +26,10 @@ jobs:
   prints:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # v3.1 (Fable): permissions:contents:write pra publicar zip como
+    # asset de release publico (URL estavel, sem login).
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -299,11 +303,36 @@ jobs:
             prints.log
           retention-days: 14
 
+      # v3.1 (Fable): publica como asset de Release com tag fixa.
+      # URL estavel e PUBLICA (sem login). Sobrescreve a cada run.
+      # https://github.com/sanovaapp/sanova/releases/download/prints-latest/sanova-prints-latest.zip
+      - name: Publica zip como Release asset (URL publica fixa)
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ZIP: ${{ steps.pack.outputs.zip_name }}
+        run: |
+          set -e
+          # Renomeia pro nome fixo (estavel)
+          cp "$ZIP" sanova-prints-latest.zip
+          # Cria a release se nao existe (tag fixa prints-latest)
+          gh release view prints-latest >/dev/null 2>&1 \
+            || gh release create prints-latest sanova-prints-latest.zip \
+                --title "Sanova — prints (latest)" \
+                --notes "Pacote visual mais recente. Atualizado a cada run do workflow Prints. URL estavel; sobrescreve a cada execucao." \
+                --prerelease
+          # Upload sobrescrevendo (--clobber) E mantem nome estavel
+          gh release upload prints-latest sanova-prints-latest.zip --clobber
+          echo "ASSET URL: https://github.com/${{ github.repository }}/releases/download/prints-latest/sanova-prints-latest.zip"
+
       - name: Resumo
         if: always()
         run: |
           {
             echo "## Pacote visual v2"
+            echo ""
+            echo "**URL pública fixa (assets de Release):**"
+            echo "https://github.com/${{ github.repository }}/releases/download/prints-latest/sanova-prints-latest.zip"
             echo ""
             echo "Status seed: ${{ github.event.inputs.simulate_active }}"
             echo "Fixture: completa-v1 (7d daily, 7 pesagens, aplicacao recente)"
