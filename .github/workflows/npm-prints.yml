@@ -126,12 +126,17 @@ jobs:
               console.log(`[skip ${name}]`, e.message);
             }
           }
-          // Click resiliente: scroll into view + timeout curto.
+          // Click programatico (bypassa visibility check do Playwright).
+          // Tab bar fica em position:fixed bottom — scrollIntoViewIfNeeded
+          // confunde e falha em fullPage. Click via evaluate ignora visibility.
           async function clickTab(sel) {
-            const h = await page.$(sel);
-            if (!h) throw new Error('selector nao encontrado: ' + sel);
-            await h.scrollIntoViewIfNeeded({ timeout: 3000 });
-            await h.click({ timeout: 5000 });
+            const ok = await page.evaluate((s) => {
+              const el = document.querySelector(s);
+              if (!el) return false;
+              el.click();
+              return true;
+            }, sel);
+            if (!ok) throw new Error('selector nao encontrado: ' + sel);
           }
 
           // ─── 1. ONBOARDING (estado limpo, sem login) ──────────────
