@@ -258,6 +258,59 @@ if('serviceWorker' in navigator){
         }catch(e){}
       }
     }
+    // v3.10.38: AUTO-RECOVERY pra pacientes presos no SW antigo (sem updateViaCache:'none').
+    // Detecta versao via WHO message; se SW responder com versao MENOR que 3.10.36
+    // (cutoff do fix), faz unregister + clear caches + reload. Roda 1x por boot.
+    function _sanovaSWAutoRecovery(){
+      if(window._sanovaSWRecoveryTried) return;
+      window._sanovaSWRecoveryTried = true;
+      try{
+        navigator.serviceWorker.getRegistration('./').then(function(reg){
+          if(!reg || !reg.active) return;
+          var ch = new MessageChannel();
+          var timer = setTimeout(function(){
+            // SW antigo nao responde a WHO → considera legacy → force recovery
+            console.warn('[PWA] SW antigo nao responde a WHO. Force unregister.');
+            _sanovaForceRecovery(reg);
+          }, 2000);
+          ch.port1.onmessage = function(e){
+            clearTimeout(timer);
+            var v = (e.data && e.data.version) || '';
+            console.log('[PWA] SW ativo responde:', v);
+            // Versoes <= sanova-v3.10.35 nao tem o handshake/skipWaiting bom
+            var m = v.match(/sanova-v(\d+)\.(\d+)\.(\d+)/);
+            if(m){
+              var maj=+m[1], min=+m[2], pat=+m[3];
+              // Recovery se ANTERIOR a 3.10.36
+              if (maj<3 || (maj===3 && min<10) || (maj===3 && min===10 && pat<36)){
+                console.warn('[PWA] SW versao antiga ('+v+'). Force unregister.');
+                _sanovaForceRecovery(reg);
+              }
+            }
+          };
+          reg.active.postMessage({ type:'WHO' }, [ch.port2]);
+        }).catch(function(){});
+      }catch(e){}
+    }
+    function _sanovaForceRecovery(reg){
+      try{
+        reg.unregister().then(function(){
+          if(window.caches && caches.keys){
+            caches.keys().then(function(keys){
+              return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+            }).then(function(){
+              console.log('[PWA] Recovery completa — recarregando');
+              setTimeout(function(){ window.location.reload(); }, 300);
+            });
+          } else {
+            setTimeout(function(){ window.location.reload(); }, 300);
+          }
+        });
+      } catch(e){ console.warn('[PWA] Recovery falhou:', e); }
+    }
+    // Roda auto-recovery 1.5s apos boot (da' tempo do register existente conectar)
+    setTimeout(_sanovaSWAutoRecovery, 1500);
+
     // Caminho relativo robusto — funciona com / ou /sanova/
     navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then(function(reg){
@@ -6280,7 +6333,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.37';
+var SANOVA_VERSION = '3.10.38';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
