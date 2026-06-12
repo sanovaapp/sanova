@@ -6251,7 +6251,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.32';
+var SANOVA_VERSION = '3.10.35';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -17878,7 +17878,13 @@ async function analisarComGemini(base64data){
       signal:_pratoAnalysisController.signal
     });
     clearTimeout(timeoutId);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    // v3.10.35: revela motivo do erro (Bruno reportou "Não consegui identificar"
+    // sem nenhuma pista — pode ser CORS, quota Gemini, modelo descontinuado, etc).
+    if(!resp.ok){
+      var errTxt='';
+      try{ errTxt=(await resp.text()).slice(0,180); }catch(e){}
+      throw new Error('HTTP '+resp.status+(errTxt?(' · '+errTxt):''));
+    }
     var data=await resp.json();
 
     // v3.1.56: validação defensiva do payload (Manus auditoria — dívida técnica #3).
@@ -17910,7 +17916,11 @@ async function analisarComGemini(base64data){
       }
       return;
     }
-    mostrarErroPrato('Não foi possível analisar. Verifique sua conexão e tente novamente.');
+    // v3.10.35: detalhe do erro vai pro toast/console pra diagnosticar (Gemini 5xx,
+    // CORS, quota, etc) sem assustar paciente. Mensagem visivel continua amigavel.
+    try{ console.warn('[Sanova analyze-photo]', (err && err.message) || err); }catch(e){}
+    var detalhe = (err && err.message && err.message.indexOf('HTTP')===0) ? (' ('+err.message+')') : '';
+    mostrarErroPrato('Não foi possível analisar. Verifique sua conexão e tente novamente.'+detalhe);
   }finally{
     _pratoAnalysisInProgress = false;
   }
@@ -22356,6 +22366,14 @@ window.addEventListener('beforeunload',function(){
   }
 
   function _qtyFor(food, raw, norm){
+    // v3.10.35 (Bruno bug "3kg de frango" -> calc errado): inclui kg/quilos.
+    // Antes a regex aceitava só g/gramas/ml — "3kg de frango" caia no default
+    // q=100 e calculava como peito 100g (31g prot/165 kcal) em vez de 3000g.
+    var mKg = norm.match(/(\d+(?:[\.,]\d+)?)\s*(kg|quilos?|quilogramas?)\b/);
+    if(mKg){ return {q:parseFloat(mKg[1].replace(',','.'))*1000, unit:'g'}; }
+    // litros tambem
+    var mL = norm.match(/(\d+(?:[\.,]\d+)?)\s*(l|litros?)\b/);
+    if(mL){ return {q:parseFloat(mL[1].replace(',','.'))*1000, unit:'ml'}; }
     // gramas/ml explícitos: 300g de frango, 200 ml leite
     var m = norm.match(/(\d+(?:[\.,]\d+)?)\s*(g|gramas|ml|mililitros)\b/);
     if(m){ return {q:parseFloat(m[1].replace(',','.')), unit:m[2].startsWith('m')?'ml':'g'}; }
