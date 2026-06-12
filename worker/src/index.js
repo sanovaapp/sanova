@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.2' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.3' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -152,7 +152,11 @@ export default {
       // app_state, marca subscription active, gera magic link. 1 chamada.
       // Evita mexer na subscription real do fundador durante prints.
       if (url.pathname === '/api/admin-fixture-bootstrap' && request.method === 'GET') {
-        return await handleAdminFixtureBootstrap(env);
+        // v1.28.3 (Fable Turno 5 #1): ?modo=incompleta cria fixture com 3 dias
+        // parciais (sem refeicoes em 2 deles) pra exercitar o gate do balanco
+        // que com 7 dias completos da fixture default nunca dispara.
+        const modo = url.searchParams.get('modo') || 'completa';
+        return await handleAdminFixtureBootstrap(env, modo);
       }
 
       // v1.6.0: aplica templates de email branded Sanova via Supabase Management API.
@@ -1655,7 +1659,8 @@ async function handleAdminSetEmailTemplates(env) {
 // estava em texto cru em commits anteriores). Regra cravada no HANDOFF.
 const FIXTURE_EMAIL = 'fixture@sanova.app';
 
-async function handleAdminFixtureBootstrap(env) {
+async function handleAdminFixtureBootstrap(env, modo) {
+  modo = modo || 'completa';
   try {
     // Senha descartavel: UUID gerado AGORA, usado 1x na chamada admin,
     // nunca exposto na response. Magic link funciona sem precisar dela.
@@ -1716,32 +1721,76 @@ async function handleAdminFixtureBootstrap(env) {
       String(d.getDate()).padStart(2, '0');
     const minusDias = (n) => { const x = new Date(hoje); x.setDate(x.getDate() - n); return x; };
 
+    // v1.28.3 (Fable Turno 5 #1): modo 'incompleta' cria 3 dias parciais
+    // (apenas hoje + ontem + anteontem, sem refeicoes em 2 deles) pra
+    // exercitar o gate do balanco que nunca dispara com 7d completos.
+    const incompleta = (modo === 'incompleta');
+    const fixtureMarker = incompleta ? 'incompleta-v1' : 'completa-v1';
+
     const weights = [];
-    for (let i = 6; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 92.0 + (i * 0.1) });
+    if (incompleta) {
+      // Só 2 pesagens: hoje e há 3 dias. Gate de MA7 não dispara.
+      weights.push({ date: dStr(minusDias(3)), weight: 92.3 });
+      weights.push({ date: dStr(minusDias(0)), weight: 92.1 });
+    } else {
+      for (let i = 6; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 92.0 + (i * 0.1) });
+    }
 
     // v1.28.2 (Fable Turno 5 P0 #5): o seed escrevia refeicoes[].proteina por item mas
     // NAO escrevia os agregados dh.proteinG / dh.kcalConsumed / dh.kcalFromProt que o
     // app usa pra renderizar os Pilares de hoje. Resultado: lista mostrava "3 refeicoes
     // 1720 kcal" mas Pilares ficavam 0% prot, 0% kcal. Agora seed escreve os agregados.
     const daily = [];
-    for (let i = 6; i >= 0; i--) {
-      const refeicoes = [
-        { kcal: 520, proteina: 42, kcalFonte: 'estimado' },
-        { kcal: 720, proteina: 58, kcalFonte: 'estimado' },
-        { kcal: 480, proteina: 32, kcalFonte: 'estimado' },
-      ];
-      const totKcal = refeicoes.reduce((s, r) => s + r.kcal, 0);
-      const totProt = refeicoes.reduce((s, r) => s + r.proteina, 0);
+    if (incompleta) {
+      // 3 dias parciais: HOJE com 1 refeição leve; ONTEM zero refeições, só água;
+      // ANTEONTEM 2 refeições mas sem proteína registrada. Estado realista de
+      // paciente que esqueceu de logar — exercita gates de "dados insuficientes".
+      const refsHoje = [{ kcal: 480, proteina: 28, kcalFonte: 'estimado' }];
       daily.push({
-        date: dStr(minusDias(i)),
-        refeicoes,
-        proteinG: totProt,
-        kcalConsumed: totKcal,
-        kcalFromPhoto: totKcal,
-        kcalFromProt: 0,
-        waterMl: 2200,
+        date: dStr(minusDias(0)),
+        refeicoes: refsHoje,
+        proteinG: 28, kcalConsumed: 480, kcalFromPhoto: 480, kcalFromProt: 0,
+        waterMl: 1200,
         sintomas: [],
       });
+      daily.push({
+        date: dStr(minusDias(1)),
+        refeicoes: [],
+        proteinG: 0, kcalConsumed: 0, kcalFromPhoto: 0, kcalFromProt: 0,
+        waterMl: 800,
+        sintomas: [],
+      });
+      const refsAnt = [
+        { kcal: 620, proteina: 0, kcalFonte: 'estimado' },
+        { kcal: 540, proteina: 0, kcalFonte: 'estimado' },
+      ];
+      daily.push({
+        date: dStr(minusDias(2)),
+        refeicoes: refsAnt,
+        proteinG: 0, kcalConsumed: 1160, kcalFromPhoto: 1160, kcalFromProt: 0,
+        waterMl: 1500,
+        sintomas: [],
+      });
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const refeicoes = [
+          { kcal: 520, proteina: 42, kcalFonte: 'estimado' },
+          { kcal: 720, proteina: 58, kcalFonte: 'estimado' },
+          { kcal: 480, proteina: 32, kcalFonte: 'estimado' },
+        ];
+        const totKcal = refeicoes.reduce((s, r) => s + r.kcal, 0);
+        const totProt = refeicoes.reduce((s, r) => s + r.proteina, 0);
+        daily.push({
+          date: dStr(minusDias(i)),
+          refeicoes,
+          proteinG: totProt,
+          kcalConsumed: totKcal,
+          kcalFromPhoto: totKcal,
+          kcalFromProt: 0,
+          waterMl: 2200,
+          sintomas: [],
+        });
+      }
     }
 
     const state = {
@@ -1765,7 +1814,7 @@ async function handleAdminFixtureBootstrap(env) {
       insights: [],
       ownedBy: userId,
       updatedAt: Date.now(),
-      _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString(), fixture: 'completa-v1' },
+      _meta: { schemaVersion: 31, seededByE2E: true, seededAt: new Date().toISOString(), fixture: fixtureMarker },
     };
 
     const seedResp = await fetch(
@@ -1827,7 +1876,7 @@ async function handleAdminFixtureBootstrap(env) {
         email: FIXTURE_EMAIL,
         user_id_curto: userId.slice(0, 8) + '...',
         action_link: link.properties?.action_link || link.action_link,
-        fixture: 'completa-v1',
+        fixture: fixtureMarker,
         subscription: subResp.ok ? (Array.isArray(subData) ? subData[0] : subData) : { erro: subData },
         contadores: {
           dias_completos: daily.length,

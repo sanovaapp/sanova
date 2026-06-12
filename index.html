@@ -6233,7 +6233,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.26';
+var SANOVA_VERSION = '3.10.27';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -17444,10 +17444,12 @@ function renderHistRefeicoesInline(){
     wrap.innerHTML = '<div style="padding:12px;text-align:center;font-size:11px;color:rgba(232,200,120,.55);font-style:italic;background:rgba(255,255,255,.03);border-radius:10px;margin-top:4px">Nenhuma refeição registrada hoje.<br>Toque em um dos botões acima para começar.</div>';
     return;
   }
-  // Total do dia (campos reais: totalProt + totalKcal)
+  // Total do dia (campos reais: totalProt + totalKcal; v3.10.27 inclui r.proteina
+  // no fallback — fixture seed escreve { kcal, proteina } por refeição e antes
+  // a lista lia só totalProt/proteinG, mostrando 0g prot com kcal correto)
   var totalProt = 0, totalKcal = 0;
   refs.forEach(function(r){
-    totalProt += parseFloat(r.totalProt || r.proteinG || 0);
+    totalProt += parseFloat(r.totalProt || r.proteinG || r.proteina || 0);
     totalKcal += parseFloat(r.totalKcal || r.kcal || 0);
   });
   var html = '<div style="margin-top:6px;padding-top:10px;border-top:1px dashed rgba(232,200,120,.18)">' +
@@ -17468,7 +17470,7 @@ function renderHistRefeicoesInline(){
       label = r.descricao || r.nome || 'Refeição';
     }
     if(label.length > 38) label = label.slice(0,35) + '...';
-    var pVal = Math.round(r.totalProt || r.proteinG || 0);
+    var pVal = Math.round(r.totalProt || r.proteinG || r.proteina || 0);
     var kVal = Math.round(r.totalKcal || r.kcal || 0);
     html += '<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border-radius:9px;margin-bottom:5px">' +
       '<div style="flex:1;min-width:0">' +
