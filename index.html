@@ -4469,7 +4469,7 @@ try{
         </div>
         <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🎯 Meta de água <span class="tip" onclick="mostrarDica('agua')">ⓘ</span></div><div class="kv" id="kAgua">—</div><div class="kh">ml/dia</div>
           <button class="exp-btn" onclick="toggleExp('eAgua',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="eAgua"><strong>Hidratação em GLP-1.</strong> A medicação reduz a sede junto com a fome — você desidrata sem perceber.<br><br><strong>📚 Por que importa:</strong> desidratação é a causa #1 de constipação em pacientes GLP-1, além de tontura, queda de pressão e mau hálito.<br><br><strong>Cálculo:</strong> ~35 ml por kg + ajuste por atividade. Pessoa de 70 kg moderada ≈ 2.650 ml/dia. Distribua: 1 copo a cada 1-2 horas, sem esperar sede.</div>
+          <div class="exp-box" id="eAgua"><strong>Hidratação em GLP-1.</strong> A medicação reduz a sede junto com a fome — você desidrata sem perceber.<br><br><strong>📚 Por que importa:</strong> desidratação é a causa #1 de constipação em pacientes GLP-1, além de tontura, queda de pressão e mau hálito.<br><br><strong>Cálculo:</strong> 35 ml × peso + ajuste por atividade (Sedentário +0, Leve +200, Moderada +400, Alta +700). Pessoa de 70 kg moderada ≈ 2.850 ml/dia. Distribua: 1 copo a cada 1-2 horas, sem esperar sede.</div>
         </div>
         <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🥩 Meta mínima proteína <span class="tip" onclick="mostrarDica('proteina')">ⓘ</span></div><div class="kv" id="kPMin">—</div><div class="kh" id="kPMinUnidade">—</div>
           <button class="exp-btn" onclick="toggleExp('ePMin',this)">O que é? <span class="exp-arr">▾</span></button>
@@ -6248,7 +6248,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.30';
+var SANOVA_VERSION = '3.10.31';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -14547,8 +14547,16 @@ function toggleEntendaMeta(){
     // Água
     html+='<div style="background:rgba(110,231,183,.08);border-left:3px solid #6ee7b7;border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:10px">';
     html+='<div style="font-size:13px;font-weight:800;color:#6ee7b7;margin-bottom:4px">💧 Por que '+agua+'ml de água?</div>';
+    // v3.10.31 (Fable Turno 10 P0 água): renderiza a parcela de atividade REAL
+    // que M.agua usou. Antes hardcoded "+200ml" — pra Moderada são +400, pra
+    // Alta +700, Sedentário +0. Bug abria conta que não fechava com a meta exibida.
+    var ajusteH2O = (typeof WBX !== 'undefined' && WBX[S.profile.activityLevel] !== undefined) ? WBX[S.profile.activityLevel] : 200;
     html+='Seu peso atual é <strong>'+w.toFixed(1)+'kg</strong>. A fórmula é <strong>35ml × peso corporal</strong>, que resulta em '+(w*35).toFixed(0)+'ml de base. ';
-    html+='Com seu nível de atividade <strong>'+ativ.toLowerCase()+'</strong>, adicionamos mais 200ml. ';
+    if (ajusteH2O > 0) {
+      html+='Com seu nível de atividade <strong>'+ativ.toLowerCase()+'</strong>, adicionamos mais '+ajusteH2O+'ml — total <strong>'+agua+'ml</strong>. ';
+    } else {
+      html+='Seu nível de atividade <strong>'+ativ.toLowerCase()+'</strong> não acrescenta nada à base — total <strong>'+agua+'ml</strong>. ';
+    }
     html+='⚠️ Os GLP-1 <strong>suprimem a sede</strong> — você pode estar desidratado sem sentir. Beba mesmo sem sede.';
     html+='</div>';
     // Proteína — equação aritmeticamente verdadeira com base no caminho real do cálculo
@@ -16683,7 +16691,7 @@ var BIBLIOTECA = [
     frase: 'Em GLP-1, você precisa beber MAIS água — e a maioria não bebe.',
     corpo: 'O GLP-1 reduz dramaticamente a sede e a fome juntos — porque os centros cerebrais são próximos. O resultado é que pacientes em GLP-1 frequentemente desidratam sem perceber.<br><br>Consequências de desidratação:<br>• <strong>Constipação</strong> (causa #1 em pacientes GLP-1) — fezes secas e duras<br>• <strong>Tontura</strong> e queda de pressão<br>• <strong>Pedras nos rins</strong> (em casos prolongados)<br>• <strong>Mau hálito</strong>, cefaleia, fadiga<br>• <strong>Pele seca</strong>, lábios rachados<br><br>A meta saudável é <strong>~35 ml de água por kg de peso/dia</strong>, mais ajuste por atividade física.',
     medicamento: 'O Sanova calcula sua meta de água automaticamente baseada em peso e atividade. Para uma pessoa de 80 kg moderadamente ativa, a meta gira em torno de <strong>2,8-3,0 L/dia</strong>.<br><br>Estratégia: não esperar sede (que está reduzida). Beber em horários regulares — 1 copo a cada 1-2 horas.',
-    exemplo: 'Pessoa de 70 kg moderadamente ativa:<br>Meta de água = 70 × 35 + 200 (ajuste atividade) = <strong>~2.650 ml/dia</strong><br><br>Distribuído ao longo do dia:<br>• Ao acordar: 250 ml<br>• Manhã (8-12h): 700 ml (3 copos)<br>• Almoço: 250 ml<br>• Tarde (14-18h): 700 ml<br>• Jantar: 250 ml<br>• Noite: 500 ml<br>= 2.650 ml ✓'
+    exemplo: 'Fórmula: <strong>35 ml × peso corporal + ajuste por atividade</strong>.<br><br>Ajuste por nível de atividade:<br>• Sedentário: +0 ml<br>• Leve: +200 ml<br>• Moderada: +400 ml<br>• Alta: +700 ml<br><br><strong>Exemplos (pessoa de 70 kg):</strong><br>• Leve: 70 × 35 + 200 = <strong>2.650 ml/dia</strong><br>• Moderada: 70 × 35 + 400 = <strong>2.850 ml/dia</strong><br>• Alta: 70 × 35 + 700 = <strong>3.150 ml/dia</strong><br><br>Distribua ao longo do dia (250 ml ao acordar, depois 1 copo a cada 1-2 horas).'
   },
   {
     cat: 'nutricao',
