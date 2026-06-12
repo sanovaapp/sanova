@@ -1,10 +1,9 @@
 {
-  "id": "https://sanova.app.br/",
   "name": "Sanova — Companheiro de tratamento GLP-1",
   "short_name": "Sanova",
   "description": "Acompanhamento educativo para pacientes em tratamento com GLP-1 (Tirzepatida, Semaglutida, Liraglutida). Proteção muscular, ciclo, sintomas e progresso.",
-  "start_url": "https://sanova.app.br/",
-  "scope": "https://sanova.app.br/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a1f0e",
