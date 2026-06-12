@@ -3736,6 +3736,9 @@ try{
 <!-- ═══ DASHBOARD ═══ -->
 <div class="sec on" id="sec-dashboard">
 
+  <!-- v3.10.29: co-branding do profissional vinculado (Painel Pro Fase 1) -->
+  <div id="cobrandingWrap" style="display:none"></div>
+
   <!-- v3.9.22: contexto temporal — paciente entende que numeros sao DESDE 00h de hoje -->
   <!-- v3.9.36: contraste melhorado (Marcia: 'Bom dia' verde claro sobre fundo claro). -->
   <div id="painelHojeBar" style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;padding:0 2px">
@@ -6245,7 +6248,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.28';
+var SANOVA_VERSION = '3.10.29';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7329,8 +7332,86 @@ function toggleCompartilhamentoUso(ativo){
 // Estado vinculado é só leitura (paciente pode revogar a qualquer momento).
 // ═════════════════════════════════════════════════════════════════════
 var SANOVA_LINK_VERSION = 'v1-2026-06';
+var SANOVA_PRO_API = 'https://sanova-api.contatosanovaapp.workers.dev';
+
+// Cache dos pros vinculados — pra co-branding sem ficar batendo no Worker
+window._sanovaProsAtivos = null;
+
+async function _proAuthToken(){
+  try {
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    if (!sb || !sb.auth) return null;
+    var sess = await sb.auth.getSession();
+    return sess && sess.data && sess.data.session ? sess.data.session.access_token : null;
+  } catch(e) { return null; }
+}
+
+async function carregarMeusPros(){
+  try {
+    var token = await _proAuthToken();
+    if (!token) { window._sanovaProsAtivos = []; return []; }
+    var r = await fetch(SANOVA_PRO_API + '/api/my-professionals', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) { window._sanovaProsAtivos = []; return []; }
+    var d = await r.json().catch(function(){ return {}; });
+    window._sanovaProsAtivos = Array.isArray(d.professionals) ? d.professionals : [];
+    if (typeof renderCobrandingPainel === 'function') renderCobrandingPainel();
+    if (typeof atualizarBotaoVincularPro === 'function') atualizarBotaoVincularPro();
+    return window._sanovaProsAtivos;
+  } catch(e) { window._sanovaProsAtivos = []; return []; }
+}
+
+function atualizarBotaoVincularPro(){
+  var lbl = document.getElementById('vincLbl');
+  var sub = document.getElementById('vincSub');
+  var pros = window._sanovaProsAtivos || [];
+  if (!lbl || !sub) return;
+  if (pros.length === 0) {
+    lbl.textContent = 'Vincular profissional';
+    sub.textContent = 'Compartilhe seu painel com seu médico ou nutricionista';
+  } else if (pros.length === 1) {
+    lbl.textContent = 'Profissional vinculado';
+    sub.textContent = (pros[0].pro && pros[0].pro.nome) ? pros[0].pro.nome + ' — toque pra gerenciar' : 'Toque pra gerenciar';
+  } else {
+    lbl.textContent = pros.length + ' profissionais vinculados';
+    sub.textContent = 'Toque pra gerenciar';
+  }
+}
+
+function renderCobrandingPainel(){
+  var wrap = document.getElementById('cobrandingWrap');
+  if (!wrap) return;
+  var pros = window._sanovaProsAtivos || [];
+  if (pros.length === 0) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+  var p = pros[0].pro;
+  if (!p) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+  var nome = (p.nome || '').replace(/[<>]/g, '');
+  var titulo = (p.titulo_exibido || (p.tipo === 'medico' ? 'Médico(a)' : p.tipo === 'nutricionista' ? 'Nutricionista' : 'Profissional')).replace(/[<>]/g, '');
+  var foto = p.foto_url ? '<img src="' + p.foto_url.replace(/"/g,'') + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+                       : '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0a3a20);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0;font-size:14px">' + (nome.charAt(0)||'?').toUpperCase() + '</div>';
+  wrap.style.display = 'block';
+  wrap.innerHTML = '<div onclick="abrirVincularPro()" style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.18);border-radius:11px;margin-bottom:10px;cursor:pointer">' +
+    foto +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(187,247,208,.55);line-height:1.2">🩺 Acompanhado por</div>' +
+      '<div style="font-size:13px;font-weight:600;color:#fff;line-height:1.2;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nome + '</div>' +
+      '<div style="font-size:10.5px;color:rgba(255,255,255,.5);line-height:1.2;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + titulo + '</div>' +
+    '</div>' +
+    '<div style="font-size:18px;color:rgba(255,255,255,.4);flex-shrink:0">›</div>' +
+  '</div>';
+}
 
 function abrirVincularPro(){
+  var pros = window._sanovaProsAtivos;
+  if (pros && pros.length > 0) {
+    abrirGerenciarPros();
+    return;
+  }
+  abrirModalVincular();
+}
+
+function abrirModalVincular(){
   var ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
   ov.innerHTML = '<div style="background:linear-gradient(165deg,#041b0d 0%,#0a3a20 60%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px 18px 0 0;padding:22px 18px 28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto">' +
@@ -7385,9 +7466,73 @@ async function confirmarVincularPro(){
     setTimeout(function(){
       var m = document.querySelector('[data-modal="pro-vinc"]');
       if (m) m.remove();
+      carregarMeusPros();
     }, 1800);
   } catch(e) {
     msg.innerHTML = '<div style="padding:9px 11px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);border-radius:8px;color:#fca5a5;font-size:12px">Erro: ' + (e.message || 'falhou') + '</div>';
+  }
+}
+
+function abrirGerenciarPros(){
+  var pros = window._sanovaProsAtivos || [];
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
+  ov.setAttribute('data-modal', 'pro-gerenciar');
+  var html = '<div style="background:linear-gradient(165deg,#041b0d 0%,#0a3a20 60%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px 18px 0 0;padding:22px 18px 28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">' +
+      '<div style="font-family:Georgia,serif;font-size:19px;font-weight:500;color:#fff">🩺 Profissionais</div>' +
+      '<button onclick="this.closest(\'[data-modal]\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer">×</button>' +
+    '</div>';
+  pros.forEach(function(item){
+    var p = item.pro;
+    if (!p) return;
+    var nome = (p.nome || '').replace(/[<>]/g, '');
+    var titulo = (p.titulo_exibido || (p.tipo === 'medico' ? 'Médico(a)' : p.tipo === 'nutricionista' ? 'Nutricionista' : 'Profissional')).replace(/[<>]/g, '');
+    var foto = p.foto_url ? '<img src="' + p.foto_url.replace(/"/g,'') + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+                         : '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0a3a20);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0;font-size:16px">' + (nome.charAt(0)||'?').toUpperCase() + '</div>';
+    var consentDate = '';
+    if (item.consented_at) {
+      try { consentDate = new Date(item.consented_at).toLocaleDateString('pt-BR'); } catch(e){}
+    }
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:8px">' +
+      foto +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nome + '</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + titulo + '</div>' +
+        (consentDate ? '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">Vínculo desde ' + consentDate + '</div>' : '') +
+      '</div>' +
+      '<button onclick="revogarVinculoPro(\'' + item.link_id.replace(/[\'"<>]/g,'') + '\')" style="flex-shrink:0;padding:7px 11px;border-radius:9px;border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.1);color:#fca5a5;font-family:system-ui,sans-serif;font-size:11px;font-weight:700;cursor:pointer">Revogar</button>' +
+    '</div>';
+  });
+  html += '<button onclick="this.closest(\'[data-modal]\').remove();abrirModalVincular()" style="width:100%;padding:11px;border-radius:11px;border:1px dashed rgba(134,239,172,.3);background:rgba(134,239,172,.06);color:rgba(187,247,208,.85);font-family:system-ui,sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;margin-top:8px">+ Vincular outro profissional</button>' +
+    '<div id="proGerMsg" style="margin-top:10px"></div>' +
+  '</div>';
+  ov.innerHTML = html;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+}
+
+async function revogarVinculoPro(linkId){
+  if (!confirm('Revogar este vínculo? O profissional deixa de ver seu acompanhamento. Você pode vincular de novo a qualquer momento.')) return;
+  var msg = document.getElementById('proGerMsg');
+  if (msg) msg.innerHTML = '<div style="padding:9px 11px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:8px;color:#dbeafe;font-size:12px">Revogando…</div>';
+  try {
+    var token = await _proAuthToken();
+    if (!token) throw new Error('Sessão expirada. Entre de novo.');
+    var r = await fetch(SANOVA_PRO_API + '/api/unlink-professional', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link_id: linkId })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (msg) msg.innerHTML = '<div style="padding:9px 11px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;color:#bbf7d0;font-size:12px">✓ Vínculo revogado</div>';
+    await carregarMeusPros();
+    setTimeout(function(){
+      var m = document.querySelector('[data-modal="pro-gerenciar"]');
+      if (m) m.remove();
+    }, 1200);
+  } catch(e) {
+    if (msg) msg.innerHTML = '<div style="padding:9px 11px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);border-radius:8px;color:#fca5a5;font-size:12px">Erro: ' + (e.message || 'falhou') + '</div>';
   }
 }
 
@@ -22574,6 +22719,8 @@ window.addEventListener('beforeunload',function(){
     }catch(e){ console.warn('[Cloud] pull falhou, seguindo com local', e); }
     esconderGate();
     try{ window.dispatchEvent(new CustomEvent('sanova:logado', {detail:{userId: usuarioAtual && usuarioAtual.id}})); }catch(e){}
+    // v3.10.29: carrega pros vinculados em paralelo (não bloqueia boot)
+    try{ if(typeof carregarMeusPros === 'function') carregarMeusPros(); }catch(e){}
     // Reinicia o boot do app pra renderizar com os dados certos
     try{ bootApp(); }catch(e){ location.reload(); }
     // v3.2.1: reforço — garante que o destino final é o Painel, não o registro.
