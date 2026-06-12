@@ -41,6 +41,7 @@ on:
           - admin-fixture-bootstrap
           - admin-fixture-bootstrap-incompleta
           - admin-seed-fixture-completa
+          - admin-seed-demo
 
 jobs:
   call-worker:
