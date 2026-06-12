@@ -162,7 +162,10 @@ function escapeHtml(s) {
 }
 
 function avatarLetter(nome) {
-  return (nome || '?').trim().charAt(0).toUpperCase() || '?';
+  // v3.10.32 hardening Fable: sanitiza pra alphanumeric + acentos pra eliminar
+  // qualquer chance de injecao via primeiro char do nome/email.
+  const c = (nome || '?').trim().charAt(0).toUpperCase();
+  return /^[A-Za-zÀ-ÿ0-9]$/.test(c) ? c : '?';
 }
 
 // ─── Views ──────────────────────────────────────────────────────────
@@ -243,8 +246,11 @@ function viewProPanel() {
       }
       if (p.estado_pm) meta.push(escapeHtml(p.estado_pm));
       const metaStr = meta.join(' · ') || 'sem dados';
+      // v3.10.32 hardening Fable: data-link-id + listener (escapeHtml nao
+      // serve pra contexto JS dentro de onclick). Risco real baixo (link_id
+      // eh UUID do server) mas elimina a classe inteira.
       return `
-        <div class="patient-row" onclick="abrirPaciente('${escapeHtml(p.link_id)}')">
+        <div class="patient-row" data-link-id="${escapeHtml(p.link_id)}">
           <div class="patient-avatar">${avatarLetter(p.nome || p.email)}</div>
           <div class="patient-info">
             <div class="patient-name">${pnome}</div>
@@ -337,7 +343,13 @@ function render() {
     case 'loading': c.innerHTML = `<div class="empty"><div class="loader"></div><div style="margin-top:8px">Carregando…</div></div>`; break;
     case 'login': c.innerHTML = viewLogin(); break;
     case 'register': c.innerHTML = viewRegister(); break;
-    case 'pro-panel': c.innerHTML = viewProPanel(); break;
+    case 'pro-panel':
+      c.innerHTML = viewProPanel();
+      // v3.10.32 hardening Fable: listeners pra patient-row (em vez de onclick inline)
+      c.querySelectorAll('.patient-row[data-link-id]').forEach(row => {
+        row.addEventListener('click', () => abrirPaciente(row.getAttribute('data-link-id')));
+      });
+      break;
     case 'patient': c.innerHTML = viewPatient(); break;
   }
 }

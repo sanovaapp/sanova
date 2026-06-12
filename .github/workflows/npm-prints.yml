@@ -12,7 +12,16 @@ name: Prints — pacote visual
 #   · Captura TODOS pageerrors com stack trace (caca o innerHTML null).
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Fixture: completa (7d, dados cheios) ou incompleta (3 dias parciais, exercita gates)'
+        required: false
+        default: 'completa'
+        type: choice
+        options:
+          - completa
+          - incompleta
 
 # v3 (Fable):
 #   · SANOVA_ORIGIN como env do job (prepara migracao de dominio futuro).
@@ -51,7 +60,14 @@ jobs:
         run: |
           set -e
           echo "== fixture bootstrap =="
-          RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$WORKER_BASE/api/admin-fixture-bootstrap")
+          MODO="${{ github.event.inputs.modo || 'completa' }}"
+          if [ "$MODO" = "incompleta" ]; then
+            BURL="$WORKER_BASE/api/admin-fixture-bootstrap?modo=incompleta"
+          else
+            BURL="$WORKER_BASE/api/admin-fixture-bootstrap"
+          fi
+          echo "[fixture] modo=$MODO"
+          RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$BURL")
           echo "$RAW" | head -c 1200
           echo
           LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('action_link',''))")
