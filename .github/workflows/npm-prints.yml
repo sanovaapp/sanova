@@ -27,8 +27,11 @@ on:
 #   · SANOVA_ORIGIN como env do job (prepara migracao de dominio futuro).
 #   · Conta fixture@sanova.app dedicada (admin-fixture-bootstrap).
 #     Nao mexe na subscription real do fundador.
+# v3.10.34 (Fable Turno 15 cutover passo 4): SANOVA_ORIGIN flipado pra
+# sanova.app.br depois do Bruno confirmar HTTPS + Enforce. github.io fica
+# como alias acessivel via DNS do GitHub Pages (Pages serve em ambos).
 env:
-  SANOVA_ORIGIN: https://sanovaapp.github.io/sanova
+  SANOVA_ORIGIN: https://sanova.app.br
   WORKER_BASE: https://sanova-api.contatosanovaapp.workers.dev
 
 jobs:
@@ -86,7 +89,7 @@ jobs:
           import { chromium } from '@playwright/test';
 
           const MAGIC = process.env.MAGIC_LINK;
-          const ORIGIN = process.env.SANOVA_ORIGIN || 'https://sanovaapp.github.io/sanova';
+          const ORIGIN = process.env.SANOVA_ORIGIN || 'https://sanova.app.br';
           if (!MAGIC) { console.error('MAGIC_LINK vazio'); process.exit(1); }
 
           const browser = await chromium.launch();
