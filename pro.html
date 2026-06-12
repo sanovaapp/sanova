@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a3a20">
+<title>Sanova · Painel Profissional</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+:root{
+  --bg:#041b0d; --bg2:#0a3a20; --bg3:#052413;
+  --ink:#fff; --ink2:rgba(255,255,255,.78); --ink3:rgba(255,255,255,.55);
+  --g50:rgba(255,255,255,.04); --g100:rgba(255,255,255,.08);
+  --g200:rgba(255,255,255,.18); --g300:rgba(255,255,255,.3);
+  --accent:#86efac; --accent2:#bbf7d0; --accent-dim:rgba(134,239,172,.18);
+  --warn:#fcd34d; --danger:#fca5a5;
+  --cream1:#f5f1e8; --cream2:#ebe5d4; --cream3:rgba(255,255,255,.18);
+  --ss:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --fd:Georgia,'Times New Roman',serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:linear-gradient(165deg,var(--bg) 0%,var(--bg2) 60%,var(--bg3) 100%);color:var(--ink);font-family:var(--ss);min-height:100vh;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+#app{max-width:480px;margin:0 auto;padding:18px 16px 60px;min-height:100vh}
+
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.brand-logo{font-size:26px}
+.brand-name{font-family:var(--fd);font-size:22px;font-weight:500;letter-spacing:-.01em}
+.brand-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);background:var(--accent-dim);padding:3px 8px;border-radius:99px;border:1px solid rgba(134,239,172,.3)}
+
+.card{background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:16px;padding:18px 16px;margin-bottom:14px}
+.card-title{font-family:var(--fd);font-size:17px;font-weight:500;margin:0 0 4px}
+.card-sub{font-size:12px;color:var(--ink3);margin-bottom:14px;line-height:1.5}
+
+.fi{margin-bottom:12px}
+.fi label{display:block;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.fi input,.fi select,.fi textarea{width:100%;padding:11px 12px;border-radius:10px;border:1.5px solid var(--cream3);background:#fff;color:var(--bg);font-size:14px;outline:none;transition:border-color .15s}
+.fi input:focus,.fi select:focus,.fi textarea:focus{border-color:var(--accent)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border-radius:11px;border:1px solid var(--g300);background:var(--g100);color:var(--ink);font-size:13px;font-weight:700;width:100%;transition:all .15s}
+.btn:hover{background:var(--g200)}
+.btn-primary{background:linear-gradient(180deg,#22c55e,#16a34a);border-color:#16a34a;color:#fff}
+.btn-primary:hover{background:linear-gradient(180deg,#16a34a,#15803d)}
+.btn-ghost{background:transparent;border-color:var(--g200)}
+.btn-danger{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.alert{padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.5;margin-bottom:12px;border:1px solid}
+.alert-info{background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.3);color:#dbeafe}
+.alert-ok{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3);color:#bbf7d0}
+.alert-warn{background:rgba(252,211,77,.08);border-color:rgba(252,211,77,.3);color:#fef3c7}
+.alert-err{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);color:#fecaca}
+
+.patient-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--g50);border:1px solid var(--g100);border-radius:12px;margin-bottom:8px;transition:all .15s;cursor:pointer}
+.patient-row:hover{background:var(--g100);border-color:var(--g200)}
+.patient-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0a3a20);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0;font-size:15px}
+.patient-info{flex:1;min-width:0}
+.patient-name{font-weight:600;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.patient-meta{font-size:11px;color:var(--ink3);margin-top:1px}
+.patient-arrow{font-size:18px;color:var(--ink3)}
+
+.invite-box{padding:14px 16px;background:rgba(134,239,172,.08);border:1px dashed rgba(134,239,172,.3);border-radius:12px;text-align:center;margin-bottom:12px}
+.invite-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(187,247,208,.6);margin-bottom:6px}
+.invite-code{font-family:'SF Mono','Monaco','Courier New',monospace;font-size:28px;font-weight:800;color:var(--accent2);letter-spacing:3px;padding:4px 0}
+.invite-hint{font-size:11.5px;color:var(--ink3);line-height:1.5;margin-top:6px}
+
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi{padding:11px;background:var(--g50);border-radius:10px;border:1px solid var(--g100)}
+.kpi-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--ink3);margin-bottom:4px}
+.kpi-val{font-size:18px;font-weight:700;color:var(--ink);font-family:var(--fd)}
+.kpi-hint{font-size:10.5px;color:var(--ink3);margin-top:2px}
+
+.section-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin:18px 0 10px}
+
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);background:none;border:none;padding:6px 0;margin-bottom:6px}
+.back-btn:hover{color:var(--accent)}
+
+.empty{padding:24px 16px;text-align:center;color:var(--ink3);font-size:12px;line-height:1.5;background:var(--g50);border-radius:12px;border:1px dashed var(--g200)}
+
+.loader{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.footer-note{font-size:10.5px;color:rgba(255,255,255,.35);text-align:center;margin-top:32px;line-height:1.6}
+.footer-note a{color:rgba(187,247,208,.5)}
+
+.upload-zone{display:flex;align-items:center;gap:10px;padding:10px;background:var(--g50);border:1px dashed var(--g200);border-radius:10px;margin-bottom:8px}
+.upload-zone img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--g100)}
+.upload-zone label{flex:1;font-size:11.5px;color:var(--ink3);cursor:pointer}
+.upload-zone label strong{color:var(--ink2);display:block;font-size:12px;margin-bottom:2px}
+
+.hr{height:1px;background:rgba(255,255,255,.08);margin:14px 0;border:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="brand">
+    <div class="brand-logo">🌿</div>
+    <div class="brand-name">Sanova</div>
+    <div class="brand-tag">Pro</div>
+  </div>
+  <div id="content">
+    <div class="empty"><div class="loader"></div><div style="margin-top:8px">Carregando…</div></div>
+  </div>
+  <div class="footer-note">
+    Painel para profissionais cadastrados.<br>
+    Você precisa do código de convite do seu paciente pra acessar os dados.<br>
+    <a href="/privacidade.html">Política de privacidade</a> · <a href="index.html">App do paciente</a>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+
+const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqeWNwY3lkcWZ1dm9qZnp3ZnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzY4NDksImV4cCI6MjA2NDYxMjg0OX0.gZuFaI0Lz2GjY3PUWPaeoyhuJyz4PpIVTvshNd6cKAQ';
+const WORKER_BASE = 'https://sanova-api.contatosanovaapp.workers.dev';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const $ = (id) => document.getElementById(id);
+
+let state = {
+  user: null,
+  pro: null,
+  patients: [],
+  view: 'loading',
+  selectedLinkId: null,
+};
+
+async function apiCall(path, opts = {}) {
+  const session = (await sb.auth.getSession()).data.session;
+  if (!session) throw new Error('not_authenticated');
+  const res = await fetch(WORKER_BASE + path, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      'Authorization': 'Bearer ' + session.access_token,
+      'Content-Type': 'application/json',
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'http_' + res.status);
+    err.data = data;
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function setView(v) {
+  state.view = v;
+  render();
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+}
+
+function avatarLetter(nome) {
+  return (nome || '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+// ─── Views ──────────────────────────────────────────────────────────
+
+function viewLogin() {
+  return `
+    <div class="card">
+      <h2 class="card-title">Acessar painel profissional</h2>
+      <p class="card-sub">Use seu email cadastrado. Enviamos um link de acesso instantâneo (sem senha).</p>
+      <div class="fi">
+        <label>Email profissional</label>
+        <input id="loginEmail" type="email" autocomplete="email" placeholder="seu@email.com">
+      </div>
+      <button class="btn btn-primary" onclick="enviarMagicLink()">Enviar link de acesso</button>
+      <div id="loginMsg"></div>
+    </div>
+    <div class="alert alert-info">
+      <strong>Primeira vez aqui?</strong><br>
+      Após o login, oferecemos o cadastro como nutrólogo, nutricionista ou médico.
+    </div>
+  `;
+}
+
+function viewRegister() {
+  return `
+    <div class="card">
+      <h2 class="card-title">Cadastro de profissional</h2>
+      <p class="card-sub">Esses dados aparecem pro seu paciente no app dele (co-branding). Você pode editar depois.</p>
+      <div class="fi">
+        <label>Seu nome completo *</label>
+        <input id="regNome" type="text" autocomplete="name" placeholder="Dr(a). Nome Sobrenome">
+      </div>
+      <div class="fi">
+        <label>Categoria *</label>
+        <select id="regTipo">
+          <option value="">— selecione —</option>
+          <option value="medico">Médico(a)</option>
+          <option value="nutricionista">Nutricionista</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="fi">
+        <label>Registro (CRM, CRN, etc)</label>
+        <input id="regRegistro" type="text" placeholder="ex: CRN-3 12345 / SP">
+      </div>
+      <div class="fi">
+        <label>Como você quer aparecer pro paciente</label>
+        <input id="regTitulo" type="text" placeholder="ex: Nutricionista · CRN-3 12345">
+      </div>
+      <button class="btn btn-primary" onclick="cadastrarPro()">Concluir cadastro</button>
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="logout()">Sair</button>
+      <div id="regMsg"></div>
+    </div>
+  `;
+}
+
+function viewProPanel() {
+  const pro = state.pro;
+  const inviteCode = escapeHtml(pro.invite_code || '');
+  const nome = escapeHtml(pro.nome || '');
+  const titulo = escapeHtml(pro.titulo_exibido || (pro.tipo === 'medico' ? 'Médico(a)' : pro.tipo === 'nutricionista' ? 'Nutricionista' : 'Profissional'));
+
+  let pacientesHtml = '';
+  if (!state.patients.length) {
+    pacientesHtml = `
+      <div class="empty">
+        <strong>Sem pacientes vinculados ainda.</strong><br>
+        Compartilhe seu código <strong>${inviteCode}</strong> com pacientes do Sanova.<br>
+        Eles entram no app, vão em <em>Mais → Vincular profissional</em> e colam o código.
+      </div>
+    `;
+  } else {
+    pacientesHtml = state.patients.map(p => {
+      const pnome = escapeHtml(p.nome || p.email || 'Paciente');
+      const meta = [];
+      if (typeof p.dias_sem_registro === 'number') {
+        meta.push(p.dias_sem_registro === 0 ? 'registrou hoje' : `${p.dias_sem_registro}d sem registro`);
+      }
+      if (p.estado_pm) meta.push(escapeHtml(p.estado_pm));
+      const metaStr = meta.join(' · ') || 'sem dados';
+      return `
+        <div class="patient-row" onclick="abrirPaciente('${escapeHtml(p.link_id)}')">
+          <div class="patient-avatar">${avatarLetter(p.nome || p.email)}</div>
+          <div class="patient-info">
+            <div class="patient-name">${pnome}</div>
+            <div class="patient-meta">${metaStr}</div>
+          </div>
+          <div class="patient-arrow">›</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:8px">
+        <div>
+          <h2 class="card-title">${nome}</h2>
+          <p class="card-sub" style="margin-bottom:0">${titulo}</p>
+        </div>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:11px" onclick="logout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="invite-box">
+      <div class="invite-label">Seu código de convite</div>
+      <div class="invite-code">${inviteCode}</div>
+      <div class="invite-hint">Compartilhe com seu paciente. Ele cola em <em>Mais → Vincular profissional</em>.</div>
+    </div>
+
+    <div class="section-title">Pacientes (${state.patients.length})</div>
+    ${pacientesHtml}
+  `;
+}
+
+function viewPatient() {
+  const p = state.patientDetail;
+  if (!p) {
+    return `<div class="empty"><div class="loader"></div><div style="margin-top:8px">Carregando paciente…</div></div>`;
+  }
+  const nome = escapeHtml(p.nome || p.email || 'Paciente');
+  const peso = p.peso_atual ? p.peso_atual.toFixed(1) + ' kg' : '—';
+  const pesoDelta = (typeof p.peso_delta_30d === 'number')
+    ? (p.peso_delta_30d <= 0 ? p.peso_delta_30d.toFixed(1) : '+' + p.peso_delta_30d.toFixed(1)) + ' kg/30d'
+    : '—';
+  const kcal = p.kcal_media ? Math.round(p.kcal_media) + ' kcal/dia' : '—';
+  const prot = p.prot_media ? Math.round(p.prot_media) + ' g/dia' : '—';
+  const estado = p.estado_pm ? escapeHtml(p.estado_pm) : '—';
+  const ultDose = (typeof p.ultima_dose_ha_dias === 'number')
+    ? (p.ultima_dose_ha_dias === 0 ? 'hoje' : 'há ' + p.ultima_dose_ha_dias + 'd')
+    : '—';
+
+  return `
+    <button class="back-btn" onclick="voltarParaLista()">‹ Voltar</button>
+    <div class="card">
+      <h2 class="card-title">${nome}</h2>
+      <p class="card-sub">${escapeHtml(p.email || '')}</p>
+
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">Peso atual</div><div class="kpi-val">${peso}</div><div class="kpi-hint">${pesoDelta}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Última dose</div><div class="kpi-val" style="font-size:14px;padding-top:4px">${ultDose}</div><div class="kpi-hint">${escapeHtml(p.medicamento || '')}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Calorias (média)</div><div class="kpi-val" style="font-size:14px;padding-top:4px">${kcal}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Proteína (média)</div><div class="kpi-val" style="font-size:14px;padding-top:4px">${prot}</div></div>
+      </div>
+
+      <hr class="hr">
+      <div class="section-title" style="margin-top:0">Proteção Muscular</div>
+      <div class="alert alert-info" style="margin-bottom:0">${estado}</div>
+
+      ${p.observacoes ? `<hr class="hr"><div class="section-title" style="margin-top:0">Observações</div><div style="font-size:12.5px;color:var(--ink2);line-height:1.6">${escapeHtml(p.observacoes)}</div>` : ''}
+    </div>
+
+    <div class="footer-note" style="margin-top:16px">
+      Dados resumidos. Para registros completos (refeições por dia, sintomas, etc), peça acesso direto ao paciente.
+    </div>
+  `;
+}
+
+// ─── Render ─────────────────────────────────────────────────────────
+
+function render() {
+  const c = $('content');
+  switch (state.view) {
+    case 'loading': c.innerHTML = `<div class="empty"><div class="loader"></div><div style="margin-top:8px">Carregando…</div></div>`; break;
+    case 'login': c.innerHTML = viewLogin(); break;
+    case 'register': c.innerHTML = viewRegister(); break;
+    case 'pro-panel': c.innerHTML = viewProPanel(); break;
+    case 'patient': c.innerHTML = viewPatient(); break;
+  }
+}
+
+// ─── Actions ────────────────────────────────────────────────────────
+
+async function enviarMagicLink() {
+  const email = $('loginEmail').value.trim();
+  const msg = $('loginMsg');
+  if (!email || !email.includes('@')) {
+    msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Informe um email válido.</div>`;
+    return;
+  }
+  msg.innerHTML = `<div class="alert alert-info" style="margin-top:10px"><div class="loader"></div> Enviando…</div>`;
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + '/pro.html' },
+  });
+  if (error) {
+    msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Erro: ${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  msg.innerHTML = `<div class="alert alert-ok" style="margin-top:10px"><strong>Link enviado!</strong> Confira seu email e clique no link pra entrar.</div>`;
+}
+
+async function cadastrarPro() {
+  const nome = $('regNome').value.trim();
+  const tipo = $('regTipo').value;
+  const registro = $('regRegistro').value.trim();
+  const titulo_exibido = $('regTitulo').value.trim();
+  const msg = $('regMsg');
+  if (!nome || !tipo) {
+    msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Nome e categoria são obrigatórios.</div>`;
+    return;
+  }
+  msg.innerHTML = `<div class="alert alert-info" style="margin-top:10px"><div class="loader"></div> Cadastrando…</div>`;
+  try {
+    const r = await apiCall('/api/pro-register', {
+      method: 'POST',
+      body: JSON.stringify({ nome, tipo, registro, titulo_exibido }),
+    });
+    state.pro = r.pro;
+    await carregarPacientes();
+    setView('pro-panel');
+  } catch (e) {
+    msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function carregarPacientes() {
+  try {
+    const r = await apiCall('/api/pro-patients');
+    state.patients = r.patients || [];
+  } catch (e) {
+    state.patients = [];
+  }
+}
+
+async function abrirPaciente(linkId) {
+  state.selectedLinkId = linkId;
+  state.patientDetail = null;
+  setView('patient');
+  try {
+    const r = await apiCall('/api/pro-patient?link_id=' + encodeURIComponent(linkId));
+    state.patientDetail = r.patient;
+    render();
+  } catch (e) {
+    state.patientDetail = { nome: '(erro)', email: e.message };
+    render();
+  }
+}
+
+function voltarParaLista() {
+  state.selectedLinkId = null;
+  state.patientDetail = null;
+  setView('pro-panel');
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  state.user = null;
+  state.pro = null;
+  state.patients = [];
+  setView('login');
+}
+
+// ─── Bootstrap ──────────────────────────────────────────────────────
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    setView('login');
+    return;
+  }
+  state.user = session.user;
+  // Detecta se já é profissional cadastrado
+  try {
+    const r = await apiCall('/api/pro-me');
+    state.pro = r.pro;
+    await carregarPacientes();
+    setView('pro-panel');
+  } catch (e) {
+    if (e.status === 403 && e.data && e.data.error === 'not_a_professional') {
+      setView('register');
+    } else {
+      // Sessão pode ter expirado
+      await sb.auth.signOut();
+      setView('login');
+    }
+  }
+}
+
+// Reage a callbacks de magic link
+sb.auth.onAuthStateChange((evt, sess) => {
+  if (evt === 'SIGNED_IN' && sess) {
+    state.user = sess.user;
+    boot();
+  }
+});
+
+boot();
+</script>
+</body>
+</html>
