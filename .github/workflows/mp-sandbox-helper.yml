@@ -39,6 +39,7 @@ on:
           - admin-cleanup-v2
           - admin-check-payment-methods
           - admin-fixture-bootstrap
+          - admin-fixture-bootstrap-incompleta
           - admin-seed-fixture-completa
 
 jobs:
@@ -54,12 +55,19 @@ jobs:
           set -e
           BASE="https://sanova-api.contatosanovaapp.workers.dev"
           ACTION="${{ github.event.inputs.action }}"
-          echo "## Chamando $BASE/api/$ACTION" | tee -a $GITHUB_STEP_SUMMARY
+          # v1.28.3: 'admin-fixture-bootstrap-incompleta' eh atalho pra
+          # '/api/admin-fixture-bootstrap?modo=incompleta'.
+          if [ "$ACTION" = "admin-fixture-bootstrap-incompleta" ]; then
+            URL="$BASE/api/admin-fixture-bootstrap?modo=incompleta"
+          else
+            URL="$BASE/api/$ACTION"
+          fi
+          echo "## Chamando $URL" | tee -a $GITHUB_STEP_SUMMARY
           # v1.24.0: header X-Admin-Token autentica /api/admin-* (no-op pra
           # rotas publicas como health/debug). GitHub mascara o secret.
           RESPONSE=$(curl -sS -w "\n---HTTP_STATUS:%{http_code}---\n" \
             -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" \
-            "$BASE/api/$ACTION")
+            "$URL")
           echo "$RESPONSE"
           # Tambem grava no Summary (acessivel via API) e como output
           {
