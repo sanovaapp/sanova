@@ -294,75 +294,57 @@ jobs:
           await snap('painel-topo');
 
           // ─── 3. PAINEL — fullPage com Analise dos pilares ────────
-          console.log('3/11 painel-completo');
+          console.log('3/10 painel-completo');
           // Garante que a tab Painel esta ativa
           await page.evaluate(() => { if (typeof go === 'function') go('home'); });
           await page.waitForTimeout(1200);
           await snap('painel-completo');
 
-          // ─── 4. BALANCO + PILARES em views ALTERNATIVAS ──────────
-          // v3.5.2 Fable Turno 6: fullPage captura pagina inteira — scroll
-          // nao muda nada. Cena 04 PRECISA mudar widgets visiveis pra ser
-          // distinta da cena 03 (Painel completo). Duas mudancas simultaneas
-          // (Saldo 'hoje' + Pilares 'mes') garantem alteracao visual robusta
-          // contra re-render automatico.
-          await cena('4/11 balanco-quinzena', async () => {
-            console.log('4/11 balanco/pilares views alternativas');
-            const diag = await page.evaluate(() => {
-              try {
-                if (typeof setSaldoView === 'function') setSaldoView('hoje');
-                if (typeof setPilaresPeriodo === 'function') setPilaresPeriodo('mes');
-              } catch (e) { return { ok: false, erro: e.message }; }
-              return {
-                ok: true,
-                saldoView: window._saldoView,
-                saldoTabHojeBg: (document.getElementById('saldoTabHoje') || {}).style && document.getElementById('saldoTabHoje').style.background,
-                pilaresTab: (document.querySelector('#pTabMes') || {}).style && document.querySelector('#pTabMes').style.background,
-              };
-            });
-            console.log('   diag cena 04:', JSON.stringify(diag));
-            await page.waitForTimeout(1500);
-            await snap('balanco-semana-expandido');
-          });
+          // v3.5.3 Fable Turno 6: cena "balanco-semana-expandido" removida.
+          // Tres runs consecutivos saiam com md5 IDENTICO ao painel-completo
+          // mesmo com setSaldoView/setPilaresPeriodo mudando widgets no DOM
+          // (diag confirmou). Algo re-renderiza o Painel entre o set e o
+          // screenshot, desfazendo a alteracao. A Fable ja validou o Balanco
+          // dentro do Painel completo (sao redundantes). Pacote vira 10 telas.
 
-          // ─── 5. MEDICACAO ─────────────────────────────────────────
-          await cena('5/11 medicacao', async () => {
-            console.log('5/11 medicacao');
+          // ─── 4. MEDICACAO ─────────────────────────────────────────
+          await cena('4/10 medicacao', async () => {
+            console.log('4/10 medicacao');
             await clickTab('#nb-caneta');
             await page.waitForTimeout(1500);
             await snap('medicacao');
           });
 
-          // ─── 6. CHECK-IN ──────────────────────────────────────────
-          await cena('6/11 checkin', async () => {
-            console.log('6/11 checkin');
+          // ─── 5. CHECK-IN ──────────────────────────────────────────
+          await cena('5/10 checkin', async () => {
+            console.log('5/10 checkin');
             await clickTab('#nb-checkin');
             await page.waitForTimeout(1500);
             await snap('checkin');
           });
 
-          // ─── 7. SAUDE (sintomas / janela) ────────────────────────
-          await cena('7/11 saude', async () => {
-            console.log('7/11 saude');
+          // ─── 6. SAUDE (sintomas / janela) ────────────────────────
+          await cena('6/10 saude', async () => {
+            console.log('6/10 saude');
             await clickTab('#nb-saude');
             await page.waitForTimeout(1500);
             await snap('saude');
           });
 
-          // ─── 8. MINHA JORNADA (acompanhamento semanal) ────────────
+          // ─── 7. MINHA JORNADA (acompanhamento semanal) ────────────
           // v3.5 Fable Turno 5: a rota go('jornada') vai pro "Mapa da jornada"
           // (timeline geral). A tela que ela quer auditar — Progresso de peso,
           // ritmo semanal, perdaSemana(MA7), tendencia — vive em go('jornadaAcomp').
-          await cena('8/11 jornada', async () => {
-            console.log('8/11 jornada (jornadaAcomp)');
+          await cena('7/10 jornada', async () => {
+            console.log('7/10 jornada (jornadaAcomp)');
             await page.evaluate(() => { if (typeof go === 'function') go('jornadaAcomp'); });
             await page.waitForTimeout(2000);
             await snap('jornada');
           });
 
-          // ─── 9. METABOLISMO E METAS — expandido ──────────────────
-          await cena('9/11 metabolismo', async () => {
-            console.log('9/11 metabolismo');
+          // ─── 8. METABOLISMO E METAS — expandido ──────────────────
+          await cena('8/10 metabolismo', async () => {
+            console.log('8/10 metabolismo');
             await page.evaluate(() => { if (typeof go === 'function') go('perfil'); });
             await page.waitForTimeout(1500);
             await page.evaluate(() => {
@@ -374,17 +356,17 @@ jobs:
             await snap('metabolismo-metas');
           });
 
-          // ─── 10. PERFIL (rola pro fim) ───────────────────────────
-          await cena('10/11 perfil-fim', async () => {
-            console.log('10/11 perfil-fim');
+          // ─── 9. PERFIL (rola pro fim) ───────────────────────────
+          await cena('9/10 perfil-fim', async () => {
+            console.log('9/10 perfil-fim');
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
             await page.waitForTimeout(800);
             await snap('perfil-fim');
           });
 
-          // ─── 11. MAIS (drawer aberto) ────────────────────────────
-          await cena('11/11 mais', async () => {
-            console.log('11/11 mais');
+          // ─── 10. MAIS (drawer aberto) ────────────────────────────
+          await cena('10/10 mais', async () => {
+            console.log('10/10 mais');
             await page.evaluate(() => { if (typeof go === 'function') go('home'); });
             await page.waitForTimeout(1500);
             await page.evaluate(() => { if (typeof abrirMais === 'function') abrirMais(); });
