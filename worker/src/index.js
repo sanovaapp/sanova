@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.7' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.8' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -1884,11 +1884,11 @@ async function handleAdminFixtureBootstrap(env, modo) {
     );
     const subData = await subResp.json().catch(() => ({}));
 
-    // Fixture mantem github.io porque o prints E2E ainda corre nesse origin.
-    // Pos-cutover do DNS, trocar pra https://sanova.app.br/.
+    // v1.28.8 (cutover passo 4): origin oficial do prints agora e' sanova.app.br
+    // (Bruno confirmou HTTPS + Enforce funcionando).
     const link = await generateMagicLink(
       FIXTURE_EMAIL,
-      'https://sanovaapp.github.io/sanova/',
+      'https://sanova.app.br/',
       env
     );
 
@@ -2343,7 +2343,7 @@ async function handleAdminSeedDemo(env) {
         body: JSON.stringify({
           type: 'magiclink',
           email: DEMO_EMAIL,
-          options: { redirect_to: 'https://sanovaapp.github.io/sanova/' },
+          options: { redirect_to: 'https://sanova.app.br/' },
         }),
       }
     );
@@ -2362,7 +2362,7 @@ async function handleAdminSeedDemo(env) {
         body: JSON.stringify({
           type: 'magiclink',
           email: DEMO_PRO_EMAIL,
-          options: { redirect_to: 'https://sanovaapp.github.io/sanova/pro.html' },
+          options: { redirect_to: 'https://sanova.app.br/pro.html' },
         }),
       }
     );
