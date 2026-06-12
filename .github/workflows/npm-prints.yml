@@ -300,24 +300,28 @@ jobs:
           await page.waitForTimeout(1200);
           await snap('painel-completo');
 
-          // ─── 4. BALANCO ENERGETICO — quinzena expandida ──────────
-          // v3.5.1 Fable Turno 6: o card tem tabs proprias (setSaldoView 'hoje'/'semana'/'quinzena')
-          // e o default ja eh 'semana'. setPilaresPeriodo afetava OUTRO card (Pilares).
-          // Por isso 03 e 04 sairam byte-identicas. Agora cena 04 = Balanco em 15 dias.
+          // ─── 4. BALANCO + PILARES em views ALTERNATIVAS ──────────
+          // v3.5.2 Fable Turno 6: fullPage captura pagina inteira — scroll
+          // nao muda nada. Cena 04 PRECISA mudar widgets visiveis pra ser
+          // distinta da cena 03 (Painel completo). Duas mudancas simultaneas
+          // (Saldo 'hoje' + Pilares 'mes') garantem alteracao visual robusta
+          // contra re-render automatico.
           await cena('4/11 balanco-quinzena', async () => {
-            console.log('4/11 balanco-quinzena');
-            await page.evaluate(() => {
+            console.log('4/11 balanco/pilares views alternativas');
+            const diag = await page.evaluate(() => {
               try {
-                if (typeof setSaldoView === 'function') setSaldoView('quinzena');
-                document.querySelectorAll('details').forEach(d => d.open = true);
-              } catch (e) {}
+                if (typeof setSaldoView === 'function') setSaldoView('hoje');
+                if (typeof setPilaresPeriodo === 'function') setPilaresPeriodo('mes');
+              } catch (e) { return { ok: false, erro: e.message }; }
+              return {
+                ok: true,
+                saldoView: window._saldoView,
+                saldoTabHojeBg: (document.getElementById('saldoTabHoje') || {}).style && document.getElementById('saldoTabHoje').style.background,
+                pilaresTab: (document.querySelector('#pTabMes') || {}).style && document.querySelector('#pTabMes').style.background,
+              };
             });
-            await page.waitForTimeout(1200);
-            await page.evaluate(() => {
-              const el = document.getElementById('saldoCard');
-              if (el) el.scrollIntoView({behavior:'instant', block:'start'});
-            });
-            await page.waitForTimeout(800);
+            console.log('   diag cena 04:', JSON.stringify(diag));
+            await page.waitForTimeout(1500);
             await snap('balanco-semana-expandido');
           });
 
