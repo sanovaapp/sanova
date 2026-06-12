@@ -19,7 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
-import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional } from './pro.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals } from './pro.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
 // Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.3' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.4' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -81,6 +81,10 @@ export default {
       }
       if (url.pathname === '/api/unlink-professional' && request.method === 'POST') {
         return await handleUnlinkProfessional(request, env, origin);
+      }
+      // v1.28.4: paciente lista os pros vinculados ativos (pra UI co-branding + revogar)
+      if (url.pathname === '/api/my-professionals' && request.method === 'GET') {
+        return await handleMyProfessionals(request, env, origin);
       }
 
       // v1.1.0: cria assinatura recorrente no MP e devolve URL de checkout

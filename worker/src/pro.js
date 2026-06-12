@@ -460,6 +460,45 @@ export async function handleLinkProfessional(request, env, origin) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// GET /api/my-professionals   (paciente lista pros vinculados ativos)
+// ════════════════════════════════════════════════════════════════════
+export async function handleMyProfessionals(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const user = await verifyJwt(request, env);
+  if (!user) return jsonResponse({ ok: false, error: 'auth_required' }, 401, origin, env);
+
+  // Join via 2 queries (RLS bloqueia paciente de ler professionals direto)
+  const linksUrl = SUPABASE_URL + '/rest/v1/patient_links?patient_user_id=eq.' +
+    encodeURIComponent(user.id) + '&status=eq.active&select=id,professional_id,consented_at,consent_version';
+  const linksResp = await fetch(linksUrl, { headers: svcHeaders(env) });
+  const links = await linksResp.json().catch(() => []);
+  if (!Array.isArray(links) || links.length === 0) {
+    return jsonResponse({ ok: true, professionals: [] }, 200, origin, env);
+  }
+
+  const proIds = links.map(l => l.professional_id);
+  const inList = '(' + proIds.map(id => '"' + id + '"').join(',') + ')';
+  const prosUrl = SUPABASE_URL + '/rest/v1/professionals?id=in.' + encodeURIComponent(inList) +
+    '&select=id,nome,tipo,registro,titulo_exibido,foto_url,logo_url';
+  const prosResp = await fetch(prosUrl, { headers: svcHeaders(env) });
+  const pros = await prosResp.json().catch(() => []);
+
+  // Merge: pra cada link, anexa o pro
+  const proMap = {};
+  if (Array.isArray(pros)) pros.forEach(p => { proMap[p.id] = p; });
+  const result = links.map(l => ({
+    link_id: l.id,
+    consented_at: l.consented_at,
+    consent_version: l.consent_version,
+    pro: proMap[l.professional_id] || null,
+  })).filter(r => r.pro);
+
+  return jsonResponse({ ok: true, professionals: result }, 200, origin, env);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // POST /api/unlink-professional   (paciente revoga)
 // ════════════════════════════════════════════════════════════════════
 export async function handleUnlinkProfessional(request, env, origin) {
@@ -469,12 +508,24 @@ export async function handleUnlinkProfessional(request, env, origin) {
   const user = await verifyJwt(request, env);
   if (!user) return jsonResponse({ ok: false, error: 'auth_required' }, 401, origin, env);
 
+  // v1.28.4: aceita ?link_id=... pra revogar 1 vinculo especifico (paciente
+  // pode ter varios pros). Sem link_id, revoga todos os ativos.
+  let body;
+  try { body = await request.json(); } catch { body = {}; }
+  const linkId = (body.link_id || '').trim();
+
   const patch = {
     status: 'revoked',
     revoked_at: new Date().toISOString(),
   };
-  const url = SUPABASE_URL + '/rest/v1/patient_links?patient_user_id=eq.' +
-    encodeURIComponent(user.id) + '&status=eq.active';
+  let url;
+  if (linkId) {
+    url = SUPABASE_URL + '/rest/v1/patient_links?id=eq.' + encodeURIComponent(linkId) +
+      '&patient_user_id=eq.' + encodeURIComponent(user.id) + '&status=eq.active';
+  } else {
+    url = SUPABASE_URL + '/rest/v1/patient_links?patient_user_id=eq.' +
+      encodeURIComponent(user.id) + '&status=eq.active';
+  }
   const r = await fetch(url, {
     method: 'PATCH',
     headers: svcHeaders(env),
