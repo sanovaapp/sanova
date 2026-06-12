@@ -402,7 +402,20 @@ jobs:
           await browser.close();
           console.log('Done.');
           PWEND
+          # v3.10.33 (Fable Turno 12): set -o pipefail pra propagar process.exit(1)
+          # do node atraves do pipe pra tee. Sem isso, ABORT da fixture passava
+          # batido e pacote quebrado virava prints-latest "valido".
+          set -o pipefail
           node prints.mjs 2>&1 | tee prints.log
+          # Tambem checa que pelo menos 8 PNGs foram gerados (pacote completo
+          # tem 10, com folga pra 1-2 cenas falhando em try/catch ainda manter
+          # o pacote significativo).
+          PNG_COUNT=$(ls prints/*.png 2>/dev/null | wc -l)
+          echo "[gate] $PNG_COUNT PNG(s) gerados"
+          if [ "$PNG_COUNT" -lt 8 ]; then
+            echo "::error::Pacote incompleto: $PNG_COUNT PNGs (esperado >=8). Run abortado."
+            exit 1
+          fi
 
       # v3.1 Fable: hash-check final. v3.4 (Turno 5 Fable): threshold apertado
       # pra >=2 — no run anterior 03-painel-completo.png e 04-balanco-semana-expandido.png
@@ -483,23 +496,33 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -ex
+          MODO="${{ github.event.inputs.modo || 'completa' }}"
+          # v3.10.33 (Fable Turno 12): variante 'incompleta' vai pra branch
+          # separada 'prints-incompleta'. 'prints-latest' eh sagrado, so o
+          # pacote completo padrao.
+          if [ "$MODO" = "incompleta" ]; then
+            BRANCH=prints-incompleta
+          else
+            BRANCH=prints-latest
+          fi
+          echo "[publish] modo=$MODO branch=$BRANCH"
           WORK=$(mktemp -d)
           cp -r prints/. "$WORK/"
           cd "$WORK"
           git init
-          git checkout -b prints-latest
+          git checkout -b "$BRANCH"
           git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" add .
           ls -la
           git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" \
-            commit -m "prints $(date -u +%FT%TZ) — run ${{ github.run_id }}"
+            commit -m "prints $(date -u +%FT%TZ) — modo=$MODO run ${{ github.run_id }}"
           git log --oneline
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git remote -v
           # --force porque branch eh efemera, history de 1 commit, sobrescreve a cada run
-          git push --force origin HEAD:refs/heads/prints-latest 2>&1
+          git push --force origin HEAD:refs/heads/"$BRANCH" 2>&1
           echo "==== confirmando branch via API ===="
-          gh api repos/${{ github.repository }}/branches/prints-latest --jq '.name + " @ " + .commit.sha' || (echo "BRANCH NAO ENCONTRADA NA API" && exit 1)
-          echo "TARBALL URL: https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-latest"
+          gh api repos/${{ github.repository }}/branches/"$BRANCH" --jq '.name + " @ " + .commit.sha' || (echo "BRANCH NAO ENCONTRADA NA API" && exit 1)
+          echo "TARBALL URL: https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/$BRANCH"
 
       - name: Resumo
         if: always()
