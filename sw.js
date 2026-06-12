@@ -7,7 +7,7 @@
    remover cache antigo. Sem isso, paciente vê HTML antigo.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'sanova-v3.10.35';
+const VERSION = 'sanova-v3.10.36';
 const ASSETS = [
   './',
   './index.html',
@@ -42,6 +42,20 @@ self.addEventListener('activate', function(event) {
       return self.clients.claim();
     })
   );
+});
+
+// v3.10.36: handshake de versao com o cliente — se o HTML novo perceber
+// que o SW ativo eh velho, manda SKIP_WAITING (caso haja waiting) ou pede
+// 'WHO' pra logar mismatch.
+self.addEventListener('message', function(event) {
+  var data = event.data || {};
+  if (data.type === 'WHO') {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ version: VERSION });
+    }
+  } else if (data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', function(event) {
