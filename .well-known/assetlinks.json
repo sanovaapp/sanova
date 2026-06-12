@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "app.sanova.twa",
+      "package_name": "br.app.sanova",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_SHA256_FROM_PLAYCONSOLE_AFTER_FIRST_UPLOAD"
+        "REPLACE_WITH_SHA256_FROM_PLAYCONSOLE_AFTER_FIRST_AAB_UPLOAD"
       ]
     }
   }

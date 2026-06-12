@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.5' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.6' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -441,7 +441,7 @@ async function handleMpCreatePreapproval(request, env, origin) {
   const body = await request.json().catch(() => ({}));
   const userId = body.userId;
   const planoIn = body.plano;
-  const backUrl = body.backUrl || 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const backUrl = body.backUrl || 'https://sanova.app.br/?mp_return=1';
   const tipo = (planoIn === 'anual') ? 'anual' : 'mensal';
 
   if (!userId) {
@@ -489,7 +489,7 @@ async function handleMpCreatePreapproval(request, env, origin) {
 // ─── /api/admin-ensure-mp-plans (v1.9.0) ─────────────────────
 // Idempotente. Cria mensal+anual se nao existem no Supabase.mp_plans.
 async function handleAdminEnsureMpPlans(env) {
-  const backUrl = 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const backUrl = 'https://sanova.app.br/?mp_return=1';
   const result = {};
   try {
     for (const tipo of ['mensal', 'anual']) {
@@ -526,7 +526,7 @@ async function handleAdminEnsureMpPlans(env) {
 // Os planos antigos no MP ficam ativos até MP arquivar, mas
 // Supabase passa a apontar pros novos imediatamente.
 async function handleAdminRecreateMpPlans(env) {
-  const backUrl = 'https://sanovaapp.github.io/sanova/?mp_return=1';
+  const backUrl = 'https://sanova.app.br/?mp_return=1';
   const result = {};
   try {
     for (const tipo of ['mensal', 'anual']) {
@@ -1496,7 +1496,7 @@ async function handleAdminMagicLink(env) {
   try {
     const link = await generateMagicLink(
       'brunoambrozim@hotmail.com',
-      'https://sanovaapp.github.io/sanova/',
+      'https://sanova.app.br/',
       env
     );
     return new Response(
@@ -1533,9 +1533,13 @@ async function handleAdminSetAuthUrls(env) {
     );
   }
 
+  // v1.28.6 (Fable Turno 10.1): site_url primario eh sanova.app.br;
+  // sanovaapp.github.io mantido na allow list durante a transicao do DNS.
   const body = {
-    site_url: 'https://sanovaapp.github.io/sanova/',
+    site_url: 'https://sanova.app.br/',
     uri_allow_list: [
+      'https://sanova.app.br/',
+      'https://sanova.app.br/*',
       'https://sanovaapp.github.io/sanova/',
       'https://sanovaapp.github.io/sanova/*',
       'https://sanovaapp.github.io/',
@@ -1872,6 +1876,8 @@ async function handleAdminFixtureBootstrap(env, modo) {
     );
     const subData = await subResp.json().catch(() => ({}));
 
+    // Fixture mantem github.io porque o prints E2E ainda corre nesse origin.
+    // Pos-cutover do DNS, trocar pra https://sanova.app.br/.
     const link = await generateMagicLink(
       FIXTURE_EMAIL,
       'https://sanovaapp.github.io/sanova/',
