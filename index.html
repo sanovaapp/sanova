@@ -6327,13 +6327,26 @@ try{
 
 var LS='equilibra_v5';
 
+// v3.10.39 (Bruno/Fable Turno 18.1): HTTPS force-redirect via JS pra
+// nao depender de Enforce HTTPS do Pages (que precisa custom_domain UI
+// configurado). Se paciente entrar em http://sanova.app.br, redireciona
+// pra https. Ignora localhost (dev).
+(function _enforceHttps(){
+  try{
+    var h = location.hostname || '';
+    if (location.protocol === 'http:' && h.indexOf('localhost') === -1 && h !== '127.0.0.1') {
+      location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+    }
+  } catch(e) {}
+})();
+
 // ══ SANOVA AI PROXY — URL do Cloudflare Worker ══
 // Substitua pela URL gerada após o deploy do Worker
 var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.38';
+var SANOVA_VERSION = '3.10.39';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 

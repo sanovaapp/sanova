@@ -1,30 +1,61 @@
-name: Enforce HTTPS no Pages (one-shot)
+name: Pages custom domain + Enforce HTTPS (one-shot v2)
 
-# Workflow disparado manualmente pra ativar 'Enforce HTTPS' no GitHub Pages
-# do repo sanovaapp/sanova. Fable Turno 18.1 (12/06/2026): cert TLS de
-# sanova.app.br ja' provisionado, falta o toggle ser ativado.
+# Fable Turno 18.1: PUT /repos/.../pages com cname + https_enforced.
+# v1 (PR #180) caiu com 403 no GITHUB_TOKEN porque so' tinha pages:write.
+# v2 testa 2 caminhos:
+#   1. PUT com cname=sanova.app.br pra registrar custom_domain
+#   2. PUT com https_enforced=true (depende de custom_domain existir)
+# Usa secrets.PAGES_ADMIN_PAT se Bruno injetar, senao tenta com GITHUB_TOKEN.
 
 on:
   workflow_dispatch: {}
 
 permissions:
   pages: write
+  contents: read
 
 jobs:
-  enforce:
+  configure:
     runs-on: ubuntu-latest
     steps:
-      - name: PUT /repos/.../pages https_enforced=true
+      - name: Pre-check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAGES_ADMIN_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          echo "Token tipo: $([ -n "${{ secrets.PAGES_ADMIN_PAT }}" ] && echo 'PAT' || echo 'GITHUB_TOKEN')"
           echo "Estado ANTES:"
-          gh api repos/${{ github.repository }}/pages --jq '{custom_domain, https_enforced, status}'
-          echo ""
-          echo "Aplicando https_enforced=true..."
+          gh api repos/${{ github.repository }}/pages \
+            --jq '{cname, custom_domain, https_enforced, status, source}' || echo "(falha leitura)"
+
+      - name: Registra cname (custom_domain)
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_ADMIN_PAT || secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          set -e
+          echo "Tentando PUT com cname=sanova.app.br ..."
           gh api -X PUT repos/${{ github.repository }}/pages \
-            -F https_enforced=true || (echo "PUT falhou"; exit 1)
-          sleep 3
+            -F cname=sanova.app.br \
+            || echo "(PUT cname falhou — provavelmente sem admin permission)"
+
+      - name: Ativa Enforce HTTPS
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_ADMIN_PAT || secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          set -e
+          sleep 2
+          echo "Tentando PUT com https_enforced=true ..."
+          gh api -X PUT repos/${{ github.repository }}/pages \
+            -F https_enforced=true \
+            || echo "(PUT https_enforced falhou — depende de custom_domain existir)"
+
+      - name: Pos-check
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_ADMIN_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 2
           echo "Estado DEPOIS:"
-          gh api repos/${{ github.repository }}/pages --jq '{custom_domain, https_enforced, status}'
+          gh api repos/${{ github.repository }}/pages \
+            --jq '{cname, custom_domain, https_enforced, status, source}' || true

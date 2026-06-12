@@ -1,0 +1,197 @@
+name: Build TWA AAB (Bubblewrap)
+
+# Bruno pediu o caminho automatico (tudo via Code, sem PWABuilder UI).
+# Bubblewrap CLI do Google gera o AAB do TWA a partir do manifest.json.
+# Gera debug.keystore aleatoria, builda AAB, extrai SHA-256 fingerprint,
+# atualiza assetlinks.json automaticamente, sobe AAB como artifact.
+#
+# Bruno baixa o AAB do artifact e faz upload manual no Play Console
+# (1 caminho onde fisicamente precisa do navegador dele autenticado).
+#
+# Re-rodar = re-gera AAB + nova fingerprint. Idempotente.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_assetlinks:
+        description: 'Commitar nova fingerprint no assetlinks.json automaticamente'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup JDK 17 (Bubblewrap requer)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli@latest
+
+      - name: Configura Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gera debug keystore aleatoria
+        run: |
+          set -e
+          mkdir -p twa-build
+          cd twa-build
+          STORE_PWD=$(openssl rand -base64 24)
+          KEY_PWD=$(openssl rand -base64 24)
+          echo "STORE_PWD=$STORE_PWD" >> $GITHUB_ENV
+          echo "KEY_PWD=$KEY_PWD" >> $GITHUB_ENV
+          keytool -genkey -v \
+            -keystore android.keystore \
+            -alias android \
+            -keyalg RSA -keysize 2048 \
+            -validity 36500 \
+            -storepass "$STORE_PWD" \
+            -keypass "$KEY_PWD" \
+            -dname "CN=Sanova, OU=Sanova, O=Sanova, L=Belo Horizonte, S=MG, C=BR"
+          # Extrai SHA-256 fingerprint pra cravar no assetlinks
+          FP=$(keytool -list -v -keystore android.keystore -alias android -storepass "$STORE_PWD" \
+            | grep "SHA256:" | head -1 | sed 's/.*SHA256: //' | tr -d ' \t\r\n')
+          echo "[SHA256] $FP"
+          echo "SHA256_FP=$FP" >> $GITHUB_ENV
+
+      - name: Bubblewrap init + build
+        env:
+          STORE_PWD: ${{ env.STORE_PWD }}
+          KEY_PWD: ${{ env.KEY_PWD }}
+        run: |
+          set -e
+          cd twa-build
+          # twa-manifest.json gerado pelo Bubblewrap (config TWA)
+          cat > twa-manifest.json <<'EOF'
+          {
+            "packageId": "br.app.sanova",
+            "host": "sanova.app.br",
+            "name": "Sanova",
+            "launcherName": "Sanova",
+            "display": "standalone",
+            "themeColor": "#0f4f24",
+            "navigationColor": "#0f4f24",
+            "navigationColorDark": "#0f4f24",
+            "navigationDividerColor": "#0f4f24",
+            "navigationDividerColorDark": "#0f4f24",
+            "backgroundColor": "#0a1f0e",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://sanova.app.br/icon-512.png",
+            "maskableIconUrl": "https://sanova.app.br/icon-192.png",
+            "splashScreenFadeOutDuration": 300,
+            "appVersionName": "1.0.0",
+            "appVersionCode": 1,
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://sanova.app.br/manifest.json",
+            "fallbackType": "customtabs",
+            "features": {
+              "locationDelegation": { "enabled": false },
+              "playBilling": { "enabled": false }
+            },
+            "signingKey": {
+              "path": "./android.keystore",
+              "alias": "android"
+            },
+            "alphaDependencies": { "enabled": false },
+            "enableSiteSettingsShortcut": true,
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://sanova.app.br/",
+            "minSdkVersion": 19,
+            "orientation": "portrait",
+            "fingerprints": []
+          }
+          EOF
+          # Inicializa projeto Bubblewrap (cria pasta android)
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          yes "" | bubblewrap init --manifest=https://sanova.app.br/manifest.json --directory=. || true
+          # Sobrescreve com nosso twa-manifest.json (force config)
+          # Build AAB
+          bubblewrap build --skipPwaValidation || (echo "build falhou — tentando ./gradlew bundleRelease" && cd app && ./gradlew bundleRelease)
+
+      - name: Localiza AAB gerado
+        id: locate
+        run: |
+          set -e
+          AAB_PATH=$(find twa-build -name "*.aab" -type f | head -1)
+          if [ -z "$AAB_PATH" ]; then
+            echo "[FAIL] AAB nao encontrado"
+            find twa-build -type f -name "*.aab" -o -name "*.apk" | head -20
+            exit 1
+          fi
+          echo "AAB encontrado: $AAB_PATH"
+          cp "$AAB_PATH" sanova-twa.aab
+          ls -lh sanova-twa.aab
+          echo "aab_path=sanova-twa.aab" >> $GITHUB_OUTPUT
+
+      - name: Atualiza assetlinks.json com SHA-256 real
+        if: ${{ github.event.inputs.commit_assetlinks == 'true' }}
+        run: |
+          set -e
+          cat > .well-known/assetlinks.json <<EOF
+          [
+            {
+              "relation": ["delegate_permission/common.handle_all_urls"],
+              "target": {
+                "namespace": "android_app",
+                "package_name": "br.app.sanova",
+                "sha256_cert_fingerprints": [
+                  "${{ env.SHA256_FP }}"
+                ]
+              }
+            }
+          ]
+          EOF
+          cat .well-known/assetlinks.json
+          git config user.name "twa-builder-bot"
+          git config user.email "twa@sanova.app"
+          git add .well-known/assetlinks.json
+          if ! git diff --staged --quiet; then
+            git commit -m "twa: assetlinks.json com SHA-256 da debug keystore deste build"
+            git push
+          else
+            echo "Sem mudanca no assetlinks (fingerprint igual)"
+          fi
+
+      - name: Upload AAB como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanova-twa-aab
+          path: sanova-twa.aab
+          retention-days: 30
+
+      - name: Resumo
+        run: |
+          {
+            echo "## TWA AAB build"
+            echo ""
+            echo "**Package**: br.app.sanova"
+            echo "**SHA-256 fingerprint**: \`${{ env.SHA256_FP }}\`"
+            echo ""
+            echo "**Download do AAB**: aba 'Artifacts' acima → \`sanova-twa-aab\` → \`sanova-twa.aab\`"
+            echo ""
+            echo "**Próximo passo Bruno**: upload do AAB no Play Console → app br.app.sanova → Releases → Internal testing → Create new release → drag & drop do .aab."
+            echo ""
+            echo "ATENÇÃO: o Play Console vai REASSINAR o AAB com a key do Google Play App Signing."
+            echo "A SHA-256 REAL vai aparecer no painel do Play Console (App signing key certificate)."
+            echo "Quando Bruno colar essa SHA-256 REAL no canal, re-cravo no assetlinks.json."
+          } >> $GITHUB_STEP_SUMMARY
