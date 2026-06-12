@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.6' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.7' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -153,6 +153,14 @@ export default {
       // refeicoes com proteina. Resolve race com sync (updatedAt + ownedBy).
       if (url.pathname === '/api/admin-seed-fixture-completa' && request.method === 'GET') {
         return await handleAdminSeedFixtureCompleta(env);
+      }
+
+      // v1.28.7 (Fable Turno 14): conta-demo "Mariana" (demo@sanova.app),
+      // 13 semanas de dados realistas pra gravacao dos videos promocionais.
+      // Idempotente (re-seed antes de cada gravacao). Inclui pro-demo
+      // "Dra. Ana" vinculada + 2 pacientes-sombra (João verde, Carla vermelha).
+      if (url.pathname === '/api/admin-seed-demo' && request.method === 'GET') {
+        return await handleAdminSeedDemo(env);
       }
 
       // v1.27.0 (Fable prints v3): bootstrap completo de conta fixture
@@ -1918,6 +1926,477 @@ async function handleAdminFixtureBootstrap(env, modo) {
 // por race com aoLogar (sync puxava state vazio do Supabase e sobrescrevia
 // seed local do Playwright). Solucao: seedar AQUI, antes do magic link, e o
 // sync legitimo do client vai puxar essa fixture.
+
+// ════════════════════════════════════════════════════════════════════
+// v1.28.7 (Fable Turno 14) — admin-seed-demo (Mariana)
+// ════════════════════════════════════════════════════════════════════
+// Conta-demo "Mariana" pra gravacao dos 3 videos promocionais. 13 semanas
+// de dados realistas, login via magic link no celular do Bruno. Idempotente
+// (re-seed sobrescreve state e re-rota senha; user permanece).
+//
+// Mariana: 38 anos, 1,65m, Emagrecer, 96 -> 84,2 kg em 13 semanas.
+// Titulacao Tirzepatida 2,5 -> 5 -> 7,5 mg. Aderencia ~88% proteina.
+// Semana 8 amarela de proposito (viagem, prot 60%, treinos 0). Recupera 9.
+// Marco -10kg na semana 11.
+//
+// Tambem cria pro-demo "Dra. Ana" (nutricionista) vinculada a Mariana +
+// 2 pacientes-sombra (Joao verde, Carla vermelha) pro semaforo do pro.html
+// ter vida nas gravacoes.
+const DEMO_EMAIL = 'demo@sanova.app';
+const DEMO_PRO_EMAIL = 'dra.ana.demo@sanova.app';
+const DEMO_SOMBRA_JOAO_EMAIL = 'joao.demo@sanova.app';
+const DEMO_SOMBRA_CARLA_EMAIL = 'carla.demo@sanova.app';
+
+async function _criarOuEncontrarUser(email, env) {
+  let userId = await findUserByEmail(email, env);
+  if (userId) {
+    // Rotaciona senha pra invalidar antigas
+    const novaSenha = crypto.randomUUID();
+    await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users/' + userId,
+      {
+        method: 'PUT',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: novaSenha }),
+      }
+    ).catch(() => {});
+    return userId;
+  }
+  const senha = crypto.randomUUID();
+  const r = await fetch(
+    'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users',
+    {
+      method: 'POST',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password: senha, email_confirm: true }),
+    }
+  );
+  const d = await r.json().catch(() => ({}));
+  return d.id;
+}
+
+function _buildMarianaState(userId) {
+  const hoje = new Date();
+  const dStr = (d) => d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+  const minusDias = (n) => { const x = new Date(hoje); x.setDate(x.getDate() - n); return x; };
+
+  const TOTAL_DIAS = 91; // 13 semanas
+  // Curva de peso: 96 → 84,2 em 91 dias, ~0,9 kg/semana, oscilacao diaria +-0,3
+  const pesos = [];
+  const inicio = 96.0;
+  const fim = 84.2;
+  const ritmoDia = (inicio - fim) / TOTAL_DIAS;
+  for (let i = TOTAL_DIAS; i >= 0; i -= 2) {  // pesa a cada 2 dias (4-5x/sem)
+    const baseDia = i;
+    const peso = inicio - ritmoDia * (TOTAL_DIAS - baseDia);
+    // Oscilacao diaria (pseudo-determinista pra idempotencia)
+    const osc = ((baseDia * 7919) % 100 - 50) / 100 * 0.6;
+    pesos.push({ date: dStr(minusDias(baseDia)), weight: Math.round((peso + osc) * 10) / 10 });
+  }
+
+  // Daily: refeicoes com prot/kcal por item, aderencia ~88%
+  const daily = [];
+  const semanasTitulacao = (dia) => {
+    const semana = Math.floor((TOTAL_DIAS - dia) / 7);
+    if (semana < 4) return '2,5';
+    if (semana < 8) return '5';
+    return '7,5';
+  };
+  const ehSemana8Amarela = (dia) => {
+    const semana = Math.floor((TOTAL_DIAS - dia) / 7);
+    return semana === 7;  // semana 8 (idx 7) é viagem
+  };
+  for (let i = TOTAL_DIAS - 1; i >= 0; i--) {
+    const dataStr = dStr(minusDias(i));
+    const amarela = ehSemana8Amarela(i);
+    let refeicoes, proteinG, kcalConsumed, waterMl, exercicio;
+    if (amarela) {
+      // Viagem: prot ~60%, treinos 0, agua menor
+      refeicoes = [
+        { kcal: 580, proteina: 28, kcalFonte: 'estimado' },
+        { kcal: 720, proteina: 34, kcalFonte: 'estimado' },
+      ];
+      proteinG = 62; kcalConsumed = 1300; waterMl = 1400;
+      exercicio = 'nao';
+    } else {
+      // Normal: 3 refeicoes, ~105g prot, 4-5 treinos/sem
+      const aderencia = (i * 13) % 100 < 88;
+      const protMul = aderencia ? 1.0 : 0.65;
+      refeicoes = [
+        { kcal: 480, proteina: Math.round(38 * protMul), kcalFonte: 'estimado' },
+        { kcal: 620, proteina: Math.round(42 * protMul), kcalFonte: 'estimado' },
+        { kcal: 460, proteina: Math.round(28 * protMul), kcalFonte: 'estimado' },
+      ];
+      proteinG = refeicoes.reduce((s, r) => s + r.proteina, 0);
+      kcalConsumed = refeicoes.reduce((s, r) => s + r.kcal, 0);
+      waterMl = 2000 + ((i * 31) % 400);  // ~85% da meta (~2400)
+      // Treino resistido 2-3x/semana (dias 1, 3, 5 da semana)
+      const diaSem = i % 7;
+      exercicio = (diaSem === 1 || diaSem === 3 || diaSem === 5) ? 'musculacao' : 'nao';
+    }
+    // Sintomas: enjoo leve nas semanas 1-2 de cada titulacao
+    const sem = Math.floor((TOTAL_DIAS - i) / 7);
+    const sintomas = [];
+    if (sem === 0 || sem === 1 || sem === 4 || sem === 5 || sem === 8 || sem === 9) {
+      if ((i % 3) === 0) sintomas.push('enjoo_leve');
+    }
+    daily.push({
+      date: dataStr,
+      refeicoes,
+      proteinG,
+      kcalConsumed,
+      kcalFromPhoto: kcalConsumed,
+      kcalFromProt: 0,
+      waterMl,
+      exercicio,
+      sintomas,
+    });
+  }
+
+  // Aplicacoes: semanal, com 1 atraso de 1 dia na semana 7
+  const applications = [];
+  for (let sem = 0; sem < 13; sem++) {
+    const diasAtras = TOTAL_DIAS - 1 - sem * 7;
+    const atraso = (sem === 6) ? 1 : 0;  // semana 7 (idx 6): 1 dia atraso
+    const dose = sem < 4 ? '2.5' : sem < 8 ? '5' : '7.5';
+    applications.push({ date: dStr(minusDias(diasAtras - atraso)), dose });
+  }
+
+  return {
+    profile: {
+      name: 'Mariana',
+      sex: 'F', age: 38, heightCm: 165,
+      weightKg: pesos[pesos.length - 1].weight,
+      weightStartKg: 96.0,
+      weightGoalKg: 78.0,
+      atividade: 'Moderada', activityLevel: 'Moderada',
+      objetivo: 'emagrecer', exercicioResistido: true,
+      startDate: dStr(minusDias(TOTAL_DIAS)),
+    },
+    caneta: {
+      tipo: 'caneta_unica', farmaco: 'Tirzepatida', dose: semanasTitulacao(0),
+      freq: 'semanal', concRotuloMg: 5, concRotuloMl: 0.5, volumeFrasco: 0.5,
+      ultima: applications[applications.length - 1].date,
+    },
+    daily, weights: pesos,
+    applications,
+    insights: [],
+    // Marco -10kg na semana 11 (atingido)
+    marcos: [
+      { tipo: 'peso_perdido', valor: 10, atingidoEm: dStr(minusDias(TOTAL_DIAS - 77)) },
+    ],
+    ownedBy: userId,
+    updatedAt: Date.now(),
+    _meta: {
+      schemaVersion: 31,
+      seededByE2E: true,
+      seededAt: new Date().toISOString(),
+      fixture: 'demo-mariana-v1',
+    },
+  };
+}
+
+function _buildSombraJoaoState(userId) {
+  // Joao: verde, paciente exemplar (proteção alta, peso descendo)
+  const hoje = new Date();
+  const dStr = (d) => d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+  const minusDias = (n) => { const x = new Date(hoje); x.setDate(x.getDate() - n); return x; };
+
+  const daily = [];
+  for (let i = 13; i >= 0; i--) {
+    daily.push({
+      date: dStr(minusDias(i)),
+      refeicoes: [
+        { kcal: 520, proteina: 45, kcalFonte: 'estimado' },
+        { kcal: 680, proteina: 52, kcalFonte: 'estimado' },
+        { kcal: 480, proteina: 38, kcalFonte: 'estimado' },
+      ],
+      proteinG: 135, kcalConsumed: 1680, kcalFromPhoto: 1680, kcalFromProt: 0,
+      waterMl: 2800,
+      exercicio: (i % 7 === 1 || i % 7 === 3 || i % 7 === 5) ? 'musculacao' : 'nao',
+      sintomas: [],
+    });
+  }
+  const weights = [];
+  for (let i = 13; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 92.0 - (13 - i) * 0.15 });
+
+  return {
+    profile: {
+      name: 'João',
+      sex: 'M', age: 45, heightCm: 178,
+      weightKg: weights[weights.length - 1].weight,
+      weightStartKg: 105, weightGoalKg: 82,
+      activityLevel: 'Moderada', objetivo: 'emagrecer', exercicioResistido: true,
+      startDate: dStr(minusDias(180)),
+    },
+    caneta: { farmaco: 'Tirzepatida', dose: '7.5', freq: 'semanal', ultima: dStr(minusDias(2)) },
+    daily, weights, applications: [{ date: dStr(minusDias(2)), dose: '7.5' }],
+    insights: [], ownedBy: userId, updatedAt: Date.now(),
+    _meta: { schemaVersion: 31, fixture: 'demo-sombra-joao-v1' },
+  };
+}
+
+function _buildSombraCarlaState(userId) {
+  // Carla: vermelho, aderencia baixa (proteína 40%, peso parado)
+  const hoje = new Date();
+  const dStr = (d) => d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+  const minusDias = (n) => { const x = new Date(hoje); x.setDate(x.getDate() - n); return x; };
+
+  const daily = [];
+  for (let i = 13; i >= 0; i--) {
+    daily.push({
+      date: dStr(minusDias(i)),
+      refeicoes: [
+        { kcal: 400, proteina: 12, kcalFonte: 'estimado' },
+        { kcal: 580, proteina: 18, kcalFonte: 'estimado' },
+      ],
+      proteinG: 30, kcalConsumed: 980, kcalFromPhoto: 980, kcalFromProt: 0,
+      waterMl: 1200,
+      exercicio: 'nao',
+      sintomas: i < 4 ? ['enjoo_leve'] : [],
+    });
+  }
+  const weights = [];
+  for (let i = 13; i >= 0; i--) weights.push({ date: dStr(minusDias(i)), weight: 88.0 + ((i * 3) % 6) / 10 });
+
+  return {
+    profile: {
+      name: 'Carla',
+      sex: 'F', age: 52, heightCm: 162,
+      weightKg: weights[weights.length - 1].weight,
+      weightStartKg: 92, weightGoalKg: 75,
+      activityLevel: 'Sedentário', objetivo: 'emagrecer', exercicioResistido: false,
+      startDate: dStr(minusDias(60)),
+    },
+    caneta: { farmaco: 'Tirzepatida', dose: '5', freq: 'semanal', ultima: dStr(minusDias(5)) },
+    daily, weights, applications: [{ date: dStr(minusDias(5)), dose: '5' }],
+    insights: [], ownedBy: userId, updatedAt: Date.now(),
+    _meta: { schemaVersion: 31, fixture: 'demo-sombra-carla-v1' },
+  };
+}
+
+async function _upsertAppState(userId, state, env) {
+  return fetch(
+    'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/app_state?on_conflict=user_id',
+    {
+      method: 'POST',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({ user_id: userId, state }),
+    }
+  );
+}
+
+async function _ensureSubscriptionActive(userId, env) {
+  const sub = {
+    user_id: userId,
+    status: 'active',
+    trial_started_at: new Date().toISOString(),
+    trial_ends_at: new Date(Date.now() + 365 * 86400000).toISOString(),
+    subscription_started_at: new Date().toISOString(),
+    subscription_ends_at: new Date(Date.now() + 365 * 86400000).toISOString(),
+    mp_preapproval_id: 'demo-' + userId.slice(0, 8),
+  };
+  return fetch(
+    'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/subscriptions?on_conflict=user_id',
+    {
+      method: 'POST',
+      headers: {
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify(sub),
+    }
+  );
+}
+
+async function handleAdminSeedDemo(env) {
+  try {
+    // 1. Cria/encontra os 4 users
+    const marianaId = await _criarOuEncontrarUser(DEMO_EMAIL, env);
+    const proAnaId = await _criarOuEncontrarUser(DEMO_PRO_EMAIL, env);
+    const joaoId = await _criarOuEncontrarUser(DEMO_SOMBRA_JOAO_EMAIL, env);
+    const carlaId = await _criarOuEncontrarUser(DEMO_SOMBRA_CARLA_EMAIL, env);
+
+    if (!marianaId || !proAnaId || !joaoId || !carlaId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'falha_criar_users', ids: { marianaId, proAnaId, joaoId, carlaId } }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. App_state pra cada paciente
+    await _upsertAppState(marianaId, _buildMarianaState(marianaId), env);
+    await _upsertAppState(joaoId, _buildSombraJoaoState(joaoId), env);
+    await _upsertAppState(carlaId, _buildSombraCarlaState(carlaId), env);
+
+    // 3. Subscription ativa pra Mariana (camadas desbloqueadas)
+    await _ensureSubscriptionActive(marianaId, env);
+    await _ensureSubscriptionActive(joaoId, env);
+    await _ensureSubscriptionActive(carlaId, env);
+
+    // 4. Profissional Dra. Ana
+    const proExistente = await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/professionals?user_id=eq.' + encodeURIComponent(proAnaId) + '&select=id,invite_code',
+      {
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        },
+      }
+    );
+    const proArr = await proExistente.json().catch(() => []);
+    let proAnaProId;
+    let inviteCode;
+    if (Array.isArray(proArr) && proArr[0]) {
+      proAnaProId = proArr[0].id;
+      inviteCode = proArr[0].invite_code;
+    } else {
+      inviteCode = 'SAN-DEMO';
+      // Verifica colisao do invite_code
+      const colisao = await fetch(
+        'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/professionals?invite_code=eq.' + inviteCode + '&select=id',
+        { headers: { 'apikey': env.SUPABASE_SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY } }
+      );
+      const colArr = await colisao.json().catch(() => []);
+      if (Array.isArray(colArr) && colArr[0]) {
+        inviteCode = 'SAN-DEM2';
+      }
+      const ins = await fetch(
+        'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/professionals',
+        {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            user_id: proAnaId,
+            nome: 'Dra. Ana Souza',
+            tipo: 'nutricionista',
+            registro: 'CRN-3 12345',
+            titulo_exibido: 'Nutricionista clínica · CRN-3 12345',
+            invite_code: inviteCode,
+          }),
+        }
+      );
+      const insArr = await ins.json().catch(() => []);
+      proAnaProId = Array.isArray(insArr) && insArr[0] ? insArr[0].id : null;
+    }
+
+    // 5. Vincular Mariana + Joao + Carla a Dra. Ana
+    if (proAnaProId) {
+      for (const pacienteId of [marianaId, joaoId, carlaId]) {
+        await fetch(
+          'https://yjycpcydqfuvojfzwfvy.supabase.co/rest/v1/patient_links?on_conflict=professional_id,patient_user_id',
+          {
+            method: 'POST',
+            headers: {
+              'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates',
+            },
+            body: JSON.stringify({
+              professional_id: proAnaProId,
+              patient_user_id: pacienteId,
+              status: 'active',
+              consent_version: 'v1-2026-06',
+            }),
+          }
+        );
+      }
+    }
+
+    // 6. Magic link da Mariana (pro Bruno logar no celular)
+    const linkResp = await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/generate_link',
+      {
+        method: 'POST',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'magiclink',
+          email: DEMO_EMAIL,
+          options: { redirect_to: 'https://sanovaapp.github.io/sanova/' },
+        }),
+      }
+    );
+    const linkData = await linkResp.json().catch(() => ({}));
+
+    // Magic link da Dra. Ana (pro Bruno logar no pro.html no celular)
+    const linkProResp = await fetch(
+      'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/generate_link',
+      {
+        method: 'POST',
+        headers: {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'magiclink',
+          email: DEMO_PRO_EMAIL,
+          options: { redirect_to: 'https://sanovaapp.github.io/sanova/pro.html' },
+        }),
+      }
+    );
+    const linkProData = await linkProResp.json().catch(() => ({}));
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        demo: {
+          mariana: {
+            email: DEMO_EMAIL,
+            user_id: marianaId,
+            action_link: linkData.properties?.action_link || linkData.action_link,
+            fixture: 'demo-mariana-v1',
+          },
+          dra_ana: {
+            email: DEMO_PRO_EMAIL,
+            pro_id: proAnaProId,
+            invite_code: inviteCode,
+            action_link: linkProData.properties?.action_link || linkProData.action_link,
+          },
+          sombras: { joao: joaoId, carla: carlaId },
+        },
+      }, null, 2),
+      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+    );
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'seed_demo_failed', message: e.message, stack: e.stack }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
 async function handleAdminSeedFixtureCompleta(env) {
   const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
   try {
