@@ -1,0 +1,30 @@
+name: Enforce HTTPS no Pages (one-shot)
+
+# Workflow disparado manualmente pra ativar 'Enforce HTTPS' no GitHub Pages
+# do repo sanovaapp/sanova. Fable Turno 18.1 (12/06/2026): cert TLS de
+# sanova.app.br ja' provisionado, falta o toggle ser ativado.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  pages: write
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PUT /repos/.../pages https_enforced=true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          echo "Estado ANTES:"
+          gh api repos/${{ github.repository }}/pages --jq '{custom_domain, https_enforced, status}'
+          echo ""
+          echo "Aplicando https_enforced=true..."
+          gh api -X PUT repos/${{ github.repository }}/pages \
+            -F https_enforced=true || (echo "PUT falhou"; exit 1)
+          sleep 3
+          echo "Estado DEPOIS:"
+          gh api repos/${{ github.repository }}/pages --jq '{custom_domain, https_enforced, status}'
