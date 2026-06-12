@@ -256,15 +256,23 @@ function viewProPanel() {
     }).join('');
   }
 
+  const foto = pro.foto_url
+    ? `<img src="${escapeHtml(pro.foto_url)}" style="width:62px;height:62px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(134,239,172,.4)">`
+    : `<div style="width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0a3a20);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0;font-size:24px">${avatarLetter(pro.nome)}</div>`;
+
   return `
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:8px">
-        <div>
-          <h2 class="card-title">${nome}</h2>
-          <p class="card-sub" style="margin-bottom:0">${titulo}</p>
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+          ${foto}
+          <div style="min-width:0">
+            <h2 class="card-title" style="margin-bottom:2px">${nome}</h2>
+            <p class="card-sub" style="margin-bottom:0">${titulo}</p>
+          </div>
         </div>
-        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:11px" onclick="logout()">Sair</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:11px;flex-shrink:0" onclick="logout()">Sair</button>
       </div>
+      <button class="btn btn-ghost" style="font-size:12px;padding:8px" onclick="abrirUploadFoto()">${pro.foto_url ? '🖼️ Trocar foto / logo' : '📷 Enviar foto / logo'}</button>
     </div>
 
     <div class="invite-box">
@@ -406,6 +414,72 @@ function voltarParaLista() {
   state.selectedLinkId = null;
   state.patientDetail = null;
   setView('pro-panel');
+}
+
+function abrirUploadFoto() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.setAttribute('data-modal', 'upload');
+  ov.innerHTML = `
+    <div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:16px;padding:22px 18px;max-width:420px;width:100%">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-family:Georgia,serif;font-size:18px;font-weight:500;color:#fff">📷 Enviar imagem</div>
+        <button onclick="this.closest('[data-modal]').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:12.5px;color:rgba(255,255,255,.7);line-height:1.5;margin-bottom:14px">JPG, PNG ou WebP, máximo 2MB. A imagem aparece pro paciente no Painel dele.</div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Tipo</label>
+        <select id="upKind" style="width:100%;padding:11px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.18);background:#fff;color:#041b0d;font-size:14px">
+          <option value="foto">Foto pessoal</option>
+          <option value="logo">Logo da clínica/marca</option>
+        </select>
+      </div>
+      <input id="upFile" type="file" accept="image/jpeg,image/png,image/webp" style="width:100%;font-size:12.5px;color:rgba(255,255,255,.7);margin-bottom:14px">
+      <button onclick="confirmarUploadFoto()" class="btn btn-primary">Enviar</button>
+      <div id="upMsg" style="margin-top:10px"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+}
+
+async function confirmarUploadFoto() {
+  const kind = $('upKind').value;
+  const file = $('upFile').files[0];
+  const msg = $('upMsg');
+  if (!file) {
+    msg.innerHTML = `<div class="alert alert-err">Selecione uma imagem.</div>`;
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    msg.innerHTML = `<div class="alert alert-err">Imagem maior que 2MB. Reduza antes.</div>`;
+    return;
+  }
+  msg.innerHTML = `<div class="alert alert-info"><div class="loader"></div> Enviando…</div>`;
+  try {
+    const data_base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',').pop());
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    const r = await apiCall('/api/pro-assets', {
+      method: 'POST',
+      body: JSON.stringify({ kind, data_base64, content_type: file.type }),
+    });
+    msg.innerHTML = `<div class="alert alert-ok">✓ Imagem enviada</div>`;
+    // Atualiza state.pro
+    state.pro[kind + '_url'] = r.url;
+    setTimeout(() => {
+      document.querySelector('[data-modal="upload"]').remove();
+      render();
+    }, 800);
+  } catch (e) {
+    const err = e.data && e.data.error === 'arquivo_grande' ? 'Imagem grande demais (max 2MB).'
+              : e.data && e.data.error === 'tipo_nao_suportado' ? 'Tipo não suportado. Use JPG, PNG ou WebP.'
+              : 'Erro: ' + e.message;
+    msg.innerHTML = `<div class="alert alert-err">${escapeHtml(err)}</div>`;
+  }
 }
 
 async function logout() {

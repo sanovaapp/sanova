@@ -6248,7 +6248,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.29';
+var SANOVA_VERSION = '3.10.30';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -16258,22 +16258,31 @@ function renderChartSemanal(){
 
   if(!sorted.length){if(chartSemanal){chartSemanal.destroy();chartSemanal=null;}return;}
 
-  // Labels: datas reais em DD/MM
-  var labels=sorted.map(function(w){var p=w.date.split('-');return p[2]+'/'+p[1];});
-  var values=sorted.map(function(w){return w.weight;});
-  // Média móvel 7 dias
-  var ma7=sorted.map(function(w,i,arr){
-    var sl=arr.slice(Math.max(0,i-6),i+1);
-    return rd(sl.reduce(function(s,x){return s+x.weight;},0)/sl.length,1);
+  // v3.10.30 (Fable P2 #9): eixo X linear baseado em dias reais desde a
+  // primeira pesagem. Antes labels eram categoricas — uma pesagem feita 5
+  // dias depois da anterior aparecia visualmente igual a outra feita 1 dia
+  // depois, distorcendo a leitura clinica de ritmo de perda.
+  function _dStrToDate(s){var p=s.split('-');return new Date(+p[0], +p[1]-1, +p[2]);}
+  var t0 = _dStrToDate(sorted[0].date).getTime();
+  var diaMs = 86400000;
+  var valuesXY = sorted.map(function(w){
+    return { x: (_dStrToDate(w.date).getTime() - t0) / diaMs, y: w.weight, _date: w.date };
   });
+  // Média móvel 7 dias mantém o mesmo X
+  var ma7XY = sorted.map(function(w,i,arr){
+    var sl=arr.slice(Math.max(0,i-6),i+1);
+    var avg = sl.reduce(function(s,x){return s+x.weight;},0)/sl.length;
+    return { x: (_dStrToDate(w.date).getTime() - t0) / diaMs, y: rd(avg,1) };
+  });
+  var values=sorted.map(function(w){return w.weight;});
   var minVal=Math.min.apply(null,values);
   var maxVal=Math.max.apply(null,values);
+  var maxX = valuesXY.length ? valuesXY[valuesXY.length-1].x : 0;
   var data={
-    labels:labels,
     datasets:[
       {
         label:'Peso real',
-        data:values,
+        data:valuesXY,
         borderColor:'rgba(34,197,94,1)',
         backgroundColor:'rgba(34,197,94,0.08)',
         borderWidth:2.5,
@@ -16286,7 +16295,7 @@ function renderChartSemanal(){
       },
       {
         label:'Média 7 dias',
-        data:ma7,
+        data:ma7XY,
         borderColor:'rgba(74,222,128,0.8)',
         backgroundColor:'transparent',
         borderWidth:2,
@@ -16299,9 +16308,33 @@ function renderChartSemanal(){
   };
   var opts={
     responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.parsed.y+' kg';}}}},
+    parsing: false,  // dados ja em {x,y}
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{
+        title:function(items){
+          if(!items.length) return '';
+          var x = items[0].parsed.x;
+          var d = new Date(t0 + x*diaMs);
+          return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+        },
+        label:function(ctx){return ctx.dataset.label+': '+ctx.parsed.y+' kg';}
+      }}
+    },
     scales:{
-      x:{grid:{display:false},ticks:{font:{size:10},color:'#6b8f77',maxTicksLimit:8}},
+      x:{
+        type:'linear',
+        min: 0,
+        max: maxX,
+        grid:{display:false},
+        ticks:{
+          font:{size:10}, color:'#6b8f77', maxTicksLimit:8,
+          callback:function(v){
+            var d = new Date(t0 + v*diaMs);
+            return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2);
+          }
+        }
+      },
       y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},color:'#6b8f77',callback:function(v){return v+'kg';}},
          min:Math.max(0,rd(minVal-1.5,0)),max:rd(maxVal+1.5,0)}
     }

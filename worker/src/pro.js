@@ -460,6 +460,79 @@ export async function handleLinkProfessional(request, env, origin) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// POST /api/pro-assets   (pro envia foto/logo)
+//   Body: { kind: 'foto' | 'logo', data_base64: '...', content_type: 'image/jpeg' }
+//   Limita pra 2MB depois de decode. Salva em bucket 'pro-assets' como
+//   {pro_id}/{kind}.{ext}. Atualiza professionals.foto_url ou logo_url.
+// ════════════════════════════════════════════════════════════════════
+export async function handleProAssets(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const ctx = await requirePro(request, env, origin);
+  if (ctx.error) return ctx.error;
+
+  let body;
+  try { body = await request.json(); } catch { body = {}; }
+  const kind = body.kind === 'logo' ? 'logo' : 'foto';
+  const contentType = body.content_type || 'image/jpeg';
+  const dataB64 = (body.data_base64 || '').replace(/^data:[^;]+;base64,/, '');
+  if (!dataB64) return jsonResponse({ ok: false, error: 'no_data' }, 400, origin, env);
+  if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {
+    return jsonResponse({ ok: false, error: 'tipo_nao_suportado', detail: 'jpeg/png/webp' }, 400, origin, env);
+  }
+
+  // Decode + limite 2MB
+  let bytes;
+  try {
+    const bin = atob(dataB64);
+    bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  } catch {
+    return jsonResponse({ ok: false, error: 'base64_invalido' }, 400, origin, env);
+  }
+  if (bytes.length > 2 * 1024 * 1024) {
+    return jsonResponse({ ok: false, error: 'arquivo_grande', detail: 'max 2MB' }, 400, origin, env);
+  }
+
+  const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+  const objectPath = ctx.pro.id + '/' + kind + '.' + ext;
+
+  // Upload via Storage API (service_role). upsert=true sobrescreve.
+  const upUrl = SUPABASE_URL + '/storage/v1/object/pro-assets/' + objectPath;
+  const upResp = await fetch(upUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+      'Content-Type': contentType,
+      'x-upsert': 'true',
+      'cache-control': 'public, max-age=3600',
+    },
+    body: bytes,
+  });
+  if (!upResp.ok) {
+    const t = await upResp.text().catch(() => '');
+    return jsonResponse({ ok: false, error: 'upload_failed', status: upResp.status, detail: t.slice(0, 200) }, 500, origin, env);
+  }
+
+  // URL pública (bucket é public)
+  const publicUrl = SUPABASE_URL + '/storage/v1/object/public/pro-assets/' + objectPath + '?v=' + Date.now();
+  const patch = {};
+  patch[kind + '_url'] = publicUrl;
+  const patchResp = await fetch(SUPABASE_URL + '/rest/v1/professionals?id=eq.' + encodeURIComponent(ctx.pro.id), {
+    method: 'PATCH',
+    headers: svcHeaders(env),
+    body: JSON.stringify(patch),
+  });
+  if (!patchResp.ok) {
+    return jsonResponse({ ok: false, error: 'patch_failed' }, 500, origin, env);
+  }
+
+  return jsonResponse({ ok: true, kind, url: publicUrl }, 200, origin, env);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // GET /api/my-professionals   (paciente lista pros vinculados ativos)
 // ════════════════════════════════════════════════════════════════════
 export async function handleMyProfessionals(request, env, origin) {
