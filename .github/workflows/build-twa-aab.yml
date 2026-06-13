@@ -1,14 +1,8 @@
 name: Build TWA AAB (Bubblewrap)
 
-# Bruno pediu o caminho automatico (tudo via Code, sem PWABuilder UI).
-# Bubblewrap CLI do Google gera o AAB do TWA a partir do manifest.json.
-# Gera debug.keystore aleatoria, builda AAB, extrai SHA-256 fingerprint,
-# atualiza assetlinks.json automaticamente, sobe AAB como artifact.
-#
-# Bruno baixa o AAB do artifact e faz upload manual no Play Console
-# (1 caminho onde fisicamente precisa do navegador dele autenticado).
-#
-# Re-rodar = re-gera AAB + nova fingerprint. Idempotente.
+# v2: setup-android com licenses aceitas + Bubblewrap usa SDK existente
+# em vez de tentar baixar proprio (que travava por T&C nao assinado).
+# Inicializa o projeto sem prompt interativo via twa-manifest.json pre-feito.
 
 on:
   workflow_dispatch:
@@ -42,44 +36,57 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK + accept licenses
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: Mostra ANDROID_HOME e licenses
+        run: |
+          set -e
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la $ANDROID_HOME/licenses 2>/dev/null || echo "sem dir licenses"
+          which sdkmanager || true
+
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli@latest
-
-      - name: Configura Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Gera debug keystore aleatoria
         run: |
           set -e
           mkdir -p twa-build
           cd twa-build
-          STORE_PWD=$(openssl rand -base64 24)
-          KEY_PWD=$(openssl rand -base64 24)
+          STORE_PWD=$(openssl rand -base64 24 | tr -d '/+=')
+          KEY_PWD=$(openssl rand -base64 24 | tr -d '/+=')
           echo "STORE_PWD=$STORE_PWD" >> $GITHUB_ENV
           echo "KEY_PWD=$KEY_PWD" >> $GITHUB_ENV
-          keytool -genkey -v \
+          keytool -genkeypair \
             -keystore android.keystore \
+            -storepass "$STORE_PWD" \
+            -keypass "$KEY_PWD" \
             -alias android \
             -keyalg RSA -keysize 2048 \
             -validity 36500 \
-            -storepass "$STORE_PWD" \
-            -keypass "$KEY_PWD" \
-            -dname "CN=Sanova, OU=Sanova, O=Sanova, L=Belo Horizonte, S=MG, C=BR"
+            -dname "CN=Sanova, OU=Sanova, O=Sanova, L=BeloHorizonte, ST=MG, C=BR"
           # Extrai SHA-256 fingerprint pra cravar no assetlinks
           FP=$(keytool -list -v -keystore android.keystore -alias android -storepass "$STORE_PWD" \
             | grep "SHA256:" | head -1 | sed 's/.*SHA256: //' | tr -d ' \t\r\n')
           echo "[SHA256] $FP"
           echo "SHA256_FP=$FP" >> $GITHUB_ENV
 
-      - name: Bubblewrap init + build
+      - name: Bubblewrap init com twa-manifest pre-feito
         env:
           STORE_PWD: ${{ env.STORE_PWD }}
           KEY_PWD: ${{ env.KEY_PWD }}
         run: |
           set -e
           cd twa-build
-          # twa-manifest.json gerado pelo Bubblewrap (config TWA)
-          cat > twa-manifest.json <<'EOF'
+          # twa-manifest.json com config TWA — Bubblewrap aceita esse formato
+          # via --twaManifest flag, evitando prompt interativo de init.
+          cat > twa-manifest.json <<EOF
           {
             "packageId": "br.app.sanova",
             "host": "sanova.app.br",
@@ -121,12 +128,38 @@ jobs:
             "fingerprints": []
           }
           EOF
-          # Inicializa projeto Bubblewrap (cria pasta android)
-          export ANDROID_HOME=$ANDROID_SDK_ROOT
-          yes "" | bubblewrap init --manifest=https://sanova.app.br/manifest.json --directory=. || true
-          # Sobrescreve com nosso twa-manifest.json (force config)
-          # Build AAB
-          bubblewrap build --skipPwaValidation || (echo "build falhou — tentando ./gradlew bundleRelease" && cd app && ./gradlew bundleRelease)
+          # Cria llama.config.json apontando pro Android SDK + JDK existentes
+          mkdir -p $HOME/.llama
+          cat > $HOME/.llama/llama-config.json <<EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_HOME"
+          }
+          EOF
+          # bubblewrap usa $HOME/.bubblewrap/config.json
+          mkdir -p $HOME/.bubblewrap
+          cat > $HOME/.bubblewrap/config.json <<EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_HOME"
+          }
+          EOF
+          echo "config bubblewrap:"
+          cat $HOME/.bubblewrap/config.json
+
+      - name: Bubblewrap build (non-interactive)
+        env:
+          STORE_PWD: ${{ env.STORE_PWD }}
+          KEY_PWD: ${{ env.KEY_PWD }}
+        run: |
+          set -e
+          cd twa-build
+          # bubblewrap build com a config previa, sem prompts.
+          # --skipPwaValidation evita ping na rede que pode falhar
+          bubblewrap build \
+            --skipPwaValidation \
+            --signingKeyPath=./android.keystore \
+            --signingKeyAlias=android 2>&1 | tee build.log || (echo "build falhou"; tail -80 build.log; exit 1)
 
       - name: Localiza AAB gerado
         id: locate
@@ -135,7 +168,7 @@ jobs:
           AAB_PATH=$(find twa-build -name "*.aab" -type f | head -1)
           if [ -z "$AAB_PATH" ]; then
             echo "[FAIL] AAB nao encontrado"
-            find twa-build -type f -name "*.aab" -o -name "*.apk" | head -20
+            find twa-build -type f \( -name "*.aab" -o -name "*.apk" \) | head -20
             exit 1
           fi
           echo "AAB encontrado: $AAB_PATH"
@@ -180,18 +213,19 @@ jobs:
           retention-days: 30
 
       - name: Resumo
+        if: always()
         run: |
           {
             echo "## TWA AAB build"
             echo ""
             echo "**Package**: br.app.sanova"
-            echo "**SHA-256 fingerprint**: \`${{ env.SHA256_FP }}\`"
+            echo "**SHA-256 fingerprint (debug keystore)**: \`${{ env.SHA256_FP }}\`"
             echo ""
             echo "**Download do AAB**: aba 'Artifacts' acima → \`sanova-twa-aab\` → \`sanova-twa.aab\`"
             echo ""
             echo "**Próximo passo Bruno**: upload do AAB no Play Console → app br.app.sanova → Releases → Internal testing → Create new release → drag & drop do .aab."
             echo ""
-            echo "ATENÇÃO: o Play Console vai REASSINAR o AAB com a key do Google Play App Signing."
-            echo "A SHA-256 REAL vai aparecer no painel do Play Console (App signing key certificate)."
+            echo "ATENÇÃO: Play App Signing vai REASSINAR o AAB com a key do Google."
+            echo "A SHA-256 REAL final aparece no painel do Play Console (App signing key certificate)."
             echo "Quando Bruno colar essa SHA-256 REAL no canal, re-cravo no assetlinks.json."
           } >> $GITHUB_STEP_SUMMARY
