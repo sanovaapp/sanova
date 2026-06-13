@@ -39,9 +39,22 @@ jobs:
       - name: Setup Android SDK + accept licenses
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0'
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0 cmdline-tools;latest'
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
+
+      - name: Bubblewrap doctor (diagnostico SDK)
+        run: |
+          set -e
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          which sdkmanager && sdkmanager --version || echo "sdkmanager NAO encontrado"
+          ls -la $ANDROID_HOME/
+          echo "---"
+          # Aceita licenses de novo por garantia
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          # Bubblewrap doctor diagnostica antes do build
+          npm install -g @bubblewrap/cli@latest
+          bubblewrap doctor || echo "(doctor reportou problema; seguimos)"
 
       - name: Mostra ANDROID_HOME e licenses
         run: |
@@ -50,9 +63,6 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           ls -la $ANDROID_HOME/licenses 2>/dev/null || echo "sem dir licenses"
           which sdkmanager || true
-
-      - name: Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli@latest
 
       - name: Gera debug keystore aleatoria
         run: |
