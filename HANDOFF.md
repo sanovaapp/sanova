@@ -140,6 +140,33 @@ BRUNO SÓ TOCA EM:
 Se sandbox bloqueia uma chamada externa, use GitHub Action workflow_dispatch
 como gateway — o servidor do GitHub tem internet livre.
 
+🚨 REFORÇO 16/06/2026 — Bruno cravou no chat após eu sugerir upload manual de
+AAB no Play Console (5 cliques): "Qualquer mínima possibilidade de automação
+deve ser sugerida. Eu pago o code porque não sei programar. Isso é muito
+trabalhoso e consome horas de criação."
+
+INTERPRETAÇÃO LITERAL:
+  - "5 cliques manuais" NÃO é aceitável se existir caminho automatizado
+  - Mesmo que automação custe 30 min de setup inicial (PR + workflow + secret),
+    se elimina cliques recorrentes futuros, FAZ a automação. Bruno paga pra eu
+    economizar horas dele, não pra eu economizar horas minhas.
+  - Sugestão de automação vem PRIMEIRO; manual é fallback se Bruno disser
+    "deixa pra próxima, faz manual agora".
+  - Padrão de hoje: GitHub Secret + workflow_dispatch consumindo secret é o
+    template canônico (já usado em ADMIN_OVERRIDE_TOKEN do mp-sandbox-helper).
+    Replicar pra qualquer credencial externa nova (Google Play API service
+    account, MP produção, etc).
+
+EXEMPLOS DO QUE EU DEVIA TER PROPOSTO PRIMEIRO (não esperar Bruno cobrar):
+  - Upload AAB Play Console → Service Account JSON em secret + workflow
+    chamando Google Play Developer API (`androidpublisher.edits.tracks.update`
+    + `androidpublisher.edits.bundles.upload`)
+  - Configurar custom domain UI no GitHub Pages → PAT scope admin:repo em
+    secret + PUT /repos/.../pages via workflow
+  - Criar testadores no Play Console → service account com escopo
+    "Manage testing tracks" + workflow API
+
+
 🔁 LOOP DE E2E AUTOMATIZADO (consolidado 04/06/2026):
 Pipeline pra debugar app sem depender de print do Bruno:
 1) mcp__github__actions_run_trigger pra workflow e2e-snapshot.yml com
