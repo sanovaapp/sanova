@@ -1,0 +1,58 @@
+name: Diagnose assetlinks 403
+
+# Workflow disparado pra investigar por que .well-known/assetlinks.json
+# retorna 403 mesmo com .nojekyll mergeado. Roda curl de varias URLs e
+# loga o resultado completo (status + headers + body).
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testa URLs do TWA + Pages
+        run: |
+          set +e  # nao para no erro pra rodar todos os testes
+          echo "## Diagnostico assetlinks · $(date -u +%FT%TZ)"
+          echo ""
+
+          URLS=(
+            "https://sanova.app.br/"
+            "https://sanova.app.br/.well-known/assetlinks.json"
+            "https://sanova.app.br/CNAME"
+            "https://sanova.app.br/index.html"
+            "https://sanovaapp.github.io/sanova/.well-known/assetlinks.json"
+            "https://sanovaapp.github.io/sanova/"
+            "https://sanovaapp.github.io/.well-known/assetlinks.json"
+            "https://sanovaapp.github.io/sanova/.nojekyll"
+            "https://sanovaapp.github.io/.nojekyll"
+          )
+
+          for URL in "${URLS[@]}"; do
+            echo "### $URL"
+            STATUS=$(curl -sS -o /tmp/body -w "%{http_code}" -L --max-time 15 "$URL")
+            echo "HTTP $STATUS"
+            echo "Tamanho body: $(wc -c < /tmp/body) bytes"
+            head -c 300 /tmp/body | sed 's/$/\\n/' | tr -d '\n'
+            echo ""
+            echo "---"
+          done
+
+      - name: Estado Pages via API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          echo "## Estado Pages"
+          gh api repos/${{ github.repository }}/pages \
+            --jq '{cname, custom_domain, https_enforced, status, source, build_type, html_url, public}'
+
+      - name: Lista arquivos publicados pelo Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          echo "## Ultimo deploy do Pages"
+          gh api repos/${{ github.repository }}/pages/builds/latest \
+            --jq '{status, error: .error.message, commit, created_at, updated_at}'
