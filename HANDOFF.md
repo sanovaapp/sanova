@@ -22,6 +22,25 @@
 
    APLICAÇÃO: detalhamento em "REGRA INVIOLÁVEL DE AUTOMAÇÃO" mais abaixo.
 
+🧪 AUTORIZAÇÃO AMPLA — TESTE DE 10 SESSÕES (cravada 17/06/2026 BRT):
+   Bruno, transcrição literal: "Vou te testar. As próximas 10 sessões já
+   tem autorização prévia. Pare só se precisar de uma chave que não tenha
+   ou não consegue resolver sem mim. A ideia agora é independência. Me
+   chama para o impossível para você."
+
+   APLICAÇÃO:
+   - Code DECIDE técnicamente sem pedir aprovação a cada PR.
+   - Mudanças de UI/visual/copy: Code pode propor e cravar; Bruno revoga
+     se não gostar (a regra "nada é pra sempre" segue).
+   - PARAR e chamar Bruno SOMENTE pra:
+     · Credencial / chave que só ele consegue criar (Service Account JSON,
+       PAT do GitHub, cartão de crédito, conta nova em serviço)
+     · Decisão IRREVERSÍVEL ou cara (delete de dados de paciente real,
+       publicar versão na Play Store em produção, transferir domínio)
+     · Quando o caminho está fisicamente bloqueado (login pessoal em UI
+       que exige biometria/SMS do telefone dele)
+   - Conta as 10 sessões a partir de 17/06/2026.
+
 🕐 PROTOCOLO TEMPORAL (cravada 17/06/2026 — Bruno cobrou no chat):
    - **Fuso oficial do projeto: Brasília (UTC-3).** Quando logar horários
      ou prazos, usar BRT. Sufixo opcional "UTC" se for ambíguo.
