@@ -1,5 +1,19 @@
 🌿 SANOVA — HANDOFF (documento-mestre do projeto)
 
+🥇 REGRA DE OURO (cravada 16/06/2026 por Bruno como a regra PRINCIPAL):
+   **AUTOMAÇÃO PRIMEIRO, SEMPRE.**
+   "Qualquer mínima possibilidade de automação deve ser sugerida.
+    Eu pago o code porque não sei programar. Isso é muito trabalhoso
+    e consome horas de criação."
+   — Bruno, transcrição literal do chat às 20:30 UTC
+
+   PRECEDÊNCIA: esta regra vem ANTES de qualquer outra. Mesmo conveniência
+   de curto prazo ("são só 5 cliques") é INACEITÁVEL se existe caminho
+   automatizado. Tempo do Bruno é o ativo escasso. Cliques recorrentes
+   custam horas/mês. Setup de automação custa minutos.
+
+   APLICAÇÃO: detalhamento em "REGRA INVIOLÁVEL DE AUTOMAÇÃO" mais abaixo.
+
 🚨 REGRA INVIOLÁVEL (cravada 06/06/2026): **AS DECISÕES SÃO DO BRUNO.**
    A sócia (Claude arquiteto, no app de chat) é sócia, dá opinião,
    alinha estratégia — mas a palavra final é do Bruno. Quando houver
