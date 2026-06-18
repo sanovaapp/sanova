@@ -1,0 +1,341 @@
+name: Prints PRO — pacote visual com cenas pro.html
+
+# Workflow paralelo ao npm-prints. Roda admin-seed-demo (Mariana + Dra. Ana
+# + sombras Joao/Carla) e captura:
+#   App da paciente Mariana com co-branding visivel
+#   pro.html da Dra. Ana com semaforo dos 3 pacientes
+#   Ficha da Mariana (semana 8 amarela do enredo)
+#
+# Push pra branch separada 'prints-pro-latest' (nao toca prints-latest do
+# fluxo principal). Fable cobrou no Turno 24: 'auditoria nº1 pendente'.
+
+on:
+  workflow_dispatch: {}
+
+env:
+  SANOVA_ORIGIN: https://sanova.app.br
+  WORKER_BASE: https://sanova-api.contatosanovaapp.workers.dev
+
+jobs:
+  prints-pro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y > /dev/null
+          npm install -D @playwright/test@1.49.0
+          npx playwright install --with-deps chromium
+
+      - name: Seed demo (Mariana + Dra. Ana + Joao + Carla)
+        id: seed
+        env:
+          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+        run: |
+          set -e
+          echo "== admin-seed-demo =="
+          RAW=$(curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" \
+            "$WORKER_BASE/api/admin-seed-demo")
+          echo "$RAW" | head -c 1500
+          echo
+
+          MARIANA_LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('demo',{}).get('mariana',{}).get('action_link',''))")
+          PRO_LINK=$(echo "$RAW" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('demo',{}).get('dra_ana',{}).get('action_link',''))")
+          if [ -z "$MARIANA_LINK" ] || [ -z "$PRO_LINK" ]; then
+            echo "Erro: links nao retornados"; echo "$RAW"; exit 1
+          fi
+          echo "mariana_link=$MARIANA_LINK" >> $GITHUB_OUTPUT
+          echo "pro_link=$PRO_LINK" >> $GITHUB_OUTPUT
+          echo "[ok] 2 links extraidos"
+
+      - name: Captura cenas pro
+        env:
+          MARIANA_LINK: ${{ steps.seed.outputs.mariana_link }}
+          PRO_LINK: ${{ steps.seed.outputs.pro_link }}
+          SANOVA_ORIGIN: ${{ env.SANOVA_ORIGIN }}
+        run: |
+          set -o pipefail
+          mkdir -p prints-pro
+          cat > prints-pro.mjs <<'PWEND'
+          import { chromium } from '@playwright/test';
+
+          const ORIGIN = process.env.SANOVA_ORIGIN || 'https://sanova.app.br';
+          const MAGIC_MARIANA = process.env.MARIANA_LINK;
+          const MAGIC_PRO = process.env.PRO_LINK;
+
+          if (!MAGIC_MARIANA || !MAGIC_PRO) {
+            console.error('Magic links vazios'); process.exit(1);
+          }
+
+          const browser = await chromium.launch();
+
+          // Helper pra criar context fresco
+          async function newContext() {
+            return browser.newContext({
+              viewport: { width: 412, height: 915 },
+              deviceScaleFactor: 2,
+              userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+              locale: 'pt-BR',
+            });
+          }
+
+          const erros = [];
+          function attachErrors(page, label) {
+            page.on('pageerror', e => {
+              const entry = { label, msg: e.message, stack: (e.stack || '').slice(0, 600), when: new Date().toISOString() };
+              erros.push(entry);
+              console.log('[pageerror]', label, entry.msg);
+            });
+          }
+
+          let N = 1;
+          async function snap(page, name) {
+            // expande accordions e details antes do snap
+            await page.evaluate(() => {
+              try {
+                document.querySelectorAll('details').forEach(d => d.open = true);
+                document.querySelectorAll('[aria-expanded="false"]').forEach(el => {
+                  try { el.click(); } catch (e) {}
+                });
+              } catch(e) {}
+            });
+            await page.waitForTimeout(500);
+            const path = `prints-pro/${String(N++).padStart(2,'0')}-${name}.png`;
+            await page.screenshot({ path, fullPage: true });
+            console.log('Snap:', path);
+          }
+
+          // ───────────────────────────────────────────────────────
+          // CENAS DO APP PACIENTE — Mariana com co-branding
+          // ───────────────────────────────────────────────────────
+          console.log('=== App paciente (Mariana) ===');
+          const ctxMariana = await newContext();
+          const pageMariana = await ctxMariana.newPage();
+          attachErrors(pageMariana, 'mariana');
+
+          await pageMariana.goto(MAGIC_MARIANA, { waitUntil: 'load', timeout: 45000 });
+          await pageMariana.waitForTimeout(6000);
+          const hash1 = await pageMariana.evaluate(() => location.hash);
+          if (!pageMariana.url().includes('/sanova') && !pageMariana.url().includes('sanova.app.br')) {
+            await pageMariana.goto(ORIGIN + '/' + (hash1 || ''), { waitUntil: 'load', timeout: 45000 });
+          }
+          await pageMariana.waitForTimeout(8000);
+
+          // Force-sync state (caso aoLogar nao tenha completado)
+          const diag1 = await pageMariana.evaluate(async () => {
+            try {
+              const sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+              if (!sb || !sb.auth) return { ok: false, motivo: 'sb_nao_existe' };
+              const userResp = await sb.auth.getUser();
+              const user = userResp && userResp.data && userResp.data.user;
+              if (!user) return { ok: false, motivo: 'sem_sessao' };
+              const r = await sb.from('app_state').select('state').eq('user_id', user.id).maybeSingle();
+              if (!r.data || !r.data.state) return { ok: false, motivo: 'state_vazio' };
+              localStorage.setItem('equilibra_v5', JSON.stringify(r.data.state));
+              localStorage.setItem('sanova_ativo', '1');
+              return { ok: true, bytes: JSON.stringify(r.data.state).length, profile: r.data.state.profile && r.data.state.profile.name };
+            } catch(e) { return { ok: false, erro: e.message }; }
+          });
+          console.log('=== Mariana force-sync ===');
+          console.log(JSON.stringify(diag1, null, 2));
+          if (!diag1.ok) {
+            console.error('[ABORT mariana] force-sync falhou:', diag1.motivo || diag1.erro);
+            process.exit(1);
+          }
+          await pageMariana.reload({ waitUntil: 'load', timeout: 30000 });
+          await pageMariana.waitForTimeout(5000);
+
+          // Aguarda co-branding aparecer
+          await pageMariana.evaluate(() => {
+            if (typeof carregarMeusPros === 'function') return carregarMeusPros();
+          }).catch(() => {});
+          await pageMariana.waitForTimeout(3000);
+
+          // Cena 1: Painel da Mariana com co-branding visível
+          await pageMariana.evaluate(() => { if (typeof go === 'function') go('home'); });
+          await pageMariana.waitForTimeout(2000);
+          await snap(pageMariana, 'mariana-painel-cobranding');
+
+          // Cena 2: Jornada da Mariana (mostra a curva 96 -> 84.2, semana 8 visivel)
+          await pageMariana.evaluate(() => { if (typeof go === 'function') go('jornadaAcomp'); });
+          await pageMariana.waitForTimeout(2500);
+          await snap(pageMariana, 'mariana-jornada-13semanas');
+
+          // Cena 3: Mais drawer com botao 'Profissional vinculado: Dra. Ana'
+          await pageMariana.evaluate(() => { if (typeof go === 'function') go('home'); });
+          await pageMariana.waitForTimeout(1500);
+          await pageMariana.evaluate(() => { if (typeof abrirMais === 'function') abrirMais(); });
+          await pageMariana.waitForTimeout(1000);
+          await snap(pageMariana, 'mariana-mais-pro-vinculado');
+
+          await ctxMariana.close();
+
+          // ───────────────────────────────────────────────────────
+          // CENAS DO PRO.HTML — Dra. Ana
+          // ───────────────────────────────────────────────────────
+          console.log('=== pro.html (Dra. Ana) ===');
+          const ctxPro = await newContext();
+          const pagePro = await ctxPro.newPage();
+          attachErrors(pagePro, 'dra-ana');
+
+          await pagePro.goto(MAGIC_PRO, { waitUntil: 'load', timeout: 45000 });
+          await pagePro.waitForTimeout(6000);
+
+          // Se nao caiu em /pro.html, navega manual
+          if (!pagePro.url().includes('/pro.html')) {
+            await pagePro.goto(ORIGIN + '/pro.html', { waitUntil: 'load', timeout: 45000 });
+            await pagePro.waitForTimeout(5000);
+          }
+
+          // Cena 4: Dashboard pro com semaforo (3 pacientes: Mariana 🟡 + Joao 🟢 + Carla 🔴)
+          await snap(pagePro, 'pro-dashboard-semaforo');
+
+          // Cena 5: Click na Mariana
+          const marianaClicked = await pagePro.evaluate(() => {
+            const rows = Array.from(document.querySelectorAll('.patient-row[data-link-id]'));
+            for (const r of rows) {
+              const nm = (r.querySelector('.patient-name') || {}).textContent || '';
+              if (/mariana/i.test(nm)) {
+                r.click();
+                return true;
+              }
+            }
+            return false;
+          });
+          if (marianaClicked) {
+            await pagePro.waitForTimeout(3000);
+            await snap(pagePro, 'pro-ficha-mariana');
+          } else {
+            console.log('[skip] Mariana nao encontrada no semaforo');
+          }
+
+          // Cena 6: Click na Carla (vermelha)
+          await pagePro.evaluate(() => {
+            const back = document.querySelector('.back-btn');
+            if (back) back.click();
+          });
+          await pagePro.waitForTimeout(1500);
+          const carlaClicked = await pagePro.evaluate(() => {
+            const rows = Array.from(document.querySelectorAll('.patient-row[data-link-id]'));
+            for (const r of rows) {
+              const nm = (r.querySelector('.patient-name') || {}).textContent || '';
+              if (/carla/i.test(nm)) { r.click(); return true; }
+            }
+            return false;
+          });
+          if (carlaClicked) {
+            await pagePro.waitForTimeout(2500);
+            await snap(pagePro, 'pro-ficha-carla-vermelha');
+          }
+
+          // Salva pageerrors
+          if (erros.length) {
+            const { writeFileSync } = await import('fs');
+            writeFileSync('prints-pro/_pageerrors.json', JSON.stringify(erros, null, 2));
+            console.log(`[!] ${erros.length} pageerror(s)`);
+          } else {
+            console.log('[ok] zero pageerrors');
+          }
+
+          await browser.close();
+          console.log('Done.');
+          PWEND
+          node prints-pro.mjs 2>&1 | tee prints-pro.log
+
+          PNG_COUNT=$(ls prints-pro/*.png 2>/dev/null | wc -l)
+          echo "[gate] $PNG_COUNT PNG(s) gerados"
+          if [ "$PNG_COUNT" -lt 4 ]; then
+            echo "::error::Pacote PRO incompleto: $PNG_COUNT PNGs (esperado >=4)"
+            exit 1
+          fi
+
+      - name: Hash check (deteca telas duplicadas)
+        run: |
+          set -e
+          cd prints-pro
+          declare -A hashes
+          for f in *.png; do
+            h=$(md5sum "$f" | awk '{print $1}')
+            hashes[$h]="${hashes[$h]:-} $f"
+          done
+          DUPLICADAS=0
+          for h in "${!hashes[@]}"; do
+            arr=(${hashes[$h]})
+            if [ "${#arr[@]}" -ge 2 ]; then
+              echo "[FAIL] $h: ${hashes[$h]}"
+              DUPLICADAS=$((DUPLICADAS + 1))
+            fi
+          done
+          if [ "$DUPLICADAS" -gt 0 ]; then
+            echo "::error::$DUPLICADAS grupos identicos"
+            exit 1
+          fi
+          echo "[ok] cada tela com hash unico"
+
+      - name: Empacotar zip
+        id: pack
+        run: |
+          STAMP=$(date -u +%Y%m%d-%H%M)
+          NAME="sanova-prints-pro-${STAMP}.zip"
+          (cd prints-pro && zip -qr "../$NAME" *.png _pageerrors.json 2>/dev/null || (cd prints-pro && zip -qr "../$NAME" *.png))
+          echo "zip_name=$NAME" >> $GITHUB_OUTPUT
+          ls -lh "$NAME"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack.outputs.zip_name || 'sanova-prints-pro' }}
+          path: |
+            ${{ steps.pack.outputs.zip_name }}
+            prints-pro/
+            prints-pro.log
+          retention-days: 14
+
+      - name: Force push pra branch orfao 'prints-pro-latest'
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -ex
+          WORK=$(mktemp -d)
+          cp -r prints-pro/. "$WORK/"
+          cd "$WORK"
+          git init
+          git checkout -b prints-pro-latest
+          git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" add .
+          git -c user.email="prints-bot@sanova.app" -c user.name="prints-bot" \
+            commit -m "prints-pro $(date -u +%FT%TZ) — run ${{ github.run_id }}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push --force origin HEAD:refs/heads/prints-pro-latest 2>&1
+          gh api repos/${{ github.repository }}/branches/prints-pro-latest --jq '.name + " @ " + .commit.sha'
+          echo "TARBALL URL: https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-pro-latest"
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Pacote visual PRO"
+            echo ""
+            echo "**Tarball codeload (pra Fable):**"
+            echo "https://codeload.github.com/${{ github.repository }}/tar.gz/refs/heads/prints-pro-latest"
+            echo ""
+            echo "### Arquivos"
+            ls -la prints-pro/ 2>/dev/null || echo "(sem prints)"
+            echo ""
+            echo "### Pageerrors"
+            if [ -f prints-pro/_pageerrors.json ]; then
+              cat prints-pro/_pageerrors.json
+            else
+              echo "(zero)"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
