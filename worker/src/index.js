@@ -1965,10 +1965,18 @@ const DEMO_SOMBRA_JOAO_EMAIL = 'joao.demo@sanova.app';
 const DEMO_SOMBRA_CARLA_EMAIL = 'carla.demo@sanova.app';
 
 async function _criarOuEncontrarUser(email, env) {
+  // v1.28.10: Conta-demo Mariana (demo@sanova.app) precisa de senha ESTAVEL
+  // pro "Detalhes do login" da Play Console (revisao do Google). Tras a
+  // senha de env.DEMO_REVIEW_PASSWORD (Cloudflare Worker secret) — se nao
+  // definido, cai no fluxo antigo (UUID aleatorio rotacionado).
+  // Demais demo accounts (Dra. Ana, Joao, Carla) seguem rotacionando — so'
+  // Mariana precisa ser logavel pelo revisor.
+  const senhaEstavel = (email === DEMO_EMAIL && env.DEMO_REVIEW_PASSWORD)
+    ? env.DEMO_REVIEW_PASSWORD : null;
+
   let userId = await findUserByEmail(email, env);
   if (userId) {
-    // Rotaciona senha pra invalidar antigas
-    const novaSenha = crypto.randomUUID();
+    const novaSenha = senhaEstavel || crypto.randomUUID();
     await fetch(
       'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users/' + userId,
       {
@@ -1983,7 +1991,7 @@ async function _criarOuEncontrarUser(email, env) {
     ).catch(() => {});
     return userId;
   }
-  const senha = crypto.randomUUID();
+  const senha = senhaEstavel || crypto.randomUUID();
   const r = await fetch(
     'https://yjycpcydqfuvojfzwfvy.supabase.co/auth/v1/admin/users',
     {
