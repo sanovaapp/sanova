@@ -414,7 +414,23 @@ async function abrirPaciente(linkId) {
   setView('patient');
   try {
     const r = await apiCall('/api/pro-patient?link_id=' + encodeURIComponent(linkId));
-    state.patientDetail = r.patient;
+    // Worker retorna { paciente, metricas: {'7d':{...}}, peso: {serie, delta_30d}, aplicacoes }.
+    // Flatena pro shape esperado por viewPatient() (nome, kcal_media, prot_media, ...).
+    const pac = r.paciente || r.patient || {};
+    const m7 = (r.metricas && (r.metricas['7d'] || r.metricas.semana)) || {};
+    const peso = r.peso || {};
+    const serie = Array.isArray(peso.serie) ? peso.serie : [];
+    state.patientDetail = {
+      nome: pac.nome,
+      email: pac.email,
+      medicamento: pac.medicamento,
+      ultima_dose_ha_dias: pac.ultima_dose_ha_dias,
+      peso_atual: serie.length ? Number(serie[serie.length - 1].kg) : null,
+      peso_delta_30d: typeof peso.delta_30d === 'number' ? peso.delta_30d : null,
+      kcal_media: m7.kcal || 0,
+      prot_media: m7.prot || 0,
+      estado_pm: (m7.estado && (m7.estado.estado || m7.estado)) || '—',
+    };
     render();
   } catch (e) {
     state.patientDetail = { nome: '(erro)', email: e.message };
