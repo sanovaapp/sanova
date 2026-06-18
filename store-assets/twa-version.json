@@ -14,11 +14,13 @@
     "versionName": "1.0.1",
     "versionCode": 2,
     "changelog": [
-      "Ícone trocado de wordmark pra folha verde estilizada (PR #192)",
-      "Co-branding nutricionista (já estava no app, captura visual no prints-pro-latest)",
-      "Cenas pro.html documentadas em prints-pro-latest"
+      "Ícone v2 fundo CLARO (Fable Turno 25) — folha verde protagonista, healthtech leve",
+      "Feature graphic v2 com tagline 'Emagreça protegendo o músculo' inteira",
+      "Fix dashboard pro.html que mostrava PACIENTES (0) — divergência pt/en no payload (PR #195)",
+      "Worker v1.28.9: endpoint debug admin-debug-pro-state pra diagnóstico (PR #194)",
+      "Co-branding nutricionista já no app (capturado em prints-pro-latest)"
     ],
-    "preparado_em": "2026-06-17T22:25:00-03:00",
+    "preparado_em": "2026-06-18T00:55:00-03:00",
     "preparado_por": "Code"
   },
 
