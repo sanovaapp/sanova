@@ -184,9 +184,9 @@ async function _carregaPaciente(patient_user_id, env) {
 function _resumoPaciente(S, dias) {
   const profile = (S && S.profile) || {};
   const sexo = profile.sex || 'F';
-  // Metricas computadas: o monolito guarda em S.metas (snapshot da ultima geracao)
-  // ou pode recomputar — pra Fase 1, usamos o snapshot.
-  const M = (S && S.metas) ? S.metas : (S && S._meta) || {};
+  // Snapshot guardado pelo monolito em S.metas. Se ausente (seed antigo
+  // ou paciente que nunca recomputou), deriva on the fly do profile.
+  const M = (S && S.metas && S.metas.meta) ? S.metas : _metasFromProfile(profile);
 
   const daily = (S && Array.isArray(S.daily)) ? S.daily : [];
   // Pega ultimos N dias com dado registrado
@@ -194,19 +194,27 @@ function _resumoPaciente(S, dias) {
   let kcalSoma = 0, protSoma = 0, n = 0;
   for (const d of recentes) {
     const k = Number(d.kcalConsumed || d.kcal || 0);
-    const p = Number(d.protConsumed || d.prot || d.proteina || 0);
+    const p = Number(d.protConsumed || d.prot || d.proteina || d.proteinG || 0);
     if (k > 0 || p > 0) { kcalSoma += k; protSoma += p; n++; }
   }
   const kcalMedia = n > 0 ? Math.round(kcalSoma / n) : 0;
   const protMedia = n > 0 ? Math.round(protSoma / n) : 0;
 
-  // Peso: delta 30d
+  // Peso: pega ultimo e delta 30d. O monolito usa `weight` (nao `kg`).
   const weights = (S && Array.isArray(S.weights)) ? S.weights : [];
   const w30 = weights.slice(-30);
   let peso_delta_30d = null;
   if (w30.length >= 2) {
-    peso_delta_30d = Number((w30[w30.length - 1].kg - w30[0].kg).toFixed(1));
+    const w0 = Number(w30[0].weight ?? w30[0].kg);
+    const wN = Number(w30[w30.length - 1].weight ?? w30[w30.length - 1].kg);
+    if (!isNaN(w0) && !isNaN(wN)) {
+      peso_delta_30d = Number((wN - w0).toFixed(1));
+    }
   }
+  const ultimoPeso = weights.length
+    ? Number(weights[weights.length - 1].weight ?? weights[weights.length - 1].kg)
+    : null;
+  const peso_atual = (ultimoPeso != null && !isNaN(ultimoPeso)) ? ultimoPeso : null;
 
   // Aplicacoes (doses)
   const apps = (S && Array.isArray(S.applications)) ? S.applications : [];
@@ -223,7 +231,8 @@ function _resumoPaciente(S, dias) {
   let dias_sem_registro = 999;
   for (let i = daily.length - 1; i >= 0; i--) {
     const d = daily[i];
-    if (Number(d.kcalConsumed || d.kcal || 0) > 0 || Number(d.protConsumed || d.prot || 0) > 0) {
+    if (Number(d.kcalConsumed || d.kcal || 0) > 0 ||
+        Number(d.protConsumed || d.prot || d.proteinG || 0) > 0) {
       if (d.date) {
         const dt = new Date(d.date);
         if (!isNaN(dt)) {
@@ -244,10 +253,50 @@ function _resumoPaciente(S, dias) {
     medicamento: (S && S.caneta && S.caneta.farmaco) || null,
     ultima_dose_ha_dias,
     dias_sem_registro,
+    peso_atual,
     peso_delta_30d,
     prot_pct: M.pm ? Math.round((protMedia / M.pm) * 100) : 0,
     kcal_pct: M.meta ? Math.round((kcalMedia / M.meta) * 100) : 0,
   };
+}
+
+/**
+ * Deriva meta de calorias + proteína a partir do profile (Mifflin BMR + fator
+ * atividade + coef objetivo; Boer LBM × coef proteína). Usado pra calcular
+ * estado de Protecao Muscular quando S.metas nao existe.
+ */
+function _metasFromProfile(profile) {
+  const peso = Number(profile.weightKg || profile.peso || 0);
+  const altura = Number(profile.heightCm || profile.altura || 0);
+  const idade = Number(profile.age || profile.idade || 35);
+  const sexo = profile.sex || 'F';
+  if (peso <= 0 || altura <= 0) return {};
+
+  const bmr = sexo === 'M'
+    ? 10 * peso + 6.25 * altura - 5 * idade + 5
+    : 10 * peso + 6.25 * altura - 5 * idade - 161;
+
+  const atv = (profile.activityLevel || profile.atividade || 'Moderada').toLowerCase();
+  const af = atv.startsWith('sed') ? 1.2
+    : atv.startsWith('lev') ? 1.375
+    : atv.startsWith('mod') ? 1.55
+    : atv.startsWith('alt') ? 1.725 : 1.55;
+  const tdee = bmr * af;
+
+  const obj = (profile.objetivo || 'emagrecer').toLowerCase();
+  const calMult = obj.startsWith('emagrec') ? 0.80
+    : obj.startsWith('reconstr') ? 1.15 : 1.00;
+
+  const piso = sexo === 'M' ? 1500 : 1200;
+  const meta = Math.max(piso, Math.round(tdee * calMult));
+
+  const lbm = sexo === 'M'
+    ? 0.407 * peso + 0.267 * altura - 19.2
+    : 0.252 * peso + 0.473 * altura - 48.3;
+  const coefProt = obj.startsWith('reconstr') ? 2.0 : 1.8;
+  const pm = Math.max(0, Math.round(lbm * coefProt));
+
+  return { meta, pm, lbm: Math.round(lbm * 10) / 10, tdee: Math.round(tdee) };
 }
 
 // ════════════════════════════════════════════════════════════════════
