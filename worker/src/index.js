@@ -2136,11 +2136,11 @@ function _buildSombraJoaoState(userId) {
     daily.push({
       date: dStr(minusDias(i)),
       refeicoes: [
-        { kcal: 520, proteina: 45, kcalFonte: 'estimado' },
-        { kcal: 680, proteina: 52, kcalFonte: 'estimado' },
-        { kcal: 480, proteina: 38, kcalFonte: 'estimado' },
+        { kcal: 640, proteina: 48, kcalFonte: 'estimado' },
+        { kcal: 820, proteina: 54, kcalFonte: 'estimado' },
+        { kcal: 660, proteina: 40, kcalFonte: 'estimado' },
       ],
-      proteinG: 135, kcalConsumed: 1680, kcalFromPhoto: 1680, kcalFromProt: 0,
+      proteinG: 142, kcalConsumed: 2120, kcalFromPhoto: 2120, kcalFromProt: 0,
       waterMl: 2800,
       exercicio: (i % 7 === 1 || i % 7 === 3 || i % 7 === 5) ? 'musculacao' : 'nao',
       sintomas: [],
