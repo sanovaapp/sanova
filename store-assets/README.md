@@ -64,7 +64,11 @@ dados de saúde, etc.
 
 ## Gerado por
 
-Script Python (`/tmp/gen_icons.py` + `/tmp/gen_screenshots.py`) usando Pillow.
-Folha estilizada como gota invertida inclinada 25° com nervura central + 4 nervuras
-laterais. Fundo gradient radial verde escuro (`#041b0d` → `#0a3a20` → `#052413`).
-Folha em `#86efac` (`LEAF_MAIN`) com outline `#22c55e`.
+Script Python (`/tmp/gen_icons_light.py` + `/tmp/gen_screenshots.py`) usando Pillow.
+
+**v2 (Fable Turno 25, decisão do Bruno):** fundo CLARO `#F2F8F4` → `#E8F3EC`
+→ `#D7EBDE` (gradient radial leve, visual healthtech). Folha em `#22C55E`
+(`LEAF_MAIN`) com outline `#0F5C2F` e nervuras brancas. Mesma geometria (gota
+invertida 25°), supersampling 3× pra anti-alias smooth. Feature graphic com
+wordmark "Sanova" em verde-escuro `#041B0D` + tagline "Emagreça protegendo
+o músculo".
