@@ -402,7 +402,7 @@ async function cadastrarPro() {
 async function carregarPacientes() {
   try {
     const r = await apiCall('/api/pro-patients');
-    state.patients = r.patients || [];
+    state.patients = r.pacientes || [];
   } catch (e) {
     state.patients = [];
   }
