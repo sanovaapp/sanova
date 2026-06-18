@@ -46,6 +46,7 @@ jobs:
             MP_WEBHOOK_SECRET
             SUPABASE_SERVICE_ROLE_KEY
             ADMIN_OVERRIDE_TOKEN
+            DEMO_REVIEW_PASSWORD
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MP_ACCESS_TOKEN_SANDBOX: ${{ secrets.MP_ACCESS_TOKEN_SANDBOX }}
@@ -54,3 +55,8 @@ jobs:
           # v1.24.0: GitHub Actions usa esse token no header X-Admin-Token
           # pra acionar /api/admin-* (workflow gateway + cron).
           ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+          # v1.28.10: senha estavel da conta-demo Mariana (demo@sanova.app).
+          # Usada pelo Google revisar Play Store. So' Bruno conhece — se nao
+          # estiver setado em GitHub Secrets, _criarOuEncontrarUser volta a
+          # rotacionar UUID aleatorio (comportamento antigo).
+          DEMO_REVIEW_PASSWORD: ${{ secrets.DEMO_REVIEW_PASSWORD }}
