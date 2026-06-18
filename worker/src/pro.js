@@ -414,9 +414,11 @@ export async function handleProPatient(request, env, origin) {
   const r7 = _resumoPaciente(S, 7);
   const r15 = _resumoPaciente(S, 15);
   const r30 = _resumoPaciente(S, 30);
+  const r60 = _resumoPaciente(S, 60);
   const e7 = calcEstadoProtecaoMuscular(r7.M, r7.kcal, r7.prot, r7.sexo, { periodo: 'semana' });
   const e15 = calcEstadoProtecaoMuscular(r15.M, r15.kcal, r15.prot, r15.sexo, { periodo: '15d' });
   const e30 = calcEstadoProtecaoMuscular(r30.M, r30.kcal, r30.prot, r30.sexo, { periodo: 'mes' });
+  const e60 = calcEstadoProtecaoMuscular(r60.M, r60.kcal, r60.prot, r60.sexo, { periodo: 'mes' });
 
   // Serie de peso (ate 90d) — exibida em grafico no painel
   const weights = (S && Array.isArray(S.weights)) ? S.weights.slice(-90) : [];
@@ -434,6 +436,7 @@ export async function handleProPatient(request, env, origin) {
       '7d':  { kcal: r7.kcal,  prot: r7.prot,  kcal_pct: r7.kcal_pct,  prot_pct: r7.prot_pct,  estado: e7 },
       '15d': { kcal: r15.kcal, prot: r15.prot, kcal_pct: r15.kcal_pct, prot_pct: r15.prot_pct, estado: e15 },
       '30d': { kcal: r30.kcal, prot: r30.prot, kcal_pct: r30.kcal_pct, prot_pct: r30.prot_pct, estado: e30 },
+      '60d': { kcal: r60.kcal, prot: r60.prot, kcal_pct: r60.kcal_pct, prot_pct: r60.prot_pct, estado: e60 },
     },
     peso: { serie: weights, delta_30d: r30.peso_delta_30d },
     aplicacoes,
