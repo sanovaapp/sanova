@@ -212,7 +212,16 @@ jobs:
             return false;
           });
           if (marianaClicked) {
-            await pagePro.waitForTimeout(3000);
+            // espera o "Carregando paciente..." sumir (apiCall completa) — ate 15s
+            try {
+              await pagePro.waitForFunction(() => {
+                const txt = document.body.innerText || '';
+                return !/carregando paciente/i.test(txt);
+              }, { timeout: 15000 });
+            } catch(e) {
+              console.log('[warn] mariana ainda em loading apos 15s');
+            }
+            await pagePro.waitForTimeout(1500);
             await snap(pagePro, 'pro-ficha-mariana');
           } else {
             console.log('[skip] Mariana nao encontrada no semaforo');
@@ -223,7 +232,13 @@ jobs:
             const back = document.querySelector('.back-btn');
             if (back) back.click();
           });
-          await pagePro.waitForTimeout(1500);
+          // espera dashboard voltar (volta pra view com .patient-row visivel)
+          try {
+            await pagePro.waitForFunction(() => {
+              return document.querySelectorAll('.patient-row[data-link-id]').length > 0;
+            }, { timeout: 8000 });
+          } catch(e) { console.log('[warn] dashboard nao re-renderizou apos voltar'); }
+          await pagePro.waitForTimeout(1000);
           const carlaClicked = await pagePro.evaluate(() => {
             const rows = Array.from(document.querySelectorAll('.patient-row[data-link-id]'));
             for (const r of rows) {
@@ -233,8 +248,13 @@ jobs:
             return false;
           });
           if (carlaClicked) {
-            await pagePro.waitForTimeout(2500);
+            try {
+              await pagePro.waitForFunction(() => !/carregando paciente/i.test(document.body.innerText || ''), { timeout: 15000 });
+            } catch(e) { console.log('[warn] carla loading >15s'); }
+            await pagePro.waitForTimeout(1500);
             await snap(pagePro, 'pro-ficha-carla-vermelha');
+          } else {
+            console.log('[skip] Carla nao encontrada no semaforo');
           }
 
           // Salva pageerrors
