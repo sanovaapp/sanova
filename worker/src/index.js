@@ -163,6 +163,23 @@ export default {
         return await handleAdminSeedDemo(env);
       }
 
+      // v1.28.9: diagnostico admin — lista patient_links + professionals
+      // (debug do dashboard pro que mostrou PACIENTES (0) apos seed).
+      if (url.pathname === '/api/admin-debug-pro-state' && request.method === 'GET') {
+        const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
+        const svcH = {
+          'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+        };
+        const [pros, links] = await Promise.all([
+          fetch(SUPABASE_URL + '/rest/v1/professionals?select=id,user_id,nome,invite_code', { headers: svcH })
+            .then(r => r.json()).catch(e => ({ erro: e.message })),
+          fetch(SUPABASE_URL + '/rest/v1/patient_links?select=*&limit=50', { headers: svcH })
+            .then(r => r.json()).catch(e => ({ erro: e.message })),
+        ]);
+        return jsonResponse({ ok: true, professionals: pros, patient_links: links }, 200, origin, env);
+      }
+
       // v1.27.0 (Fable prints v3): bootstrap completo de conta fixture
       // dedicada (fixture@sanova.app). Cria user se nao existe, seeda
       // app_state, marca subscription active, gera magic link. 1 chamada.
