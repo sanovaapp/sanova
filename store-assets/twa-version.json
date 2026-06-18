@@ -1,0 +1,41 @@
+{
+  "_comment": "Estado autoritativo da versão TWA pra Play Store. Atualizado a cada upload de AAB novo. Bruno consulta antes de gerar AAB no PWABuilder ou Bubblewrap.",
+
+  "atual_no_play_store": {
+    "versionName": "1.0.0",
+    "versionCode": 1,
+    "data_upload": "2026-06-12T23:00:00-03:00",
+    "faixa": "internal_testing",
+    "package_id": "br.app.sanova",
+    "signing": "PWABuilder debug keystore (SHA-256 78:3E:CF:0F:56:21:4A:C7:28:92:AB:DF:B7:1B:D8:18:B0:FF:EE:3E:30:43:C9:F0:36:BF:04:F9:F4:D0:59:47)"
+  },
+
+  "proxima_release": {
+    "versionName": "1.0.1",
+    "versionCode": 2,
+    "changelog": [
+      "Ícone trocado de wordmark pra folha verde estilizada (PR #192)",
+      "Co-branding nutricionista (já estava no app, captura visual no prints-pro-latest)",
+      "Cenas pro.html documentadas em prints-pro-latest"
+    ],
+    "preparado_em": "2026-06-17T22:25:00-03:00",
+    "preparado_por": "Code"
+  },
+
+  "como_atualizar": {
+    "via_pwabuilder": [
+      "1. Abrir https://www.pwabuilder.com → cola https://sanova.app.br",
+      "2. Package for stores → Android",
+      "3. Em 'App version', preenche com versionName/versionCode da proxima_release acima",
+      "4. Confirma 'Use existing signing key' e cola conteúdo do signing-key-info.txt guardado",
+      "5. Download package, upload no Play Console Internal testing"
+    ],
+    "via_bubblewrap_automatizado": "TODO: setup automacao em pasta sprint separado (depois de Service Account vinculada via Usuarios e permissoes)"
+  },
+
+  "regras": {
+    "versionCode_sempre_maior": "Play Store rejeita AAB com versionCode <= atual_no_play_store.versionCode. SEMPRE incrementar.",
+    "versionName_semver": "MAJOR.MINOR.PATCH. Bugfix = +1 patch. Feature nova visivel ao paciente = +1 minor. Mudanca incompativel ou redesign = +1 major.",
+    "atualizar_este_arquivo_no_PR_que_gera_AAB": "Quando o AAB sobe pro Play Console, mover proxima_release pra atual_no_play_store e zerar proxima_release."
+  }
+}
