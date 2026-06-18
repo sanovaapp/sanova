@@ -2038,12 +2038,16 @@ function _buildMarianaState(userId) {
     const amarela = ehSemana8Amarela(i);
     let refeicoes, proteinG, kcalConsumed, waterMl, exercicio;
     if (amarela) {
-      // Viagem: prot ~60%, treinos 0, agua menor
+      // Viagem semana 8 — gastro + nauseas + cardapio executivo restrito.
+      // Severidade calibrada pra que a média de 30d ainda fique em verde
+      // (episodio ja passou), mas a janela 60d exiba o episodio em amarelo
+      // (Atenção — kcal abaixo da kcalSegura). Demo "o app pegou a semana
+      // ruim e ela recuperou" (Fable Turno 31).
       refeicoes = [
-        { kcal: 580, proteina: 28, kcalFonte: 'estimado' },
-        { kcal: 720, proteina: 34, kcalFonte: 'estimado' },
+        { kcal: 480, proteina: 12, kcalFonte: 'estimado' },
+        { kcal: 620, proteina: 14, kcalFonte: 'estimado' },
       ];
-      proteinG = 62; kcalConsumed = 1300; waterMl = 1400;
+      proteinG = 26; kcalConsumed = 1100; waterMl = 1400;
       exercicio = 'nao';
     } else {
       // Normal: 3 refeicoes, ~105g prot, 4-5 treinos/sem
