@@ -132,10 +132,10 @@ export default {
 
       // v1.3.0: helpers admin pra testar o pipeline sem precisar pagamento real.
       if (url.pathname === '/api/admin-simulate-active' && request.method === 'GET') {
-        return await handleAdminSimulate(env, 'active');
+        return await handleAdminSimulate(env, 'active', url);
       }
       if (url.pathname === '/api/admin-revert-trial' && request.method === 'GET') {
-        return await handleAdminSimulate(env, 'trial');
+        return await handleAdminSimulate(env, 'trial', url);
       }
 
       // v1.4.0: gera magic link pro Bruno (E2E testing via Playwright)
@@ -1450,16 +1450,19 @@ async function handleDebugAdmin(env) {
 }
 
 // ─── /api/admin-simulate-active e /api/admin-revert-trial (v1.3.0) ───
-// Helpers pra Bruno (founder) testar pipeline sem checkout MP real.
-// Atualiza a subscription do brunoambrozim@hotmail.com via service_role.
-// Hardcoded — so funciona pra esse e-mail.
-async function handleAdminSimulate(env, novoStatus) {
-  const BRUNO_EMAIL = 'brunoambrozim@hotmail.com';
+// Helpers pra founders testarem pipeline sem checkout MP real.
+// Atualiza a subscription via service_role.
+// v1.28.11: aceita ?email=<x> no querystring. Sem param, usa brunoambrozim@hotmail.com
+// por compat retroativa. Util quando Bruno precisa liberar acesso pra outro email
+// (ex: ambrozim2@gmail.com pra revisao Play Store).
+async function handleAdminSimulate(env, novoStatus, url) {
+  const DEFAULT_EMAIL = 'brunoambrozim@hotmail.com';
+  const alvoEmail = (url && url.searchParams.get('email')) || DEFAULT_EMAIL;
   try {
-    const userId = await findUserByEmail(BRUNO_EMAIL, env);
+    const userId = await findUserByEmail(alvoEmail, env);
     if (!userId) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'bruno_nao_encontrado' }, null, 2),
+        JSON.stringify({ ok: false, error: 'email_nao_encontrado', email: alvoEmail }, null, 2),
         { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
       );
     }
@@ -1495,7 +1498,7 @@ async function handleAdminSimulate(env, novoStatus) {
     return new Response(
       JSON.stringify({
         ok: true,
-        email: BRUNO_EMAIL,
+        email: alvoEmail,
         user_id_curto: userId.slice(0, 8) + '...',
         status_novo: novoStatus,
         linha: Array.isArray(updated) ? updated[0] : updated,
