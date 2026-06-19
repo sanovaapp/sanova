@@ -217,9 +217,9 @@ export default {
       }
 
       // v1.11.0: lista as N subscriptions mais recentes (debug pos-pagamento).
-      // Sem CORS check — endpoint só usado por Bruno via workflow gateway.
+      // v1.28.13: usado tambem pelo painel /admin/ no browser — precisa CORS.
       if (url.pathname === '/api/admin-recent-subscriptions' && request.method === 'GET') {
-        return await handleAdminRecentSubscriptions(env);
+        return await handleAdminRecentSubscriptions(env, origin);
       }
 
       // v1.12.0: reconcilia status das subscriptions consultando o MP.
@@ -580,19 +580,13 @@ async function handleAdminRecreateMpPlans(env) {
 // ─── /api/admin-recent-subscriptions (v1.11.0) ───────────────
 // Lista últimas 10 rows de subscriptions com email do paciente.
 // Usado pra validar webhook MP em produção (ex: confirmar que
-// pagamento real virou status='active' na tabela).
-async function handleAdminRecentSubscriptions(env) {
+// pagamento real virou status='active' na tabela) + painel /admin/ no browser.
+async function handleAdminRecentSubscriptions(env, origin) {
   try {
     const result = await listRecentSubscriptions(10, env);
-    return new Response(
-      JSON.stringify(result, null, 2),
-      { status: result.ok ? 200 : 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-    );
+    return jsonResponse(result, result.ok ? 200 : 500, origin, env);
   } catch (err) {
-    return new Response(
-      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-    );
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500, origin, env);
   }
 }
 
