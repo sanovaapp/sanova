@@ -2116,8 +2116,17 @@ function _buildMarianaState(userId) {
       startDate: dStr(minusDias(TOTAL_DIAS)),
     },
     caneta: {
-      tipo: 'caneta_unica', farmaco: 'Tirzepatida', dose: semanasTitulacao(0),
-      freq: 'semanal', concRotuloMg: 5, concRotuloMl: 0.5, volumeFrasco: 0.5,
+      // v1.28.12: Mariana usa Mounjaro CANETA INDUSTRIAL (dose fixa de fabrica).
+      // BUG anterior: concRotuloMg/concRotuloMl/volumeFrasco escritos junto com
+      // tipo='caneta_unica' faziam a UI cair pra calculadora de frasco manipulado
+      // ("75 UI / 10 mg/mL / 0.75 mL") — clinicamente absurdo (Mounjaro nao se
+      // aspira em seringa de insulina). Caneta industrial NAO tem campos de
+      // concentracao/volume — sao tirados.
+      tipo: 'caneta_unica',
+      farmaco: 'Tirzepatida',
+      apresentacao: 'Mounjaro caneta única (dose semanal)',
+      dose: semanasTitulacao(0),
+      freq: 'semanal',
       ultima: applications[applications.length - 1].date,
     },
     daily, weights: pesos,
