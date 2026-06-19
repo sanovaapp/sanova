@@ -98,9 +98,14 @@ WHERE email = 'voce@email.com';</pre>
       <h2>💰 Receita</h2>
       <div class="kpis">
         <div class="kpi hero full">
-          <div class="kpi-lbl">MRR estimado</div>
+          <div class="kpi-lbl">MRR REAL</div>
           <div class="kpi-val">R$ <span id="mrr">—</span></div>
-          <div class="kpi-sub"><span id="mrrUsers">—</span> pagantes ativos · R$ 19,90/mês</div>
+          <div class="kpi-sub"><span id="mrrUsers">—</span> pagantes reais · R$ 19,90/mês</div>
+        </div>
+        <div class="kpi full" style="opacity:.7">
+          <div class="kpi-lbl">Pagantes SIMULADOS (admin/demo/fixture)</div>
+          <div class="kpi-val" id="pagantesSimulados">—</div>
+          <div class="kpi-sub">não contam pro MRR — só visibilidade do estado dos testes</div>
         </div>
       </div>
     </div>
@@ -256,6 +261,9 @@ window.carregarMetricas = async function() {
 
   $('mrr').textContent = (data.mrr_estimado_brl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   $('mrrUsers').textContent = data.pagantes_ativos || 0;
+  // v3.10.45: pagantes simulados/demo/fixture separados (Bruno cravou
+  // "o admin nao pode mentir"). Vem da migration v2 da view.
+  if ($('pagantesSimulados')) $('pagantesSimulados').textContent = data.pagantes_simulados || 0;
   $('cad7d').textContent = data.cadastros_7d || 0;
   $('cad30d').textContent = data.cadastros_30d || 0;
   $('cadTotal').textContent = data.total_usuarios || 0;
