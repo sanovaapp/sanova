@@ -43,6 +43,11 @@ on:
           - admin-seed-fixture-completa
           - admin-seed-demo
           - admin-debug-pro-state
+      email:
+        description: 'Email alvo (opcional, so usado por admin-simulate-active e admin-revert-trial). Sem valor, usa brunoambrozim@hotmail.com.'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   call-worker:
@@ -57,10 +62,15 @@ jobs:
           set -e
           BASE="https://sanova-api.contatosanovaapp.workers.dev"
           ACTION="${{ github.event.inputs.action }}"
+          EMAIL="${{ github.event.inputs.email }}"
           # v1.28.3: 'admin-fixture-bootstrap-incompleta' eh atalho pra
           # '/api/admin-fixture-bootstrap?modo=incompleta'.
           if [ "$ACTION" = "admin-fixture-bootstrap-incompleta" ]; then
             URL="$BASE/api/admin-fixture-bootstrap?modo=incompleta"
+          elif [ -n "$EMAIL" ] && { [ "$ACTION" = "admin-simulate-active" ] || [ "$ACTION" = "admin-revert-trial" ]; }; then
+            # v1.28.11: passa email via query param pra mudar alvo do simulate/revert
+            ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$EMAIL")
+            URL="$BASE/api/$ACTION?email=$ENCODED"
           else
             URL="$BASE/api/$ACTION"
           fi
