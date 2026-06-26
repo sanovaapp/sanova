@@ -131,14 +131,16 @@ export async function isEmailAdmin(email, env) {
  */
 export async function generateMagicLink(email, redirectTo, env) {
   const url = SUPABASE_URL + '/auth/v1/admin/generate_link';
+  // v1.28.14 (Fable Turno 48): bug do magic link do pro.html.
+  // A REST do Supabase Auth espera redirect_to DIRETO no body.
+  // O wrapper 'options:' eh formato do SDK JS — ignorado pela REST →
+  // magic link gerado caia pro Site URL default em vez de /pro.html.
+  const body = { type: 'magiclink', email };
+  if (redirectTo) body.redirect_to = redirectTo;
   const resp = await fetch(url, {
     method: 'POST',
     headers: _headers(env),
-    body: JSON.stringify({
-      type: 'magiclink',
-      email,
-      options: redirectTo ? { redirect_to: redirectTo } : {},
-    }),
+    body: JSON.stringify(body),
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {

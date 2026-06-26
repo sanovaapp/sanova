@@ -43,8 +43,9 @@ on:
           - admin-seed-fixture-completa
           - admin-seed-demo
           - admin-debug-pro-state
+          - admin-grant-pro
       email:
-        description: 'Email alvo (opcional, so usado por admin-simulate-active e admin-revert-trial). Sem valor, usa brunoambrozim@hotmail.com.'
+        description: 'Email alvo (usado por admin-simulate-active, admin-revert-trial, admin-grant-pro).'
         required: false
         default: ''
         type: string
@@ -67,8 +68,8 @@ jobs:
           # '/api/admin-fixture-bootstrap?modo=incompleta'.
           if [ "$ACTION" = "admin-fixture-bootstrap-incompleta" ]; then
             URL="$BASE/api/admin-fixture-bootstrap?modo=incompleta"
-          elif [ -n "$EMAIL" ] && { [ "$ACTION" = "admin-simulate-active" ] || [ "$ACTION" = "admin-revert-trial" ]; }; then
-            # v1.28.11: passa email via query param pra mudar alvo do simulate/revert
+          elif [ -n "$EMAIL" ] && { [ "$ACTION" = "admin-simulate-active" ] || [ "$ACTION" = "admin-revert-trial" ] || [ "$ACTION" = "admin-grant-pro" ]; }; then
+            # v1.28.11: email via query param. v1.28.14: cobre admin-grant-pro.
             ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$EMAIL")
             URL="$BASE/api/$ACTION?email=$ENCODED"
           else

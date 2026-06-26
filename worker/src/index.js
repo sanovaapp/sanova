@@ -163,6 +163,13 @@ export default {
         return await handleAdminSeedDemo(env);
       }
 
+      // v1.28.14 (Fable Turno 47+48): cadastra um email como profissional
+      // + vincula Mariana como paciente. Bruno testa o pro.html sem
+      // setup manual. GET /api/admin-grant-pro?email=X&nome=Y&tipo=medico
+      if (url.pathname === '/api/admin-grant-pro' && request.method === 'GET') {
+        return await handleAdminGrantPro(url, env);
+      }
+
       // v1.28.9: diagnostico admin — lista patient_links + professionals
       // (debug do dashboard pro que mostrou PACIENTES (0) apos seed).
       if (url.pathname === '/api/admin-debug-pro-state' && request.method === 'GET') {
@@ -2265,6 +2272,122 @@ async function _ensureSubscriptionActive(userId, env) {
   );
 }
 
+// v1.28.14 (Fable T47+T48): cadastra email X como profissional (idempotente)
+// + vincula Mariana (b7a08476-...) como paciente em patient_links + gera
+// magic link redirecionando pra pro.html. Bruno abre, cai dentro do
+// painel pro com Mariana ja visivel — automacao maxima.
+//
+// Query params:
+//   ?email=X            (obrigatorio)
+//   ?nome=Y             (opcional, default 'Dr.(a) ' + email)
+//   ?tipo=medico|nutricionista|outro (default 'medico')
+//   ?registro=CRM-12345 (opcional)
+async function handleAdminGrantPro(url, env) {
+  const email = (url.searchParams.get('email') || '').trim();
+  const nome = (url.searchParams.get('nome') || '').trim() || ('Dr.(a) ' + email.split('@')[0]);
+  const tipoRaw = (url.searchParams.get('tipo') || 'medico').trim().toLowerCase();
+  const tipo = ['medico', 'nutricionista', 'outro'].includes(tipoRaw) ? tipoRaw : 'medico';
+  const registro = (url.searchParams.get('registro') || '').trim() || null;
+
+  if (!email || !email.includes('@')) {
+    return new Response(JSON.stringify({ ok: false, error: 'email_invalido' }, null, 2),
+      { status: 400, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+
+  const SUPA = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
+  const svcH = {
+    'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
+    'Authorization': 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    // 1. Cria/encontra user (senha estavel pra Mariana se for o email demo)
+    const userId = await _criarOuEncontrarUser(email, env);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: 'falha_criar_user' }, null, 2),
+        { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    }
+
+    // 2. Cria professional (idempotente — verifica antes)
+    const existResp = await fetch(SUPA + '/rest/v1/professionals?user_id=eq.' + encodeURIComponent(userId) + '&select=id,invite_code', { headers: svcH });
+    const existArr = await existResp.json().catch(() => []);
+    let proId, inviteCode;
+    if (Array.isArray(existArr) && existArr[0]) {
+      proId = existArr[0].id;
+      inviteCode = existArr[0].invite_code;
+    } else {
+      // Gera invite code unico tipo SAN-XXXX (4 chars A-Z 2-9 sem 0/O/1/I/L)
+      const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let codigo = null;
+      for (let tent = 0; tent < 5; tent++) {
+        let s = '';
+        const arr = new Uint8Array(4);
+        crypto.getRandomValues(arr);
+        for (let i = 0; i < 4; i++) s += ALPHABET[arr[i] % ALPHABET.length];
+        const tryCode = 'SAN-' + s;
+        const dupResp = await fetch(SUPA + '/rest/v1/professionals?invite_code=eq.' + encodeURIComponent(tryCode) + '&select=id', { headers: svcH });
+        const dupArr = await dupResp.json().catch(() => []);
+        if (!Array.isArray(dupArr) || dupArr.length === 0) { codigo = tryCode; break; }
+      }
+      if (!codigo) {
+        return new Response(JSON.stringify({ ok: false, error: 'invite_code_collision' }, null, 2),
+          { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+      }
+      inviteCode = codigo;
+      const tituloMap = { medico: 'Médico', nutricionista: 'Nutricionista', outro: 'Profissional' };
+      const insResp = await fetch(SUPA + '/rest/v1/professionals', {
+        method: 'POST',
+        headers: { ...svcH, 'Prefer': 'return=representation' },
+        body: JSON.stringify({
+          user_id: userId, nome, tipo, registro,
+          titulo_exibido: tituloMap[tipo] + (registro ? ' · ' + registro : ''),
+          invite_code: inviteCode,
+        }),
+      });
+      const insArr = await insResp.json().catch(() => []);
+      proId = Array.isArray(insArr) && insArr[0] ? insArr[0].id : null;
+    }
+
+    // 3. Vincula Mariana (b7a08476-...) como paciente em patient_links (idempotente)
+    const MARIANA_USER_ID = 'b7a08476-e644-4e23-983b-357d5cb732fa';
+    if (proId) {
+      await fetch(SUPA + '/rest/v1/patient_links?on_conflict=professional_id,patient_user_id', {
+        method: 'POST',
+        headers: { ...svcH, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+          professional_id: proId,
+          patient_user_id: MARIANA_USER_ID,
+          status: 'active',
+          consent_version: 'v1-2026-06',
+        }),
+      }).catch(() => {});
+    }
+
+    // 4. Magic link redirecionando pra /pro.html
+    const linkResp = await fetch(SUPA + '/auth/v1/admin/generate_link', {
+      method: 'POST',
+      headers: svcH,
+      body: JSON.stringify({ type: 'magiclink', email, redirect_to: 'https://sanova.app.br/pro.html' }),
+    });
+    const linkData = await linkResp.json().catch(() => ({}));
+
+    return new Response(JSON.stringify({
+      ok: true,
+      email,
+      user_id_curto: userId.slice(0, 8) + '...',
+      pro_id_curto: proId ? proId.slice(0, 8) + '...' : null,
+      invite_code: inviteCode,
+      mariana_vinculada: !!proId,
+      action_link: linkData.properties?.action_link || linkData.action_link,
+      proximo_passo: '✅ Abre o action_link no browser (aba anonima). Cai direto em pro.html com Mariana visivel.',
+    }, null, 2), { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
+      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  }
+}
+
 async function handleAdminSeedDemo(env) {
   try {
     // 1. Cria/encontra os 4 users
@@ -2378,7 +2501,7 @@ async function handleAdminSeedDemo(env) {
         body: JSON.stringify({
           type: 'magiclink',
           email: DEMO_EMAIL,
-          options: { redirect_to: 'https://sanova.app.br/' },
+          redirect_to: 'https://sanova.app.br/',
         }),
       }
     );
@@ -2397,7 +2520,7 @@ async function handleAdminSeedDemo(env) {
         body: JSON.stringify({
           type: 'magiclink',
           email: DEMO_PRO_EMAIL,
-          options: { redirect_to: 'https://sanova.app.br/pro.html' },
+          redirect_to: 'https://sanova.app.br/pro.html',
         }),
       }
     );
