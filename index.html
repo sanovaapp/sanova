@@ -6352,7 +6352,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.45';
+var SANOVA_VERSION = '3.10.46';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -17164,6 +17164,22 @@ function trocarSenhaToggle(){
   inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
+// v3.10.46 (Fable T38): olho que mostra/oculta o input de senha do LOGIN/cadastro.
+// Android bloqueia colar em type=password e a tela "Entrar no Sanova" eh o
+// 1o ponto de fricção do app; sem o olho, paciente digita às cegas e erra.
+function agSenhaToggle(){
+  var inp = document.getElementById('agPass');
+  var btn = document.getElementById('agPassToggle');
+  if(!inp) return;
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    if(btn){ btn.textContent = '🙈'; btn.setAttribute('aria-label', 'Ocultar senha'); }
+  } else {
+    inp.type = 'password';
+    if(btn){ btn.textContent = '👁️'; btn.setAttribute('aria-label', 'Mostrar senha'); }
+  }
+}
+
 // v3.9.7: troca senha do paciente logado via Supabase Auth (precisa sessao ativa).
 async function trocarSenha(){
   var inp = document.getElementById('novaSenhaInput');
@@ -22675,7 +22691,13 @@ window.addEventListener('beforeunload',function(){
     </div>
     <div id="agPassWrap">
       <label for="agPass">Senha</label>
-      <input id="agPass" type="password" autocomplete="current-password" placeholder="Sua senha">
+      <!-- v3.10.46 (Fable T38): wrapper relative + botão 👁️ pra ver senha
+           ao digitar. Android bloqueia colar em type=password, então senha
+           forte (Sanova-Demo-Rev-2026-x7K9) às cegas = erro fácil. -->
+      <div style="position:relative">
+        <input id="agPass" type="password" autocomplete="current-password" placeholder="Sua senha" style="padding-right:46px">
+        <button type="button" id="agPassToggle" onclick="agSenhaToggle()" aria-label="Mostrar senha" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;padding:6px 8px;font-size:18px;color:rgba(255,255,255,.55);line-height:1">👁️</button>
+      </div>
     </div>
     <button class="ag-btn" id="agBtn" onclick="agSubmit()">Entrar</button>
     <div class="ag-msg" id="agMsg"></div>
