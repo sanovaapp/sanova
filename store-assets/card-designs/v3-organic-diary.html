@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Sanova · Card Direção 3 — Organic Diary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream-1:#f5f0e3; --cream-2:#ebe5d4; --cream-3:#dcd5c0;
+    --green-deep:#0a3a20; --green-leaf:#16a34a; --green-cream:#86efac;
+    --gold:#b89740;
+    --ink:#1a2e1f; --ink-soft:#3d5c47;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#1a1a1a;
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+    font-family:'Plus Jakarta Sans',-apple-system,sans-serif;
+  }
+  .frame{
+    width:1080px;height:1920px;
+    transform-origin:top left;
+    transform:scale(.31);
+    margin-bottom:-1325px;margin-right:-745px;
+    position:relative;overflow:hidden;
+    background:
+      radial-gradient(ellipse 90% 50% at 10% 0%,rgba(134,239,172,.18),transparent 60%),
+      radial-gradient(ellipse 80% 50% at 100% 100%,rgba(184,151,64,.15),transparent 60%),
+      linear-gradient(155deg,var(--cream-1) 0%,var(--cream-2) 60%,var(--cream-3) 100%);
+    color:var(--ink);
+    padding:110px 90px;
+    display:flex;flex-direction:column;
+  }
+
+  /* folha decorativa grande */
+  .deco-leaf{
+    position:absolute;
+    top:-100px;right:-120px;
+    width:480px;opacity:.10;
+    transform:rotate(28deg);
+  }
+  .deco-line{
+    position:absolute;
+    bottom:200px;left:0;width:100%;height:120px;
+    opacity:.06;
+    background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'><path d='M0 15 Q25 5 50 15 T100 15' fill='none' stroke='%2316a34a' stroke-width='1'/></svg>");
+    background-size:240px;background-repeat:repeat-x;
+  }
+
+  /* top brand */
+  .brand{
+    display:flex;align-items:center;gap:18px;
+    margin-bottom:50px;
+  }
+  .brand-leaf{width:46px;height:46px}
+  .brand-name{
+    font-family:'Fraunces',serif;
+    font-size:32px;font-weight:500;font-style:italic;
+    color:var(--green-deep);
+    letter-spacing:-.01em;
+  }
+  .date{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:16px;font-weight:500;
+    color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.20em;
+    margin-bottom:130px;
+  }
+
+  /* hero — frase manuscrita-style */
+  .hero{margin-bottom:80px;position:relative;z-index:2}
+  .hero-eyebrow{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:24px;font-weight:600;
+    color:var(--gold);
+    text-transform:uppercase;letter-spacing:.30em;
+    margin-bottom:24px;
+  }
+  .hero-line{
+    font-family:'DM Serif Display',serif;
+    font-size:128px;line-height:1;
+    color:var(--green-deep);
+    letter-spacing:-.03em;
+  }
+  .hero-line em{
+    font-family:'Fraunces',serif;
+    font-style:italic;font-weight:300;
+    color:var(--green-leaf);
+  }
+
+  /* big number */
+  .big{
+    margin:60px 0 100px;
+    display:flex;align-items:baseline;gap:30px;
+    padding-left:30px;
+    border-left:6px solid var(--gold);
+  }
+  .big-num{
+    font-family:'DM Serif Display',serif;
+    font-size:220px;line-height:.9;
+    color:var(--green-leaf);
+    letter-spacing:-.05em;
+  }
+  .big-unit{
+    font-family:'Fraunces',serif;
+    font-size:48px;font-weight:300;font-style:italic;
+    color:var(--ink-soft);
+  }
+
+  /* gráfico */
+  .chart{margin-bottom:90px}
+  .chart-lbl{
+    font-family:'Fraunces',serif;
+    font-size:28px;font-weight:400;font-style:italic;
+    color:var(--ink-soft);
+    margin-bottom:14px;
+  }
+  .chart-svg{width:100%;height:170px}
+
+  /* stats — em linha minimalista */
+  .stats{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    border-top:2px solid var(--green-deep);
+    border-bottom:2px solid var(--green-deep);
+    padding:40px 0;
+    margin-bottom:80px;
+  }
+  .stat{text-align:center;position:relative}
+  .stat + .stat::before{
+    content:'';
+    position:absolute;left:0;top:10%;height:80%;
+    width:1px;background:var(--green-deep);opacity:.3;
+  }
+  .stat-icon{font-size:42px;margin-bottom:14px}
+  .stat-num{
+    font-family:'DM Serif Display',serif;
+    font-size:64px;line-height:1;
+    color:var(--green-deep);
+    letter-spacing:-.02em;
+    margin-bottom:8px;
+  }
+  .stat-lbl{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:18px;font-weight:600;
+    color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.10em;
+  }
+
+  /* mensagem cursiva (autoria do paciente) */
+  .message{
+    font-family:'Fraunces',serif;
+    font-style:italic;font-weight:300;
+    font-size:54px;line-height:1.35;
+    color:var(--green-deep);
+    margin-bottom:auto;
+  }
+  .message::before{
+    content:'“';display:block;
+    font-family:'DM Serif Display',serif;
+    font-size:130px;line-height:.6;
+    color:var(--gold);
+    margin-bottom:-10px;
+  }
+
+  /* footer */
+  .footer{
+    margin-top:80px;
+    padding-top:30px;
+    border-top:1px solid rgba(10,58,32,.18);
+    display:flex;justify-content:space-between;align-items:flex-end;
+  }
+  .footer-brand{
+    font-family:'Fraunces',serif;
+    font-size:32px;font-weight:500;font-style:italic;
+    color:var(--green-deep);
+  }
+  .footer-mol{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:15px;font-weight:500;
+    color:var(--ink-soft);
+    margin-top:8px;
+    letter-spacing:.06em;
+  }
+  .footer-url{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:20px;font-weight:600;
+    letter-spacing:.10em;
+    color:var(--green-leaf);
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <svg class="deco-leaf" viewBox="0 0 100 140">
+    <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#16a34a"/>
+    <path d="M50 8 L50 138 M50 50 L72 60 M50 72 L78 84 M50 92 L74 102 M50 50 L28 60 M50 72 L22 84 M50 92 L26 102" stroke="#0a3a20" stroke-width="1.2" fill="none" opacity=".5"/>
+  </svg>
+  <div class="deco-line"></div>
+
+  <div class="brand">
+    <svg class="brand-leaf" viewBox="0 0 100 140">
+      <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#16a34a"/>
+    </svg>
+    <div class="brand-name">Sanova</div>
+  </div>
+
+  <div class="date">Semana 26 · 2026</div>
+
+  <div class="hero">
+    <div class="hero-eyebrow">Sua semana</div>
+    <div class="hero-line">Continua<br><em>nessa rotina.</em></div>
+  </div>
+
+  <div class="big">
+    <div class="big-num">−0,8</div>
+    <div class="big-unit">kg esta semana</div>
+  </div>
+
+  <div class="chart">
+    <div class="chart-lbl">— peso 7 dias</div>
+    <svg class="chart-svg" viewBox="0 0 900 170" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="ogGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#16a34a" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M0 30 Q150 40 300 55 Q450 65 600 90 Q750 115 900 135 L900 170 L0 170 Z" fill="url(#ogGrad)"/>
+      <path d="M0 30 Q150 40 300 55 Q450 65 600 90 Q750 115 900 135" stroke="#16a34a" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="900" cy="135" r="9" fill="#16a34a" stroke="#f5f0e3" stroke-width="3"/>
+    </svg>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-icon">🥩</div>
+      <div class="stat-num">6/7</div>
+      <div class="stat-lbl">proteína</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">💧</div>
+      <div class="stat-num">92%</div>
+      <div class="stat-lbl">hidratação</div>
+    </div>
+    <div class="stat">
+      <div class="stat-icon">💪</div>
+      <div class="stat-num">4</div>
+      <div class="stat-lbl">treinos</div>
+    </div>
+  </div>
+
+  <div class="message">
+    Proteína em dia.<br>
+    Energia equilibrada.<br>
+    Massa magra preservada.
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="footer-brand">🌿 Sanova</div>
+      <div class="footer-mol">Tratamento: Tirzepatida</div>
+    </div>
+    <div class="footer-url">sanova.app.br</div>
+  </div>
+</div>
+</body>
+</html>
