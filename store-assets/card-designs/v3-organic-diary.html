@@ -2,20 +2,20 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Sanova · Card Direção 3 — Organic Diary (final)</title>
+<title>Sanova · Card v3 — fundo verde Sanova oficial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* v3.10.47: paleta VERDE SANOVA oficial (Bruno cravou).
-       --green-deep / --green-leaf vem do gradient do app paciente
-       (#041b0d background) e da folha do logo (#22c55e icon-512). */
-    --cream-1:#f5f0e3; --cream-2:#ebe5d4; --cream-3:#dcd5c0;
-    --green-deep:#041b0d; --green-leaf:#22c55e; --green-outline:#0F5C2F;
-    --green-cream:#86efac; --green-cream-2:#bbf7d0;
-    --gold:#b89740;
-    --ink:#041b0d; --ink-soft:#3d5c47;
+    /* v3.10.48: paleta VERDE SANOVA — fundo escuro do app (Bruno cravou).
+       Gradient do pro.html / index.html paciente. */
+    --green-bg-1:#041b0d; --green-bg-2:#0a3a20; --green-bg-3:#052413;
+    --green-leaf:#22c55e; --green-outline:#0F5C2F;
+    --accent:#86efac; --accent-2:#bbf7d0; --accent-dim:rgba(134,239,172,.18);
+    --cream-1:#f5f0e3; --cream-2:#ebe5d4;
+    --gold:#c8a76a;
+    --ink:#f5f0e3; --ink-soft:rgba(245,240,227,.72); --ink-faint:rgba(245,240,227,.45);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -32,9 +32,9 @@
     margin-bottom:-1325px;margin-right:-745px;
     position:relative;overflow:hidden;
     background:
-      radial-gradient(ellipse 90% 50% at 10% 0%,rgba(134,239,172,.18),transparent 60%),
-      radial-gradient(ellipse 80% 50% at 100% 100%,rgba(184,151,64,.15),transparent 60%),
-      linear-gradient(155deg,var(--cream-1) 0%,var(--cream-2) 60%,var(--cream-3) 100%);
+      radial-gradient(ellipse 80% 50% at 10% 0%,rgba(134,239,172,.12),transparent 60%),
+      radial-gradient(ellipse 80% 50% at 100% 100%,rgba(200,167,106,.08),transparent 65%),
+      linear-gradient(165deg,var(--green-bg-1) 0%,var(--green-bg-2) 55%,var(--green-bg-3) 100%);
     color:var(--ink);
     padding:90px 80px;
     display:flex;flex-direction:column;
@@ -44,7 +44,7 @@
   .deco-leaf{
     position:absolute;
     top:-100px;right:-120px;
-    width:480px;opacity:.10;
+    width:480px;opacity:.08;
     transform:rotate(28deg);
   }
 
@@ -53,17 +53,17 @@
     display:flex;align-items:center;gap:18px;
     margin-bottom:32px;
   }
-  .brand-leaf{width:46px;height:46px}
+  .brand-leaf{width:46px;height:46px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
   .brand-name{
     font-family:'Fraunces',serif;
     font-size:32px;font-weight:500;font-style:italic;
-    color:var(--green-deep);
+    color:var(--accent-2);
     letter-spacing:-.01em;
   }
   .date{
     font-family:'Plus Jakarta Sans',sans-serif;
     font-size:16px;font-weight:500;
-    color:var(--ink-soft);
+    color:var(--ink-faint);
     text-transform:uppercase;letter-spacing:.20em;
     margin-bottom:90px;
   }
@@ -80,13 +80,13 @@
   .hero-line{
     font-family:'DM Serif Display',serif;
     font-size:120px;line-height:1;
-    color:var(--green-deep);
+    color:var(--cream-1);
     letter-spacing:-.03em;
   }
   .hero-line em{
     font-family:'Fraunces',serif;
     font-style:italic;font-weight:300;
-    color:var(--green-leaf);
+    color:var(--accent);
   }
 
   /* big number */
@@ -99,7 +99,7 @@
   .big-num{
     font-family:'DM Serif Display',serif;
     font-size:200px;line-height:.9;
-    color:var(--green-leaf);
+    color:var(--accent);
     letter-spacing:-.05em;
   }
   .big-unit{
@@ -121,8 +121,8 @@
   /* stats — em linha minimalista */
   .stats{
     display:grid;grid-template-columns:repeat(3,1fr);
-    border-top:2px solid var(--green-deep);
-    border-bottom:2px solid var(--green-deep);
+    border-top:2px solid rgba(134,239,172,.32);
+    border-bottom:2px solid rgba(134,239,172,.32);
     padding:34px 0;
     margin-bottom:55px;
   }
@@ -130,13 +130,13 @@
   .stat + .stat::before{
     content:'';
     position:absolute;left:0;top:10%;height:80%;
-    width:1px;background:var(--green-deep);opacity:.3;
+    width:1px;background:rgba(134,239,172,.22);
   }
   .stat-icon{font-size:38px;margin-bottom:12px}
   .stat-num{
     font-family:'DM Serif Display',serif;
     font-size:58px;line-height:1;
-    color:var(--green-deep);
+    color:var(--cream-1);
     letter-spacing:-.02em;
     margin-bottom:6px;
   }
@@ -152,7 +152,7 @@
     font-family:'Fraunces',serif;
     font-style:italic;font-weight:300;
     font-size:48px;line-height:1.32;
-    color:var(--green-deep);
+    color:var(--cream-1);
     margin-bottom:auto;
     position:relative;
     padding-top:54px;
@@ -169,7 +169,7 @@
   .footer{
     margin-top:50px;
     padding-top:30px;
-    border-top:1px solid rgba(10,58,32,.18);
+    border-top:1px solid rgba(134,239,172,.20);
   }
   .footer-cta{
     text-align:center;
@@ -178,38 +178,39 @@
   .footer-slogan{
     font-family:'Fraunces',serif;
     font-size:48px;font-weight:300;font-style:italic;
-    color:var(--green-deep);
+    color:var(--cream-1);
     letter-spacing:-.01em;
-    margin-bottom:12px;
+    margin-bottom:14px;
   }
   .footer-slogan strong{
     font-weight:600;
-    color:var(--green-leaf);
+    color:var(--accent);
   }
   .footer-url{
     font-family:'Plus Jakarta Sans',sans-serif;
     font-size:34px;font-weight:700;
     letter-spacing:.06em;
-    color:var(--green-deep);
-    background:var(--green-cream);
+    color:var(--green-bg-1);
+    background:var(--accent);
     padding:14px 32px;
     border-radius:50px;
     display:inline-block;
+    box-shadow:0 4px 16px rgba(134,239,172,.18);
   }
   .footer-meta{
     display:flex;justify-content:space-between;align-items:center;
     padding-top:18px;
-    border-top:1px dashed rgba(10,58,32,.15);
+    border-top:1px dashed rgba(134,239,172,.18);
   }
   .footer-brand{
     font-family:'Fraunces',serif;
     font-size:24px;font-weight:500;font-style:italic;
-    color:var(--green-deep);
+    color:var(--accent-2);
   }
   .footer-mol{
     font-family:'Plus Jakarta Sans',sans-serif;
     font-size:14px;font-weight:500;
-    color:var(--ink-soft);
+    color:var(--ink-faint);
     letter-spacing:.06em;
   }
 </style>
@@ -217,13 +218,14 @@
 <body>
 <div class="frame">
   <svg class="deco-leaf" viewBox="0 0 100 140">
-    <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#22c55e"/>
-    <path d="M50 8 L50 138 M50 50 L72 60 M50 72 L78 84 M50 92 L74 102 M50 50 L28 60 M50 72 L22 84 M50 92 L26 102" stroke="#0F5C2F" stroke-width="1.2" fill="none" opacity=".5"/>
+    <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#86efac"/>
+    <path d="M50 8 L50 138 M50 50 L72 60 M50 72 L78 84 M50 92 L74 102 M50 50 L28 60 M50 72 L22 84 M50 92 L26 102" stroke="#0F5C2F" stroke-width="1.2" fill="none" opacity=".6"/>
   </svg>
 
   <div class="brand">
     <svg class="brand-leaf" viewBox="0 0 100 140">
       <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#22c55e"/>
+      <path d="M50 8 L50 138 M50 50 L68 60 M50 70 L72 82 M50 90 L70 100 M50 50 L32 60 M50 70 L28 82 M50 90 L30 100" stroke="#0F5C2F" stroke-width="1.5" fill="none" opacity=".7"/>
     </svg>
     <div class="brand-name">Sanova</div>
   </div>
@@ -245,13 +247,13 @@
     <svg class="chart-svg" viewBox="0 0 900 150" preserveAspectRatio="none">
       <defs>
         <linearGradient id="ogGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#22c55e" stop-opacity=".30"/>
-          <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#86efac" stop-opacity=".42"/>
+          <stop offset="100%" stop-color="#86efac" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120 L900 150 L0 150 Z" fill="url(#ogGrad)"/>
-      <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120" stroke="#22c55e" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <circle cx="900" cy="120" r="9" fill="#22c55e" stroke="#f5f0e3" stroke-width="3"/>
+      <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120" stroke="#86efac" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="900" cy="120" r="10" fill="#bbf7d0" stroke="#0a3a20" stroke-width="3"/>
     </svg>
   </div>
 
