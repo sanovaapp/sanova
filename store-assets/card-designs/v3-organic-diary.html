@@ -8,10 +8,14 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
+    /* v3.10.47: paleta VERDE SANOVA oficial (Bruno cravou).
+       --green-deep / --green-leaf vem do gradient do app paciente
+       (#041b0d background) e da folha do logo (#22c55e icon-512). */
     --cream-1:#f5f0e3; --cream-2:#ebe5d4; --cream-3:#dcd5c0;
-    --green-deep:#0a3a20; --green-leaf:#16a34a; --green-cream:#86efac;
+    --green-deep:#041b0d; --green-leaf:#22c55e; --green-outline:#0F5C2F;
+    --green-cream:#86efac; --green-cream-2:#bbf7d0;
     --gold:#b89740;
-    --ink:#1a2e1f; --ink-soft:#3d5c47;
+    --ink:#041b0d; --ink-soft:#3d5c47;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -213,13 +217,13 @@
 <body>
 <div class="frame">
   <svg class="deco-leaf" viewBox="0 0 100 140">
-    <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#16a34a"/>
-    <path d="M50 8 L50 138 M50 50 L72 60 M50 72 L78 84 M50 92 L74 102 M50 50 L28 60 M50 72 L22 84 M50 92 L26 102" stroke="#0a3a20" stroke-width="1.2" fill="none" opacity=".5"/>
+    <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#22c55e"/>
+    <path d="M50 8 L50 138 M50 50 L72 60 M50 72 L78 84 M50 92 L74 102 M50 50 L28 60 M50 72 L22 84 M50 92 L26 102" stroke="#0F5C2F" stroke-width="1.2" fill="none" opacity=".5"/>
   </svg>
 
   <div class="brand">
     <svg class="brand-leaf" viewBox="0 0 100 140">
-      <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#16a34a"/>
+      <path d="M50 8 Q12 42 16 92 Q22 132 50 138 Q78 132 84 92 Q88 42 50 8 Z" fill="#22c55e"/>
     </svg>
     <div class="brand-name">Sanova</div>
   </div>
@@ -241,13 +245,13 @@
     <svg class="chart-svg" viewBox="0 0 900 150" preserveAspectRatio="none">
       <defs>
         <linearGradient id="ogGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#16a34a" stop-opacity=".30"/>
-          <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#22c55e" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
         </linearGradient>
       </defs>
       <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120 L900 150 L0 150 Z" fill="url(#ogGrad)"/>
-      <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120" stroke="#16a34a" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <circle cx="900" cy="120" r="9" fill="#16a34a" stroke="#f5f0e3" stroke-width="3"/>
+      <path d="M0 25 Q150 35 300 50 Q450 60 600 80 Q750 100 900 120" stroke="#22c55e" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="900" cy="120" r="9" fill="#22c55e" stroke="#f5f0e3" stroke-width="3"/>
     </svg>
   </div>
 
