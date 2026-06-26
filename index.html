@@ -3024,6 +3024,12 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   font-size:13px;font-weight:600;
   color:#fff;
   letter-spacing:-.01em;
+  /* v3.10.45 (Fable Turno 39+43): line-height:1 evita emoji "vazar" pra cima
+     dentro do ring de 54px. Sem isso o glifo do 💪 ficava cortado nas bordas
+     em alguns renders Android. */
+  line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;
 }
 .pilar-mini-info{flex:1;min-width:0}
 .pilar-mini-ttl{
@@ -4134,7 +4140,7 @@ try{
               <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
               <circle id="pilarProtMuscRing" class="pilar-prog" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08" stroke="#86efac"></circle>
             </svg>
-            <div class="pilar-mini-pct" id="pilarProtMuscIcon" style="font-size:18px">—</div>
+            <div class="pilar-mini-pct" id="pilarProtMuscIcon" style="font-size:16px">—</div>
           </div>
           <div class="pilar-mini-info">
             <div class="pilar-mini-ttl">🛡️ Músculo</div>
@@ -4161,12 +4167,12 @@ try{
          Cor + mensagem dinâmicas em renderProtecaoMuscular(). Esconde antes
          das 19h se ainda não chegou em 70% das calorias (evita falso alerta
          no almoço). -->
-    <div id="cardProtecaoMuscular" style="display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1.5px solid transparent;font-family:var(--ss,system-ui)">
+    <div id="cardProtecaoMuscular" style="display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1.5px solid transparent;font-family:var(--ss,system-ui);color:#0d1a10">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <div id="protMuscIcon" style="font-size:22px">🛡️</div>
         <div id="protMuscTitulo" style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">PROTEÇÃO MUSCULAR HOJE</div>
       </div>
-      <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:var(--ink2)"></div>
+      <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:#0d1a10"></div>
     </div>
 
     <!-- Canvas legados mantidos invisíveis para não quebrar drawGauge antigo -->
@@ -6346,7 +6352,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.44';
+var SANOVA_VERSION = '3.10.45';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -14108,11 +14114,15 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
   // Se nada foi consumido ainda, esconde
   if(kcalHoje === 0 && protHoje === 0){ card.style.display = 'none'; return; }
 
-  // Cores e estados
+  // v3.10.45 (Fable Turno 39+43): cores recalibradas pra alto contraste
+  // sobre o fundo CREAM do painel paciente (tema claro). Antes usavam tons
+  // pasteis pensados pra tema escuro — texto ficava ilegivel sobre cream.
+  // - bg: mais opaco (.18 em vez de .10) pra separar visualmente do painel
+  // - ttl: cores de alto contraste WCAG AA (green-700/amber-800/red-700)
   var cores = {
-    verde:   { bg:'rgba(74,222,128,.10)', border:'rgba(74,222,128,.45)', ttl:'#86efac', icon:'💪' },
-    amarelo: { bg:'rgba(232,200,120,.10)', border:'rgba(232,200,120,.45)', ttl:'#fcd34d', icon:'⚠️' },
-    vermelho:{ bg:'rgba(232,168,138,.13)', border:'rgba(232,168,138,.55)', ttl:'#f3a88a', icon:'🚨' }
+    verde:   { bg:'rgba(74,222,128,.18)', border:'rgba(22,101,52,.45)', ttl:'#166534', icon:'💪' },
+    amarelo: { bg:'rgba(232,200,120,.20)', border:'rgba(146,64,14,.45)', ttl:'#92400e', icon:'⚠️' },
+    vermelho:{ bg:'rgba(232,168,138,.22)', border:'rgba(185,28,28,.50)', ttl:'#b91c1c', icon:'🚨' }
   };
 
   var estado, tituloTxt, mensagemTxt, paleta;
@@ -14122,7 +14132,7 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
     estado = 'risco';
     paleta = cores.vermelho;
     tituloTxt = '🚨 RISCO DE CATABOLISMO';
-    mensagemTxt = '<strong style="color:#fcd34d">' + kcalHoje + ' kcal hoje</strong> está abaixo do piso fisiológico (' + pisoFisiol + ' kcal). ' +
+    mensagemTxt = '<strong style="color:#92400e">' + kcalHoje + ' kcal hoje</strong> está abaixo do piso fisiológico (' + pisoFisiol + ' kcal). ' +
       'Esse nível, mantido, leva à perda de massa magra <strong>mesmo com proteína dobrada</strong> — o corpo cataboliza músculo pra gerar energia. ' +
       '<strong>Adiciona uma refeição agora</strong> com gordura boa (azeite, oleaginosas, abacate) + proteína. 🌿';
   } else if(protPct < 80 && kcalHoje < kcalSegura){
@@ -14141,13 +14151,13 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
     mensagemTxt = '💪 Proteína em dia (' + protPct + '%) — ótimo. Mas hoje você comeu pouco (' + kcalHoje + ' kcal vs ~' + kcalMeta + ' de gasto). ' +
       '<strong>Mesmo com proteína acima da meta, calorias muito baixas obrigam o corpo a quebrar músculo</strong> pra gerar glicose. ' +
       'Proteína extra não compensa déficit calórico grande. Que tal um lanche com proteína + carbo agora? ' +
-      '<span style="display:block;margin-top:6px;color:rgba(255,255,255,.7)">🌰 Pasta de amendoim + banana · 🥛 Iogurte grego + mel · 🥑 Abacate + ovos</span> 🌿';
+      '<span style="display:block;margin-top:6px;color:rgba(0,0,0,.62)">🌰 Pasta de amendoim + banana · 🥛 Iogurte grego + mel · 🥑 Abacate + ovos</span> 🌿';
   } else if(protPct >= 100 && kcalHoje >= kcalSegura){
     // 🟢 PROTEGIDA
     estado = 'protegida';
     paleta = cores.verde;
     tituloTxt = '💪 PROTEÇÃO MUSCULAR EM DIA';
-    mensagemTxt = 'Proteína e energia em dia — <strong style="color:#bbf7d0">músculo protegido</strong> hoje. Continua nessa rotina 🌿';
+    mensagemTxt = 'Proteína e energia em dia — <strong style="color:#166534">músculo protegido</strong> hoje. Continua nessa rotina 🌿';
   } else if(protPct < 100 && kcalHoje >= kcalSegura){
     // Calorias OK, proteína ainda faltando
     estado = 'protBaixa';
