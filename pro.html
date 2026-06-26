@@ -240,6 +240,15 @@ function viewRegister() {
         <label>Como você quer aparecer pro paciente</label>
         <input id="regTitulo" type="text" placeholder="ex: Nutricionista · CRN-3 12345">
       </div>
+      <!-- v1.6.0 (Fable T50): aceite obrigatorio do termo pro.
+           Fronteira regulatoria — Sanova sinaliza, nao substitui conduta. -->
+      <label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.2);border-radius:10px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.85);cursor:pointer;margin-bottom:14px">
+        <input id="regAceiteTermo" type="checkbox" style="margin-top:2px;flex-shrink:0;cursor:pointer">
+        <span>
+          <strong style="color:#bbf7d0">Eu reconheço:</strong>
+          o Sanova pode sinalizar sinais de risco, mas <strong>não substitui o monitoramento clínico contínuo</strong>. Ausência de alerta não significa ausência de risco. Toda intervenção clínica (dose, conduta, prescrição, diagnóstico) acontece pelos meus canais habituais (consulta presencial, telemedicina formal, contato direto) — não pelo Sanova. Alertas críticos podem disparar mesmo com notificações desligadas (responsabilidade clínica). <span style="color:rgba(255,255,255,.5)">(termo pro v1-2026-06)</span>
+        </span>
+      </label>
       <button class="btn btn-primary" onclick="cadastrarPro()">Concluir cadastro</button>
       <button class="btn btn-ghost" style="margin-top:8px" onclick="logout()">Sair</button>
       <div id="regMsg"></div>
@@ -458,16 +467,22 @@ async function cadastrarPro() {
   const tipo = $('regTipo').value;
   const registro = $('regRegistro').value.trim();
   const titulo_exibido = $('regTitulo').value.trim();
+  const aceiteTermo = ($('regAceiteTermo') || {}).checked;
   const msg = $('regMsg');
   if (!nome || !tipo) {
     msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Nome e categoria são obrigatórios.</div>`;
+    return;
+  }
+  // v1.6.0 (Fable T50): aceite obrigatorio do termo pro
+  if (!aceiteTermo) {
+    msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">É preciso aceitar o termo pra continuar.</div>`;
     return;
   }
   msg.innerHTML = `<div class="alert alert-info" style="margin-top:10px"><div class="loader"></div> Cadastrando…</div>`;
   try {
     const r = await apiCall('/api/pro-register', {
       method: 'POST',
-      body: JSON.stringify({ nome, tipo, registro, titulo_exibido }),
+      body: JSON.stringify({ nome, tipo, registro, titulo_exibido, termo_pro_version: 'v1-2026-06' }),
     });
     state.pro = r.pro;
     await carregarPacientes();
@@ -486,51 +501,13 @@ async function carregarPacientes() {
   }
 }
 
-async function abrirPaciente(linkId) {
-  state.selectedLinkId = linkId;
-  state.patientDetail = null;
-  setView('patient');
-  try {
-    const r = await apiCall('/api/pro-patient?link_id=' + encodeURIComponent(linkId));
-    // Worker retorna { paciente, metricas: {'7d':{...}}, peso: {serie, delta_30d}, aplicacoes }.
-    // Flatena pro shape esperado por viewPatient() (nome, kcal_media, prot_media, ...).
-    const pac = r.paciente || r.patient || {};
-    const metricas = r.metricas || {};
-    const m7 = metricas['7d'] || metricas.semana || {};
-    const m15 = metricas['15d'] || {};
-    const m30 = metricas['30d'] || metricas.mes || {};
-    const m60 = metricas['60d'] || {};
-    const peso = r.peso || {};
-    const serie = Array.isArray(peso.serie) ? peso.serie : [];
-    const ultW = serie.length ? serie[serie.length - 1] : null;
-    const pesoAtual = ultW ? Number(ultW.weight ?? ultW.kg) : null;
-    const janela = (m) => ({
-      kcal: m.kcal || 0, prot: m.prot || 0,
-      kcal_pct: m.kcal_pct, prot_pct: m.prot_pct,
-      estado: (m.estado && (m.estado.estado || m.estado)) || 'aguardando',
-      mensagem: (m.estado && m.estado.mensagem) || null,
-      titulo: (m.estado && m.estado.titulo) || null,
-    });
-    state.patientDetail = {
-      nome: pac.nome,
-      email: pac.email,
-      medicamento: pac.medicamento,
-      ultima_dose_ha_dias: pac.ultima_dose_ha_dias,
-      peso_atual: (pesoAtual != null && !isNaN(pesoAtual)) ? pesoAtual : null,
-      peso_delta_30d: typeof peso.delta_30d === 'number' ? peso.delta_30d : null,
-      kcal_media: m7.kcal || 0,
-      prot_media: m7.prot || 0,
-      kcal_pct: m7.kcal_pct,
-      prot_pct: m7.prot_pct,
-      estado_pm: (m7.estado && (m7.estado.estado || m7.estado)) || 'aguardando',
-      estado_pm_msg: (m7.estado && m7.estado.mensagem) || null,
-      janelas: { '7d': janela(m7), '15d': janela(m15), '30d': janela(m30), '60d': janela(m60) },
-    };
-    render();
-  } catch (e) {
-    state.patientDetail = { nome: '(erro)', email: e.message };
-    render();
-  }
+// v1.6.0 Fase 1 espelho (Fable T50): abrir paciente vira navegação pro app
+// do paciente em modo somente-leitura. A sessão Supabase do pro fica no
+// localStorage do mesmo origin — index.html detecta ?spectator_link, valida
+// no worker (/api/spectator-state) e renderiza o state cru do paciente.
+function abrirPaciente(linkId) {
+  if (!linkId) return;
+  window.location.href = '/index.html?spectator_link=' + encodeURIComponent(linkId);
 }
 
 function voltarParaLista() {
