@@ -1,5 +1,14 @@
 # 🌿 Sanova — Assets da Play Store
 
+> ⚠️ **Conteúdo de loja (título, descrições) MOVEU pra [`ficha-loja.md`](./ficha-loja.md).**
+>
+> A seção "Rascunho da descrição completa" deste arquivo está **OBSOLETA**
+> (Fable Turno 44, 19/06/2026, aprovada por Bruno). Não cole na Play Store
+> a partir daqui — use `ficha-loja.md` como fonte única.
+>
+> Este README segue valendo apenas pra: inventário dos PNGs do pacote
+> visual, instruções de upload manual, e história do ícone v2.
+
 Pacote gerado pelo Code em 17/06/2026 pra atender a Frente A do Turno 24 da Fable:
 > "Bruno achou a apresentação da Play Store crua. Decisão do Bruno: a folha verde
 > do Sanova é a base do ícone. Gera e entrega no repo (pasta `store-assets/`)."
