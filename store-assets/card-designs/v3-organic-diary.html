@@ -31,10 +31,10 @@
     transform:scale(.31);
     margin-bottom:-1325px;margin-right:-745px;
     position:relative;overflow:hidden;
-    background:
-      radial-gradient(ellipse 80% 50% at 10% 0%,rgba(134,239,172,.12),transparent 60%),
-      radial-gradient(ellipse 80% 50% at 100% 100%,rgba(200,167,106,.08),transparent 65%),
-      linear-gradient(165deg,var(--green-bg-1) 0%,var(--green-bg-2) 55%,var(--green-bg-3) 100%);
+    /* v3.10.49 (Bruno): "mesmo verde do v2" — gradient simples 180deg
+       de #0a3a20 (verde meio, topo) a #041b0d (deep, base). Sem radiais
+       decorativos. Igual o v2 Clinical Modernist usa. */
+    background:linear-gradient(180deg,var(--green-bg-2) 0%,var(--green-bg-1) 100%);
     color:var(--ink);
     padding:90px 80px;
     display:flex;flex-direction:column;
