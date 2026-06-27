@@ -490,6 +490,31 @@ html{
 details > summary{list-style:none}
 details > summary::-webkit-details-marker{display:none}
 
+/* v3.10.50 (Fase 1 espelho): modo viewer/spectator.
+   Quando body.spectator-mode (pro abriu index.html?spectator_link=X):
+   - tab bar inferior escondida
+   - FABs escondidos
+   - botoes/inputs com [data-spectator-block] ou classes [bp/btn-primary]
+     com onclick de registro/sync escondidos.
+   - inputs e formularios desabilitados (pointer-events:none)
+   - opacity menor pra indicar leitura passiva.
+   Banner top fica acima — adicionado dinamicamente via JS. */
+body.spectator-mode #tabBar,
+body.spectator-mode #helpFab,
+body.spectator-mode #ceFab,
+body.spectator-mode [data-spectator-block]{ display:none !important }
+body.spectator-mode .bp,
+body.spectator-mode .btn-primary{
+  pointer-events:none !important;
+  opacity:.45 !important;
+  filter:grayscale(.5);
+}
+body.spectator-mode input,
+body.spectator-mode textarea,
+body.spectator-mode select{
+  pointer-events:none !important;
+  opacity:.7;
+}
 body{
   font-family:var(--ss);
   font-size:14px;
@@ -6352,7 +6377,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.46';
+var SANOVA_VERSION = '3.10.50';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7435,7 +7460,10 @@ function toggleCompartilhamentoUso(ativo){
 // Fluxo: paciente cola invite_code → consentimento LGPD → POST /api/link-professional
 // Estado vinculado é só leitura (paciente pode revogar a qualquer momento).
 // ═════════════════════════════════════════════════════════════════════
-var SANOVA_LINK_VERSION = 'v1-2026-06';
+// v3.10.50: consent_version v2 — escopo do pro mudou (Fase 1 espelho).
+// Antes (v1): pro via "resumo" do painel. Agora (v2): pro vê TUDO em modo
+// somente leitura (espelho do app paciente).
+var SANOVA_LINK_VERSION = 'v2-2026-06';
 var SANOVA_PRO_API = 'https://sanova-api.contatosanovaapp.workers.dev';
 
 // Cache dos pros vinculados — pra co-branding sem ficar batendo no Worker
@@ -7523,13 +7551,13 @@ function abrirModalVincular(){
       '<div style="font-family:Georgia,serif;font-size:19px;font-weight:500;color:#fff">🩺 Vincular profissional</div>' +
       '<button onclick="this.closest(\'[data-modal]\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer">×</button>' +
     '</div>' +
-    '<p style="font-size:13px;color:rgba(255,255,255,.72);line-height:1.55;margin:0 0 16px">Cole o código de convite do seu profissional. Ele passa a ver um resumo do seu painel — peso, calorias médias, proteção muscular. <strong style="color:#bbf7d0">Não verá registros individuais</strong> (refeições, sintomas).</p>' +
+    '<p style="font-size:13px;color:rgba(255,255,255,.72);line-height:1.55;margin:0 0 16px">Cole o código de convite do seu profissional. Ele passa a <strong style="color:#bbf7d0">ver tudo que você vê no app</strong> — peso, refeições, doses, sintomas, exercícios. Em <strong style="color:#bbf7d0">modo somente leitura</strong> — ele não pode registrar nada por você. Toda intervenção clínica acontece pelos canais habituais (consulta, telefone, WhatsApp).</p>' +
     '<div style="margin-bottom:14px"><label style="display:block;font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Código de convite</label>' +
       '<input id="proInvite" type="text" maxlength="10" placeholder="SAN-XXXX" autocomplete="off" autocapitalize="characters" style="width:100%;padding:14px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.18);background:#fff;color:#041b0d;font-size:18px;font-weight:700;letter-spacing:2px;text-align:center;font-family:monospace;outline:none">' +
     '</div>' +
     '<label style="display:flex;align-items:flex-start;gap:9px;padding:11px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.2);border-radius:10px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.85);cursor:pointer;margin-bottom:16px">' +
       '<input id="proConsent" type="checkbox" style="margin-top:2px;flex-shrink:0;cursor:pointer">' +
-      '<span><strong>Eu autorizo</strong> esse profissional a visualizar o resumo do meu acompanhamento no Sanova. Posso revogar essa autorização a qualquer momento aqui mesmo. (LGPD · termo ' + SANOVA_LINK_VERSION + ')</span>' +
+      '<span><strong>Eu autorizo</strong> esse profissional a visualizar TODOS os meus registros no Sanova (peso, refeições, doses, sintomas, exercícios) em modo somente leitura. Sanova não substitui consulta clínica. Posso revogar a qualquer momento aqui mesmo. (LGPD · termo ' + SANOVA_LINK_VERSION + ')</span>' +
     '</label>' +
     '<button onclick="confirmarVincularPro()" id="proVincBtn" style="width:100%;padding:13px;border-radius:11px;border:1px solid #16a34a;background:linear-gradient(180deg,#22c55e,#16a34a);color:#fff;font-family:system-ui,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Vincular</button>' +
     '<div id="proVincMsg" style="margin-top:12px"></div>' +
@@ -9633,6 +9661,10 @@ function calcSemanas(){if(!S.caneta.inicio) return null;var ini=new Date(S.canet
 
 /* ══ PERSISTÊNCIA ══ */
 function salvar(){
+  // v3.10.50 (Fase 1 espelho): no modo spectator, NUNCA salvar.
+  // O state em memoria pertence a paciente, salvar gravaria no
+  // localStorage do pro e contaminaria contexto.
+  if(document.body.classList.contains('spectator-mode')) return;
   // v3.1.14: marcar timestamp para detecção de concorrência
   if(!S._meta) S._meta = {};
   S._meta.lastModified = Date.now();
@@ -22856,8 +22888,96 @@ window.addEventListener('beforeunload',function(){
   };
 
   // Quando loga com sucesso: puxa dados da nuvem e libera o app
+  // v3.10.50 (Fase 1 espelho): pro logado entra no app no modo "ver como
+  // a paciente ve". Carrega state da paciente via worker, NAO sincroniza,
+  // NAO sobrescreve localStorage. Body ganha classe spectator-mode que
+  // esconde botoes de registro / tab bar via CSS.
+  async function entrarModoSpectator(user, linkId){
+    try{
+      var token = null;
+      try{
+        var sess = await sb.auth.getSession();
+        token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+      }catch(e){}
+      if(!token){ alert('Sem sessao valida.'); location.href = '/pro.html'; return; }
+      var apiBase = 'https://sanova-api.contatosanovaapp.workers.dev';
+      var resp = await fetch(apiBase + '/api/spectator-state?link_id=' + encodeURIComponent(linkId), {
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      var data = await resp.json().catch(function(){ return {}; });
+      if(!resp.ok || !data.ok){
+        alert('Nao foi possivel abrir o painel da paciente: ' + (data.error || resp.status));
+        location.href = '/pro.html';
+        return;
+      }
+      if(!data.paciente_state){
+        alert('Essa paciente ainda nao tem dados registrados.');
+        location.href = '/pro.html';
+        return;
+      }
+      // Salva metadata + state em window — sem tocar em localStorage
+      window._spectatorCtx = {
+        link_id: linkId,
+        paciente: data.paciente,
+        pro: data.pro,
+        vinculo: data.vinculo,
+      };
+      window.S = data.paciente_state;
+      // marca body em modo espelho
+      document.body.classList.add('spectator-mode');
+      // banner topo de "visualizando"
+      try{ _renderSpectatorBanner(); }catch(e){}
+      // esconde overlay onboarding (anaOv), mostra app
+      try{ esconderGate(); }catch(e){}
+      var ana = document.getElementById('anaOv'); if(ana) ana.style.display='none';
+      ['mainHdr','mainWrap','tabBar'].forEach(function(id){
+        var e = document.getElementById(id); if(e) e.style.display='block';
+      });
+      // renderiza
+      try{ if(typeof render === 'function') render(); }catch(e){}
+      try{ if(typeof go === 'function') go('dashboard'); }catch(e){}
+    }catch(err){
+      alert('Erro ao carregar paciente: ' + (err && err.message || err));
+      location.href = '/pro.html';
+    }
+  }
+
+  function _renderSpectatorBanner(){
+    if(document.getElementById('spectatorBanner')) return;
+    var ctx = window._spectatorCtx || {};
+    var nome = (ctx.paciente && ctx.paciente.nome) || (ctx.paciente && ctx.paciente.email) || 'paciente';
+    var b = document.createElement('div');
+    b.id = 'spectatorBanner';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:linear-gradient(180deg,#0a3a20 0%,#041b0d 100%);color:#bbf7d0;font-family:system-ui,-apple-system,sans-serif;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.18);border-bottom:1px solid rgba(187,247,208,.22)';
+    b.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;min-width:0">' +
+        '<span style="font-size:16px">🩺</span>' +
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Visualizando <strong style="color:#fff">' + (nome.replace(/[<>]/g,'')) + '</strong> · somente leitura</span>' +
+      '</div>' +
+      '<a href="/pro.html" style="background:#86efac;color:#041b0d;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">← Voltar</a>';
+    document.body.appendChild(b);
+    // empurra app abaixo do banner
+    try{
+      var mainHdr = document.getElementById('mainHdr');
+      if(mainHdr) mainHdr.style.paddingTop = '52px';
+      document.body.style.paddingTop = '0';
+    }catch(e){}
+  }
+
   async function aoLogar(user, ehNovo){
     usuarioAtual = user;
+    // v3.10.50 (Fase 1 espelho): se URL tem ?spectator_link=UUID, o user
+    // logado eh um PROFISSIONAL visualizando o app de uma paciente vinculada.
+    // Carrega o app_state da PACIENTE em memoria, NAO sincroniza, NAO sobrescreve
+    // localStorage do pro. Modo somente leitura.
+    try{
+      var urlParamsSpec = new URLSearchParams(location.search);
+      var spectatorLink = urlParamsSpec.get('spectator_link');
+      if(spectatorLink){
+        await entrarModoSpectator(user, spectatorLink);
+        return;
+      }
+    }catch(e){ console.warn('[Spectator] check falhou, seguindo fluxo normal', e); }
     msg('Entrando...', 'ok');
     try{
       var r = await sb.from('app_state').select('state').eq('user_id', user.id).maybeSingle();
@@ -22945,6 +23065,9 @@ window.addEventListener('beforeunload',function(){
   // Sobe o estado atual pra nuvem
   async function sincronizarAgora(){
     if(!sb || !usuarioAtual || !window.S) return;
+    // v3.10.50 (Fase 1 espelho): nunca sincronizar em modo viewer — o
+    // pro logado nao escreve o state da paciente.
+    if(document.body.classList.contains('spectator-mode')) return;
     try{
       var badge = elAG('agSyncBadge');
       if(badge){ elAG('agSyncTxt').textContent='Salvando...'; badge.style.display='flex'; }

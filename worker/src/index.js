@@ -19,7 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
-import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets } from './pro.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState } from './pro.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
 // Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
@@ -60,7 +60,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.8' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.28.15' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -75,6 +75,11 @@ export default {
       }
       if (url.pathname === '/api/pro-patient' && request.method === 'GET') {
         return await handleProPatient(request, env, origin);
+      }
+      // v1.28.15 (Fase 1 espelho): pro logado pega app_state COMPLETO da
+      // paciente vinculada (read-only). Usado por index.html?spectator_link=X
+      if (url.pathname === '/api/spectator-state' && request.method === 'GET') {
+        return await handleSpectatorState(request, env, origin);
       }
       if (url.pathname === '/api/link-professional' && request.method === 'POST') {
         return await handleLinkProfessional(request, env, origin);

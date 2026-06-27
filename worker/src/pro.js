@@ -512,6 +512,91 @@ export async function handleLinkProfessional(request, env, origin) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// GET /api/spectator-state?link_id=...  (v1.28.15 — Fase 1 espelho)
+// Pro logado pega app_state COMPLETO da paciente vinculada (read-only).
+// Usado por index.html?spectator_link=X — o pro vê EXATAMENTE o que a
+// paciente ve no painel dela, em modo somente leitura.
+//
+// Seguranca:
+// - JWT do pro logado (requirePro)
+// - link.professional_id === pro.id (verificacao dupla)
+// - link.status === 'active' (consentimento ativo)
+// - app_state retornado intocado (sem agregacao) → frontend decide o que esconder
+// ════════════════════════════════════════════════════════════════════
+export async function handleSpectatorState(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const ctx = await requirePro(request, env, origin);
+  if (ctx.error) return ctx.error;
+
+  const url = new URL(request.url);
+  const link_id = url.searchParams.get('link_id');
+  if (!link_id) {
+    return jsonResponse({ ok: false, error: 'missing_link_id' }, 400, origin, env);
+  }
+
+  // VERIFICACAO DUPLA: link existe, pertence ao pro logado, esta active.
+  const linkUrl = SUPABASE_URL + '/rest/v1/patient_links?id=eq.' + encodeURIComponent(link_id) + '&select=*';
+  const linkResp = await fetch(linkUrl, { headers: svcHeaders(env) });
+  const arr = await linkResp.json().catch(() => []);
+  const link = (Array.isArray(arr) && arr[0]) || null;
+  if (!link) {
+    return jsonResponse({ ok: false, error: 'link_not_found' }, 404, origin, env);
+  }
+  if (link.professional_id !== ctx.pro.id) {
+    return jsonResponse({ ok: false, error: 'forbidden' }, 403, origin, env);
+  }
+  if (link.status !== 'active') {
+    return jsonResponse({ ok: false, error: 'link_revoked' }, 403, origin, env);
+  }
+
+  // Pega o app_state cru da paciente
+  const stateUrl = SUPABASE_URL + '/rest/v1/app_state?user_id=eq.' +
+    encodeURIComponent(link.patient_user_id) + '&select=*';
+  const stResp = await fetch(stateUrl, { headers: svcHeaders(env) });
+  const stArr = await stResp.json().catch(() => []);
+  const row = (Array.isArray(stArr) && stArr[0]) || null;
+  if (!row || !row.state) {
+    return jsonResponse({
+      ok: true,
+      paciente_state: null,
+      pro: { nome: ctx.pro.nome, titulo_exibido: ctx.pro.titulo_exibido, foto_url: ctx.pro.foto_url },
+      vinculo: { link_id: link.id, consentido_em: link.consented_at, consent_version: link.consent_version },
+    }, 200, origin, env);
+  }
+
+  // Email pra contexto (header do espelho)
+  let email = null;
+  try {
+    const u = await fetch(SUPABASE_URL + '/auth/v1/admin/users/' + link.patient_user_id, {
+      headers: svcHeaders(env),
+    });
+    if (u.ok) {
+      const ud = await u.json().catch(() => null);
+      email = ud && ud.email ? ud.email : null;
+    }
+  } catch {}
+
+  return jsonResponse({
+    ok: true,
+    paciente: {
+      user_id_curto: link.patient_user_id.slice(0, 8) + '...',
+      email,
+      nome: (row.state.profile && (row.state.profile.name || row.state.profile.nome)) || null,
+    },
+    pro: { nome: ctx.pro.nome, titulo_exibido: ctx.pro.titulo_exibido, foto_url: ctx.pro.foto_url },
+    vinculo: {
+      link_id: link.id,
+      consentido_em: link.consented_at,
+      consent_version: link.consent_version,
+    },
+    // app_state cru — frontend renderiza tudo + esconde controles de registro
+    paciente_state: row.state,
+  }, 200, origin, env);
+}
+
 // POST /api/pro-assets   (pro envia foto/logo)
 //   Body: { kind: 'foto' | 'logo', data_base64: '...', content_type: 'image/jpeg' }
 //   Limita pra 2MB depois de decode. Salva em bucket 'pro-assets' como
