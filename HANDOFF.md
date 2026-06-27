@@ -195,7 +195,7 @@
 
 Para o Claude Code (executor) e qualquer Claude futuro. Bruno é o dono do produto. Leia tudo antes de tocar no código.
 ⚡ COMECE POR AQUI
-Estado atual: v3.9.7 (no GitHub: sanovaapp.github.io/sanova).
+Estado atual: v3.10.52 (no GitHub: sanovaapp.github.io/sanova).
 Bruno é mobile-only (Android). Trabalha pelo celular. Adapte tudo pra isso.
 Bruno é médico, founder solo, NÃO é programador. Você é o executor técnico integral.
 
@@ -338,13 +338,30 @@ Fix campo estoque: label dinâmico ("Quantos mg no total?"/"Quantas canetas?") +
 Fix dose vazia: normalização de valores ("10" vs "10 mg") no dropdown de dose
 v3.2.0: camada de auth + sync Supabase (login obrigatório, recuperação multi-device)
 🎯 TAREFAS PLANEJADAS (fila de trabalho)
-EM ANDAMENTO: Separar calculadora de dose por tipo
-Decisão de Bruno: SEPARAR (não remover)
-Calculadora mg→UI deve ser EXCLUSIVA pra frasco manipulado + seringa de insulina
-Caneta industrial: vira registro simples (paciente só confirma a dose, sem cálculo de UI)
-Detectar o tipo e mostrar a interface certa pra cada um
-NÃO quebrar dados salvos (S.caneta)
-PRÓXIMAS (depois):
+CONCLUÍDO (v3.10.0): Separar calculadora de dose por tipo
+  S.caneta.tipo expandido pra 4 categorias clínicas:
+    caneta_unica, kwikpen, frasco_lilly, frasco_manipulado
+  precisaCalculadoraUI() / calcUIFromCaneta() retornam só pra frasco_manipulado
+  Lilly oficial vem dose fixa → registro simples sem cálculo
+  Canetas não usam seringa → registro simples sem cálculo
+
+CONCLUÍDO (v3.10.50, PR #217): Fase 1 espelho profissional
+  Worker /api/spectator-state valida JWT do pro + ownership do link
+  index.html ?spectator_link=UUID → modo read-only, sem write em localStorage
+  pro.html abrirPaciente() navega pro app da paciente em vez de ficha resumida
+
+CONCLUÍDO (v3.10.51, PR #218): Card viral semana
+  Botão no dashboard abre canvas 1080x1920 com design v3 organic-diary
+  Stats derivados de S.daily e S.weights, sem nome/marca, molécula opt-in
+
+CONCLUÍDO (v3.10.52, PR #219): Card viral foto prato
+  Botão no fluxo de análise por foto → canvas 1080x1350 (Instagram post)
+  Foto crop cover + overlay nutricional (kcal + proteína em destaque)
+
+PRÓXIMAS:
+Fase 2 espelho profissional: 10 alertas (5 imediatos + 5 configuráveis)
+  + cron worker + push notifications + preferências por profissional
+Limpeza pagantes falsos (Fable T45+T46) — depende MP_ACCESS_TOKEN_PROD
 Dashboard: mostrar UI de insulina junto da dose atual (só pra quem usa frasco/seringa) + botão pequeno de config
 Reduzir redundância: "dose atual" aparece em ~7 lugares → escolher 1-2 canônicos, cortar ecos
 Aliviar tela Medicação (scroll gigante → blocos colapsáveis)
