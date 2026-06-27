@@ -5676,6 +5676,10 @@ try{
       <button onclick="pratoConfirmar()" style="width:100%;padding:13px;border-radius:12px;background:var(--g500);border:none;color:#fff;font-family:var(--ss);font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px">
         ✅ Confirmar e registrar
       </button>
+      <!-- v3.10.51 (Fable T50 Mandato 1): share viral foto prato -->
+      <button onclick="abrirShareFotoPratoModal()" style="width:100%;padding:11px;border-radius:12px;background:transparent;border:1.5px solid var(--g500);color:var(--g700);font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">
+        📤 Compartilhar este prato
+      </button>
       <button onclick="pratoReiniciar()" style="width:100%;padding:11px;border-radius:12px;background:transparent;border:1.5px solid var(--cream3);color:var(--muted);font-family:var(--ss);font-size:13px;font-weight:600;cursor:pointer">
         🔄 Registrar outra refeição
       </button>
@@ -6382,7 +6386,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.51';
+var SANOVA_VERSION = '3.10.52';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -24989,6 +24993,196 @@ window.addEventListener('beforeunload',function(){
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url; a.download = _shareFileName(stats);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if(typeof toast==='function') toast('Card salvo!');
+    }, 'image/png');
+  }
+
+  // ─── SHARE FOTO PRATO ──────────────────────────────────────────────
+  // Pega a foto que a paciente acabou de tirar + macros calculados pela IA
+  // e gera um card 1080x1350 (formato Instagram post) com overlay no rodape.
+  // SEM nome paciente, SEM nome comercial. Watermark Sanova discreto.
+
+  function abrirShareFotoPratoModal(){
+    var imgEl = document.getElementById('fotoPratoImg2');
+    if(!imgEl || !imgEl.src){
+      if(typeof toast==='function') toast('Tire ou anexe uma foto primeiro.');
+      return;
+    }
+    var totais = window._pratoTotais || {};
+    var stats = {
+      kcal: Math.round(Number(totais.kcal)||0),
+      prot: Math.round(Number(totais.proteina)||0),
+      carbo: Math.round(Number(totais.carbo)||0),
+      gord: Math.round(Number(totais.gordura)||0),
+    };
+    if(!stats.kcal && !stats.prot){
+      if(typeof toast==='function') toast('Sem dados do prato pra gerar card.');
+      return;
+    }
+
+    var ov = document.createElement('div');
+    ov.id='shareFotoPratoOv';
+    ov.setAttribute('data-spectator-block','1');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+    ov.innerHTML=''
+      + '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:480px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '    <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">📤 Compartilhar prato</div>'
+      + '    <button type="button" id="btnFecharShareFotoPrato" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>'
+      + '  </div>'
+      + '  <canvas id="shareFotoPratoCanvas" style="width:100%;height:auto;display:block;border-radius:12px;background:#041b0d;margin-bottom:12px"></canvas>'
+      + '  <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:rgba(255,255,255,.75);margin-bottom:12px;cursor:pointer">'
+      + '    <input type="checkbox" id="chkShareFotoMacros" checked style="margin-top:3px">'
+      + '    <span>Mostrar macros completos <span style="color:rgba(255,255,255,.45)">(carbo + gordura). Desmarque pra só proteína e kcal.</span></span>'
+      + '  </label>'
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '    <button type="button" id="btnShareFotoPratoCompartilhar" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer">📤 Compartilhar</button>'
+      + '    <button type="button" id="btnShareFotoPratoBaixar" style="padding:14px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-weight:700;font-size:13.5px;cursor:pointer">💾 Baixar</button>'
+      + '  </div>'
+      + '  <div style="margin-top:10px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.45);text-align:center">'
+      + '    Só a foto + nutrientes. Sem nome, sem marca comercial. Sanova só assinatura no rodapé.'
+      + '  </div>'
+      + '</div>';
+    document.body.appendChild(ov);
+
+    var canvas = document.getElementById('shareFotoPratoCanvas');
+    var chkMacros = document.getElementById('chkShareFotoMacros');
+    var fotoImg = new Image();
+    fotoImg.crossOrigin = 'anonymous';
+    fotoImg.onload = function(){ redraw(); };
+    fotoImg.onerror = function(){
+      if(typeof toast==='function') toast('Erro ao carregar foto.');
+    };
+    fotoImg.src = imgEl.src;
+
+    function redraw(){
+      _drawFotoPratoCard(canvas, fotoImg, stats, { showMacros: !!(chkMacros && chkMacros.checked) });
+    }
+    chkMacros.addEventListener('change', redraw);
+    document.getElementById('btnFecharShareFotoPrato').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.getElementById('btnShareFotoPratoCompartilhar').addEventListener('click', function(){ _compartilharShareFotoPrato(canvas); });
+    document.getElementById('btnShareFotoPratoBaixar').addEventListener('click', function(){ _baixarShareFotoPrato(canvas); });
+  }
+  window.abrirShareFotoPratoModal = abrirShareFotoPratoModal;
+
+  function _drawFotoPratoCard(canvas, fotoImg, stats, opts){
+    opts = opts || {};
+    var W=1080, H=1350;
+    canvas.width=W; canvas.height=H;
+    var ctx = canvas.getContext('2d');
+
+    // 1. fundo verde fallback
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    // 2. foto — preenche topo, mantendo aspect ratio (cover)
+    if(fotoImg && fotoImg.complete && fotoImg.naturalWidth > 0){
+      var fotoH = 900; // foto ocupa top 900px de 1350
+      var iw = fotoImg.naturalWidth, ih = fotoImg.naturalHeight;
+      var scale = Math.max(W/iw, fotoH/ih);
+      var dw = iw*scale, dh = ih*scale;
+      var dx = (W - dw)/2, dy = (fotoH - dh)/2;
+      ctx.drawImage(fotoImg, dx, dy, dw, dh);
+      // gradient overlay no rodape da foto pra fundir com o painel abaixo
+      var fade = ctx.createLinearGradient(0, fotoH-200, 0, fotoH);
+      fade.addColorStop(0,'rgba(4,27,13,0)');
+      fade.addColorStop(1,'rgba(4,27,13,1)');
+      ctx.fillStyle=fade;
+      ctx.fillRect(0, fotoH-200, W, 200);
+    }
+
+    var panelTop = 900;
+    var PAD=60;
+
+    // 3. painel inferior — macros
+    ctx.textBaseline='top';
+    var showMacros = !!opts.showMacros;
+
+    // titulo discreto
+    ctx.fillStyle='rgba(245,240,227,.55)';
+    ctx.font='600 18px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('REFEIÇÃO REGISTRADA', W/2, panelTop+30);
+
+    // kcal + prot grandes
+    var y = panelTop + 70;
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='400 110px "DM Serif Display", Georgia, serif';
+    var kcalTxt = String(stats.kcal);
+    var protTxt = String(stats.prot) + 'g';
+    var midX = W/2;
+    // layout: [kcal kcal_unit]   [prot prot_unit]
+    ctx.textAlign='right';
+    ctx.fillText(kcalTxt, midX-60, y);
+    ctx.fillStyle='rgba(245,240,227,.7)';
+    ctx.font='italic 300 38px "Fraunces", Georgia, serif';
+    ctx.textAlign='left';
+    ctx.fillText('kcal', midX-50, y+50);
+    // divider
+    ctx.strokeStyle='rgba(187,247,208,.32)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(midX, y-5); ctx.lineTo(midX, y+110); ctx.stroke();
+    ctx.fillStyle='#86efac';
+    ctx.font='400 110px "DM Serif Display", Georgia, serif';
+    ctx.textAlign='left';
+    ctx.fillText(protTxt, midX+50, y);
+    var pw = ctx.measureText(protTxt).width;
+    ctx.fillStyle='rgba(245,240,227,.7)';
+    ctx.font='italic 300 38px "Fraunces", Georgia, serif';
+    ctx.fillText('proteína', midX+50+pw+12, y+50);
+    y += 150;
+
+    // macros extras (opt-in)
+    if(showMacros && (stats.carbo || stats.gord)){
+      ctx.textAlign='center';
+      ctx.fillStyle='rgba(245,240,227,.55)';
+      ctx.font='600 18px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText('🌾 ' + stats.carbo + 'g CARBO   ·   🫙 ' + stats.gord + 'g GORDURA', W/2, y);
+      y += 40;
+    } else {
+      y += 10;
+    }
+
+    // brand + URL
+    y = H - 90;
+    ctx.textAlign='left';
+    ctx.fillStyle='#bbf7d0';
+    ctx.font='italic 500 26px "Fraunces", Georgia, serif';
+    ctx.fillText('🌿 Sanova', PAD, y);
+    ctx.textAlign='right';
+    ctx.fillStyle='#86efac';
+    ctx.font='700 28px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText('sanova.app.br', W-PAD, y+2);
+    ctx.textAlign='left';
+    ctx.textBaseline='top';
+  }
+
+  function _compartilharShareFotoPrato(canvas){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var name = 'sanova-prato-' + Date.now() + '.png';
+      var file = new File([blob], name, { type:'image/png' });
+      var payload = { files:[file], title:'Meu prato', text:'sanova.app.br — emagreça sem murchar' };
+      if(navigator.canShare && navigator.canShare(payload)){
+        navigator.share(payload).catch(function(err){
+          if(err && err.name==='AbortError') return;
+          _baixarShareFotoPrato(canvas);
+        });
+      } else {
+        _baixarShareFotoPrato(canvas);
+      }
+    }, 'image/png');
+  }
+
+  function _baixarShareFotoPrato(canvas){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'sanova-prato-' + Date.now() + '.png';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
       if(typeof toast==='function') toast('Card salvo!');
