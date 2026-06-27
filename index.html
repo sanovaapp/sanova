@@ -4374,6 +4374,11 @@ try{
   <!-- v3.1.43: Card de Leitura Clínica Narrativa (filosofia "emagreça sem murchar") -->
   <div id="cardLeituraSemana" style="margin-bottom:12px"></div>
 
+  <!-- v3.10.50 (Fable T50 Mandato 1): Card viral compartilhar semana —
+       botao que abre o "Organic Diary" v3 renderizado em canvas. Sem
+       nome paciente, sem nome comercial. Molecula opt-in. -->
+  <div id="cardShareSemana" style="margin-bottom:12px"></div>
+
   <!-- ══ 3. REGISTRAR REFEIÇÃO (v3.1.15 — 3 modos diretos no painel) ══ -->
   <input type="file" id="painelFotoRefeicaoInput" accept="image/*" capture="environment" style="display:none" onchange="painelAbrirRefeicaoFoto(this)">
   <div id="cardRegistroRefeicao" style="margin-bottom:12px;border-radius:16px;overflow:hidden;border:1.5px solid rgba(232,200,120,.3);background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);padding:16px 16px 12px;transition:box-shadow .4s ease, border-color .4s ease">
@@ -6377,7 +6382,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.50';
+var SANOVA_VERSION = '3.10.51';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21448,6 +21453,7 @@ function go(id){
         var cardLeit = document.getElementById('cardLeituraSemana');
         if(cardLeit) renderLeituraClinica(cardLeit, 'semana');
       }catch(e){ console.warn('[Sanova] leituraSemana painel:', e); }
+      try{ if(typeof renderCardShareSemana==='function') renderCardShareSemana(); }catch(e){}
     },80);
   }
   if(id==='faq'){if(typeof buildFAQ==='function') buildFAQ();}
@@ -24545,6 +24551,449 @@ window.addEventListener('beforeunload',function(){
   }
   setTimeout(atualizarBotao, 1500);
   setTimeout(atualizarBotao, 5000);
+})();
+</script>
+
+<!-- v3.10.50 (Fable T50 Mandato 1): Share semana viral card.
+     Renderiza o design v3 organic-diary num canvas 1080x1920 e
+     usa Web Share API (com fallback download). REGRA DURA:
+     sem nome paciente, sem nome comercial; molecula opt-in (default OFF). -->
+<script>
+(function(){
+  'use strict';
+
+  function _hojeDate(){ return new Date(); }
+  function _isoSemana(d){
+    var date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    var yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+    var week = Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+    return { semana: week, ano: date.getUTCFullYear() };
+  }
+  function _last7Dates(){
+    var out=[], d=new Date();
+    for(var i=6;i>=0;i--){
+      var x=new Date(d); x.setDate(d.getDate()-i);
+      out.push(x.toISOString().slice(0,10));
+    }
+    return out;
+  }
+
+  function calcSemanaStats(){
+    try{
+      var S = window.S || {};
+      var daily = Array.isArray(S.daily) ? S.daily : [];
+      var weights = Array.isArray(S.weights) ? S.weights.slice() : [];
+      weights.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+      var sevenDates = _last7Dates();
+      var weekDays = sevenDates.map(function(ds){
+        var rec = daily.find(function(x){ return x.date===ds; }) || {};
+        return {
+          date: ds,
+          proteinG: Number(rec.proteinG)||0,
+          waterMl: Number(rec.waterMl)||0,
+          exercicio: rec.exercicio || null,
+        };
+      });
+      var meta_prot = (S.profile && Number(S.profile.protein_target_g)) || 100;
+      var meta_agua = (S.profile && Number(S.profile.water_target_ml)) || 2000;
+      var diasProtOk = weekDays.filter(function(d){ return d.proteinG >= meta_prot * 0.8; }).length;
+      var diasAguaOk = weekDays.filter(function(d){ return d.waterMl >= meta_agua * 0.8; }).length;
+      var pctHidratacao = Math.round((diasAguaOk/7)*100);
+      var treinos = weekDays.filter(function(d){ return !!d.exercicio; }).length;
+      var pesoSerie = sevenDates.map(function(ds){
+        var w = weights.filter(function(x){ return x.date<=ds; }).pop();
+        return w ? Number(w.weight) : null;
+      });
+      var pesoValid = pesoSerie.filter(function(v){ return v!=null && !isNaN(v); });
+      var pesoInicio = pesoValid.length ? pesoValid[0] : null;
+      var pesoFim = pesoValid.length ? pesoValid[pesoValid.length-1] : null;
+      var deltaPeso = (pesoInicio!=null && pesoFim!=null) ? (pesoFim - pesoInicio) : null;
+      var iso = _isoSemana(_hojeDate());
+      var mensagem = _mensagemSemana(diasProtOk, pctHidratacao, treinos);
+      var molecula = (S.profile && S.profile.medicamento) ? String(S.profile.medicamento).trim() : '';
+      return {
+        semana: iso.semana, ano: iso.ano,
+        deltaPeso: deltaPeso,
+        pesoSerie: pesoSerie,
+        diasProtOk: diasProtOk,
+        pctHidratacao: pctHidratacao,
+        treinos: treinos,
+        mensagem: mensagem,
+        molecula: molecula,
+      };
+    }catch(e){
+      console.warn('[ShareSemana] calc falhou', e);
+      return null;
+    }
+  }
+
+  function _mensagemSemana(prot, hid, tre){
+    // Fable T50: voz da paciente, nao-causal. Nada que ligue molecula -> resultado.
+    if(prot >= 5 && tre >= 2) return 'Proteína em dia.\nEnergia equilibrada.\nMassa magra preservada.';
+    if(prot >= 5) return 'Proteína em dia.\nRotina cravada.\nSensação leve.';
+    if(tre >= 2) return 'Treinos firmes.\nRotina ganhando ritmo.\nConfiança crescendo.';
+    if(hid >= 80) return 'Hidratação em dia.\nDisposição melhor.\nUm passo de cada vez.';
+    return 'Semana que constrói.\nUm dia depois do outro.\nRotina ganhando forma.';
+  }
+
+  function _drawShareCard(canvas, stats, opts){
+    opts = opts || {};
+    var showMolecula = !!opts.showMolecula;
+    var ctx = canvas.getContext('2d');
+    var W=1080, H=1920;
+    canvas.width=W; canvas.height=H;
+
+    // fundo: gradient v2/v3 verde Sanova
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    // folha decorativa canto direito superior
+    ctx.save();
+    ctx.globalAlpha=.08;
+    ctx.translate(W-60, -60);
+    ctx.rotate(28*Math.PI/180);
+    _drawLeaf(ctx, 0, 0, 240, '#86efac', '#0F5C2F');
+    ctx.restore();
+
+    var PAD=90;
+    var y = 90;
+
+    // BRAND: folha + Sanova
+    _drawLeaf(ctx, PAD, y+5, 32, '#22c55e', '#0F5C2F');
+    ctx.fillStyle='#bbf7d0';
+    ctx.font='italic 500 32px "Fraunces", Georgia, serif';
+    ctx.textBaseline='top';
+    ctx.fillText('Sanova', PAD+62, y+8);
+    y += 75;
+
+    // DATA
+    ctx.fillStyle='rgba(245,240,227,.45)';
+    ctx.font='600 16px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText(('Semana '+stats.semana+' · '+stats.ano).toUpperCase(), PAD, y);
+    y += 95;
+
+    // EYEBROW
+    ctx.fillStyle='#c8a76a';
+    ctx.font='600 22px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText('SUA SEMANA', PAD, y);
+    y += 50;
+
+    // HERO LINE 1
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='400 120px "DM Serif Display", Georgia, serif';
+    ctx.fillText('Continua', PAD, y);
+    y += 110;
+    // HERO LINE 2 italic accent
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 300 120px "Fraunces", Georgia, serif';
+    ctx.fillText('nessa rotina.', PAD, y);
+    y += 165;
+
+    // BIG NUM (delta peso)
+    var deltaTxt = '—';
+    if(stats.deltaPeso!=null){
+      var s = stats.deltaPeso<0 ? '−' : (stats.deltaPeso>0 ? '+' : '');
+      deltaTxt = s + Math.abs(stats.deltaPeso).toFixed(1).replace('.',',');
+    }
+    // barra dourada
+    ctx.fillStyle='#c8a76a';
+    ctx.fillRect(PAD, y, 6, 180);
+    ctx.fillStyle='#86efac';
+    ctx.font='400 200px "DM Serif Display", Georgia, serif';
+    ctx.fillText(deltaTxt, PAD+34, y);
+    var dm = ctx.measureText(deltaTxt);
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 300 44px "Fraunces", Georgia, serif';
+    ctx.fillText('kg esta semana', PAD+34+dm.width+28, y+120);
+    y += 240;
+
+    // CHART label
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 400 26px "Fraunces", Georgia, serif';
+    ctx.fillText('— peso 7 dias', PAD, y);
+    y += 40;
+
+    // CHART svg-like
+    var chartW=W-PAD*2, chartH=150;
+    var serie = (stats.pesoSerie||[]).map(function(v){ return v==null?null:Number(v); });
+    var vals = serie.filter(function(v){ return v!=null && !isNaN(v); });
+    if(vals.length >= 2){
+      var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
+      if(mn===mx){ mn-=0.5; mx+=0.5; }
+      var pts = serie.map(function(v,i){
+        var x = PAD + (i/(serie.length-1))*chartW;
+        var yy = y + chartH - ((v==null?mn:v - mn)/(mx-mn))*(chartH-10) - 5;
+        return {x:x, y:yy, v:v};
+      });
+      // area
+      var grad = ctx.createLinearGradient(0,y,0,y+chartH);
+      grad.addColorStop(0,'rgba(134,239,172,0.42)');
+      grad.addColorStop(1,'rgba(134,239,172,0)');
+      ctx.fillStyle=grad;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.lineTo(pts[pts.length-1].x, y+chartH);
+      ctx.lineTo(pts[0].x, y+chartH);
+      ctx.closePath(); ctx.fill();
+      // linha
+      ctx.strokeStyle='#86efac'; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(var j=1;j<pts.length;j++) ctx.lineTo(pts[j].x, pts[j].y);
+      ctx.stroke();
+      // ponto final
+      var last = pts[pts.length-1];
+      ctx.fillStyle='#bbf7d0';
+      ctx.strokeStyle='#0a3a20'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(last.x,last.y,10,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }else{
+      ctx.fillStyle='rgba(245,240,227,.35)';
+      ctx.font='italic 24px "Fraunces", Georgia, serif';
+      ctx.fillText('Sem dados de peso na semana', PAD, y+chartH/2);
+    }
+    y += chartH + 70;
+
+    // STATS — 3 colunas
+    var statsTop=y;
+    ctx.strokeStyle='rgba(134,239,172,.32)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    var statY = y + 34;
+    var colW = (W-PAD*2)/3;
+    var items = [
+      { icon:'🥩', num:stats.diasProtOk+'/7', lbl:'PROTEÍNA' },
+      { icon:'💧', num:stats.pctHidratacao+'%', lbl:'HIDRATAÇÃO' },
+      { icon:'💪', num:String(stats.treinos), lbl:'TREINOS' },
+    ];
+    items.forEach(function(it,i){
+      var cx = PAD + colW*i + colW/2;
+      ctx.textAlign='center';
+      ctx.font='38px system-ui, "Apple Color Emoji", sans-serif';
+      ctx.fillStyle='#f5f0e3';
+      ctx.fillText(it.icon, cx, statY);
+      ctx.fillStyle='#f5f0e3';
+      ctx.font='400 58px "DM Serif Display", Georgia, serif';
+      ctx.fillText(it.num, cx, statY+62);
+      ctx.fillStyle='rgba(245,240,227,.72)';
+      ctx.font='600 17px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText(it.lbl, cx, statY+138);
+      ctx.textAlign='left';
+      if(i>0){
+        ctx.strokeStyle='rgba(134,239,172,.22)';
+        ctx.lineWidth=1;
+        ctx.beginPath();
+        ctx.moveTo(PAD+colW*i, statY-10);
+        ctx.lineTo(PAD+colW*i, statY+150);
+        ctx.stroke();
+      }
+    });
+    y = statsTop + 220;
+    ctx.strokeStyle='rgba(134,239,172,.32)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    y += 60;
+
+    // MENSAGEM — aspas grandes + texto italic cream
+    ctx.fillStyle='#c8a76a';
+    ctx.font='400 130px "DM Serif Display", Georgia, serif';
+    ctx.fillText('“', PAD, y-30);
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 48px "Fraunces", Georgia, serif';
+    var lines = (stats.mensagem||'').split('\n');
+    lines.forEach(function(ln,i){ ctx.fillText(ln, PAD, y+44 + i*64); });
+    y += 44 + lines.length*64 + 50;
+
+    // FOOTER divider
+    ctx.strokeStyle='rgba(134,239,172,.20)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    y += 40;
+
+    // FOOTER SLOGAN
+    ctx.textAlign='center';
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 48px "Fraunces", Georgia, serif';
+    var slogan1='Emagreça ', slogan2='sem murchar.';
+    var m1=ctx.measureText(slogan1);
+    ctx.fillText(slogan1, W/2 - m1.width/2 + 0, y); // approx left half
+    // reposiciona com bold accent
+    var totalW = ctx.measureText(slogan1).width;
+    ctx.font='italic 600 48px "Fraunces", Georgia, serif';
+    totalW += ctx.measureText(slogan2).width;
+    var startX = W/2 - totalW/2;
+    ctx.font='italic 300 48px "Fraunces", Georgia, serif';
+    ctx.textAlign='left';
+    ctx.fillText(slogan1, startX, y);
+    var w1 = ctx.measureText(slogan1).width;
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 600 48px "Fraunces", Georgia, serif';
+    ctx.fillText(slogan2, startX + w1, y);
+    y += 70;
+
+    // URL PILL
+    var pillTxt='sanova.app.br';
+    ctx.font='700 34px "Plus Jakarta Sans", system-ui, sans-serif';
+    var pillW = ctx.measureText(pillTxt).width + 64;
+    var pillH = 64;
+    var pillX = W/2 - pillW/2;
+    ctx.fillStyle='#86efac';
+    _roundRect(ctx, pillX, y, pillW, pillH, pillH/2);
+    ctx.fill();
+    ctx.fillStyle='#041b0d';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(pillTxt, W/2, y+pillH/2);
+    ctx.textBaseline='top'; ctx.textAlign='left';
+    y += pillH + 32;
+
+    // FOOTER META — brand + molecula (opt-in)
+    ctx.strokeStyle='rgba(134,239,172,.18)';
+    ctx.setLineDash([6,6]);
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    ctx.setLineDash([]);
+    y += 22;
+    ctx.fillStyle='#bbf7d0';
+    ctx.font='italic 500 24px "Fraunces", Georgia, serif';
+    ctx.fillText('🌿 Sanova', PAD, y);
+    if(showMolecula && stats.molecula){
+      var molTxt = 'Tratamento: ' + stats.molecula;
+      ctx.fillStyle='rgba(245,240,227,.45)';
+      ctx.font='500 14px "Plus Jakarta Sans", system-ui, sans-serif';
+      var mw = ctx.measureText(molTxt).width;
+      ctx.fillText(molTxt, W-PAD-mw, y+8);
+    }
+  }
+
+  function _drawLeaf(ctx, x, y, size, fill, stroke){
+    ctx.save();
+    ctx.translate(x, y);
+    var k = size/100;
+    ctx.fillStyle=fill;
+    ctx.beginPath();
+    ctx.moveTo(50*k, 8*k);
+    ctx.bezierCurveTo(12*k,42*k, 16*k,92*k, 16*k,92*k);
+    ctx.bezierCurveTo(22*k,132*k, 50*k,138*k, 50*k,138*k);
+    ctx.bezierCurveTo(78*k,132*k, 84*k,92*k, 84*k,92*k);
+    ctx.bezierCurveTo(88*k,42*k, 50*k,8*k, 50*k,8*k);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle=stroke; ctx.globalAlpha=.7; ctx.lineWidth=Math.max(1, k*1.5);
+    ctx.beginPath();
+    ctx.moveTo(50*k,8*k); ctx.lineTo(50*k,138*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(68*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(72*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(70*k,100*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(32*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(28*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(30*k,100*k);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function _roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function renderCardShareSemana(){
+    var host = document.getElementById('cardShareSemana');
+    if(!host) return;
+    // Esconde em modo spectator
+    if(document.body.classList.contains('spectator-mode')){ host.innerHTML=''; return; }
+    host.innerHTML = ''
+      + '<div style="border-radius:16px;overflow:hidden;border:1.5px solid rgba(22,163,74,.18);background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);padding:16px">'
+      + '  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      + '    <span style="font-size:22px">📤</span>'
+      + '    <div style="flex:1">'
+      + '      <div style="font-size:14px;font-weight:800;color:#fff">Compartilhar minha semana</div>'
+      + '      <div style="font-size:11px;color:rgba(232,200,120,.75);margin-top:1px">Card visual com seu progresso · sem nome · sem marca</div>'
+      + '    </div>'
+      + '  </div>'
+      + '  <button type="button" id="btnAbrirShareSemana" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-family:var(--ss);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.3)">Gerar card da semana</button>'
+      + '</div>';
+    var btn = document.getElementById('btnAbrirShareSemana');
+    if(btn) btn.addEventListener('click', abrirShareSemanaModal);
+  }
+  window.renderCardShareSemana = renderCardShareSemana;
+
+  function abrirShareSemanaModal(){
+    var stats = calcSemanaStats();
+    if(!stats){ if(typeof toast==='function') toast('Sem dados pra gerar card.'); return; }
+    var ov = document.createElement('div');
+    ov.id='shareSemanaOv';
+    ov.setAttribute('data-spectator-block','1');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+    ov.innerHTML=''
+      + '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:480px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '    <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">📤 Card da semana</div>'
+      + '    <button type="button" id="btnFecharShareSemana" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>'
+      + '  </div>'
+      + '  <canvas id="shareSemanaCanvas" style="width:100%;height:auto;display:block;border-radius:12px;background:#041b0d;margin-bottom:12px"></canvas>'
+      + '  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:rgba(255,255,255,.75);margin-bottom:12px;cursor:pointer">'
+      + '    <input type="checkbox" id="chkShareMolecula" style="margin:0">'
+      + '    <span>Mostrar minha molécula no card <span style="color:rgba(255,255,255,.45)">(ex: Tirzepatida) — fica visível pra quem ver</span></span>'
+      + '  </label>'
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '    <button type="button" id="btnShareSemanaCompartilhar" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer">📤 Compartilhar</button>'
+      + '    <button type="button" id="btnShareSemanaBaixar" style="padding:14px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-weight:700;font-size:13.5px;cursor:pointer">💾 Baixar</button>'
+      + '  </div>'
+      + '  <div style="margin-top:10px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.45);text-align:center">'
+      + '    Nada que identifique você é incluído. Sem nome, sem marca comercial. O Sanova vira só assinatura discreta.'
+      + '  </div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    var canvas = document.getElementById('shareSemanaCanvas');
+    var chkMol = document.getElementById('chkShareMolecula');
+    function redraw(){ _drawShareCard(canvas, stats, { showMolecula: !!(chkMol && chkMol.checked) }); }
+    // garante fontes carregadas antes de pintar
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(redraw).catch(redraw);
+    } else { redraw(); }
+    chkMol.addEventListener('change', redraw);
+    document.getElementById('btnFecharShareSemana').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.getElementById('btnShareSemanaCompartilhar').addEventListener('click', function(){ _compartilharShareSemana(canvas, stats); });
+    document.getElementById('btnShareSemanaBaixar').addEventListener('click', function(){ _baixarShareSemana(canvas, stats); });
+  }
+  window.abrirShareSemanaModal = abrirShareSemanaModal;
+
+  function _shareFileName(stats){
+    return 'sanova-semana-'+stats.ano+'-w'+String(stats.semana).padStart(2,'0')+'.png';
+  }
+
+  function _compartilharShareSemana(canvas, stats){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var file = new File([blob], _shareFileName(stats), { type:'image/png' });
+      var payload = { files:[file], title:'Minha semana no Sanova', text:'sanova.app.br — emagreça sem murchar' };
+      if(navigator.canShare && navigator.canShare(payload)){
+        navigator.share(payload).catch(function(err){
+          if(err && err.name==='AbortError') return;
+          _baixarShareSemana(canvas, stats);
+        });
+      } else {
+        _baixarShareSemana(canvas, stats);
+      }
+    }, 'image/png');
+  }
+
+  function _baixarShareSemana(canvas, stats){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = _shareFileName(stats);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if(typeof toast==='function') toast('Card salvo!');
+    }, 'image/png');
+  }
 })();
 </script>
 
