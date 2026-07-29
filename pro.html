@@ -328,7 +328,59 @@ function viewProPanel() {
 
     <div class="section-title">Pacientes (${state.patients.length})</div>
     ${pacientesHtml}
+
+    <!-- v1.7.0 (Fase 2 Fable T49.1+T50): alertas ativos read-only -->
+    <div class="section-title" style="margin-top:24px">🔔 Alertas ativos <span id="alertsBadge" style="font-size:11px;color:rgba(187,247,208,.55);font-weight:400;margin-left:4px"></span></div>
+    <div id="alertsList"><div class="empty" style="font-size:12px">Carregando…</div></div>
   `;
+}
+
+// v1.7.0 (Fase 2): busca /api/pro-alerts-list e renderiza inline.
+async function carregarAlertasAtivos() {
+  const host = document.getElementById('alertsList');
+  const badge = document.getElementById('alertsBadge');
+  if (!host) return;
+  try {
+    const r = await apiCall('/api/pro-alerts-list');
+    const eventos = (r.eventos || []);
+    if (badge) badge.textContent = eventos.length ? '(' + eventos.length + ')' : '';
+    if (!eventos.length) {
+      host.innerHTML = '<div class="empty" style="font-size:12px">Sem alertas ativos nos últimos 30 dias. Isso NÃO significa ausência de risco — Sanova sinaliza best-effort.</div>';
+      return;
+    }
+    const SEV = { red: { icon: '🔴', color: '#f3a88a' }, yellow: { icon: '🟡', color: '#fcd34d' } };
+    host.innerHTML = eventos.map(function(ev) {
+      const s = SEV[ev.severity] || SEV.yellow;
+      const quando = new Date(ev.triggered_at);
+      const qStr = quando.toLocaleDateString('pt-BR') + ' ' + quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      return '<div class="patient-row" style="align-items:flex-start">'
+        + '<div class="patient-avatar" style="background:transparent;font-size:22px">' + s.icon + '</div>'
+        + '<div class="patient-info">'
+        + '  <div class="patient-name" style="color:' + s.color + '">' + escapeHtml(ev.label || ev.alert_key) + '</div>'
+        + '  <div class="patient-meta" style="white-space:normal;line-height:1.5">' + escapeHtml(ev.factual_message) + '</div>'
+        + '  <div class="patient-meta" style="opacity:.55;margin-top:4px">Paciente ' + escapeHtml(ev.patient_user_id_curto) + ' · ' + qStr + '</div>'
+        + '</div>'
+        + '<button data-dismiss-id="' + escapeHtml(ev.id) + '" style="background:none;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-size:11px;padding:5px 9px;border-radius:6px;cursor:pointer">✓ Dismissar</button>'
+        + '</div>';
+    }).join('');
+    host.querySelectorAll('button[data-dismiss-id]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const id = btn.getAttribute('data-dismiss-id');
+        dismissarAlerta(id);
+      });
+    });
+  } catch (e) {
+    host.innerHTML = '<div class="empty" style="font-size:12px;color:#f3a88a">Erro ao carregar alertas: ' + escapeHtml(e.message || 'desconhecido') + '</div>';
+  }
+}
+
+async function dismissarAlerta(id) {
+  try {
+    await apiCall('/api/pro-alerts-dismiss', { method: 'POST', body: JSON.stringify({ event_id: id }) });
+    carregarAlertasAtivos();
+  } catch (e) {
+    alert('Erro ao dismissar: ' + (e.message || 'desconhecido'));
+  }
 }
 
 // Renderiza 3 mini-cards (7d/15d/30d) com o estado de cada janela.
@@ -436,6 +488,8 @@ function render() {
       c.querySelectorAll('.patient-row[data-link-id]').forEach(row => {
         row.addEventListener('click', () => abrirPaciente(row.getAttribute('data-link-id')));
       });
+      // v1.7.0 (Fase 2): carrega alertas ativos em paralelo
+      setTimeout(() => { try { carregarAlertasAtivos(); } catch (e) { console.warn('[alertas]', e); } }, 60);
       break;
     case 'patient': c.innerHTML = viewPatient(); break;
   }

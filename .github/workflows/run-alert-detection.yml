@@ -1,0 +1,69 @@
+name: Run Alert Detection
+
+# Dispara /api/admin-run-alert-detection no Worker.
+# Escopo: workflow_dispatch (manual). Cron scheduled fica pra proxima PR
+# depois de rodar manual varias vezes e sentir ritmo + custo.
+#
+# Input opcional: patient_user_id (roda so pra 1 paciente — util pra
+# debug ou pra teste inicial).
+#
+# Secrets necessarios: ADMIN_OVERRIDE_TOKEN (ja existe pra outros workflows).
+
+on:
+  workflow_dispatch:
+    inputs:
+      patient_user_id:
+        description: 'UUID de 1 paciente (vazio = todos os vinculos ativos)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alert-detection
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere secret
+        run: |
+          set -e
+          if [ -z "${{ secrets.ADMIN_OVERRIDE_TOKEN }}" ]; then
+            echo "::error::ADMIN_OVERRIDE_TOKEN ausente"
+            exit 1
+          fi
+
+      - name: POST /api/admin-run-alert-detection
+        env:
+          TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+          PID: ${{ github.event.inputs.patient_user_id }}
+        run: |
+          set -e
+          BASE="https://sanova-api.contatosanovaapp.workers.dev"
+          URL="$BASE/api/admin-run-alert-detection"
+          if [ -n "$PID" ]; then
+            URL="$URL?patient_user_id=$PID"
+          fi
+          echo "[detect] POST $URL"
+          RESP=$(curl -sS -w "\n---HTTP:%{http_code}---" \
+            -X POST "$URL" \
+            -H "X-Admin-Token: $TOKEN")
+          echo "$RESP"
+          HTTP=$(echo "$RESP" | grep -oP 'HTTP:\K\d+' | tail -1)
+          {
+            echo "## Alert detection"
+            echo ""
+            echo '```json'
+            echo "$RESP" | sed '/^---HTTP:/,$d'
+            echo '```'
+            echo ""
+            echo "**HTTP:** $HTTP"
+          } >> $GITHUB_STEP_SUMMARY
+          if [ "$HTTP" -ge 400 ]; then
+            echo "::error::Detection retornou $HTTP"
+            exit 1
+          fi

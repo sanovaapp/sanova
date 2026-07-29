@@ -20,6 +20,7 @@ import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, 
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
 import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState } from './pro.js';
+import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
 // Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
@@ -60,7 +61,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.28.15' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.29.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -80,6 +81,20 @@ export default {
       // paciente vinculada (read-only). Usado por index.html?spectator_link=X
       if (url.pathname === '/api/spectator-state' && request.method === 'GET') {
         return await handleSpectatorState(request, env, origin);
+      }
+
+      // ─── Fase 2 Alertas (v1.29.0) ────────────────────────────
+      if (url.pathname === '/api/pro-alerts-prefs' && (request.method === 'GET' || request.method === 'POST')) {
+        return await handleProAlertsPrefs(request, env, origin);
+      }
+      if (url.pathname === '/api/pro-alerts-list' && request.method === 'GET') {
+        return await handleProAlertsList(request, env, origin);
+      }
+      if (url.pathname === '/api/pro-alerts-dismiss' && request.method === 'POST') {
+        return await handleProAlertsDismiss(request, env, origin);
+      }
+      if (url.pathname === '/api/admin-run-alert-detection' && request.method === 'POST') {
+        return await handleAdminRunAlertDetection(request, env, origin);
       }
       if (url.pathname === '/api/link-professional' && request.method === 'POST') {
         return await handleLinkProfessional(request, env, origin);
