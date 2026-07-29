@@ -1,0 +1,320 @@
+name: Publish TWA to Google Play
+
+# T54 (Fable) — pipeline hands-off: build AAB + upload na track escolhida.
+# Bruno decidiu (T56) que a service account será criada NA CONTA ORG MEDFAST
+# (a pessoal foi rejeitada por politica Play — apps de saude exigem entidade).
+# Enquanto a org nao existe, esse workflow fica dormante — o secret
+# PLAY_SERVICE_ACCOUNT_JSON so aparece depois da transferencia do br.app.sanova
+# pra conta org.
+#
+# Dependencias humanas (uma vez, na conta ORG):
+#   1. Secret PLAY_SERVICE_ACCOUNT_JSON — Play Console → Config → Acesso API
+#      → criar SA no Cloud + conceder acesso ao app br.app.sanova com
+#      permissao "Release" (Admin + Editor OK tambem).
+#   2. Secret TWA_UPLOAD_KEYSTORE_B64 — base64 da keystore fixa (upload key).
+#      Cravada uma unica vez pra que a SHA-256 nao mude a cada build.
+#      (`openssl base64 -in android.keystore -out ks.b64 -A`)
+#   3. Secrets TWA_UPLOAD_STORE_PWD + TWA_UPLOAD_KEY_PWD — senhas da keystore.
+#
+# Enquanto (2) e (3) nao existirem, o workflow gera keystore aleatoria e
+# faz build no artifact (mas o upload pra Play falha com "Package not found"
+# porque a SHA nao bate com a upload key registrada no Play). O erro eh
+# esperado — sinal pra criar a keystore permanente.
+#
+# Trigger:
+#   - workflow_dispatch (manual, escolhe track)
+#   - push tag v* (auto — pra futuros releases)
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Play Console track de publicacao'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - closed
+          - production
+      release_status:
+        description: 'Status do release'
+        required: true
+        default: 'draft'
+        type: choice
+        options:
+          - draft
+          - completed
+          - inProgress
+          - halted
+      version_code:
+        description: 'appVersionCode (integer, incrementa a cada build)'
+        required: false
+        default: ''
+        type: string
+      release_name:
+        description: 'Nome do release (default: SANOVA_VERSION do index.html)'
+        required: false
+        default: ''
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-play
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    name: Build + Upload to Google Play
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK + accept licenses
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0 cmdline-tools;latest'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: Detecta SANOVA_VERSION e appVersionCode
+        id: meta
+        run: |
+          set -e
+          # Extrai SANOVA_VERSION do index.html (ex: 3.10.52)
+          SANOVA_VERSION=$(grep -oP "var SANOVA_VERSION\s*=\s*'\K[^']+" index.html || echo "0.0.0")
+          echo "SANOVA_VERSION=$SANOVA_VERSION" >> $GITHUB_ENV
+          echo "sanova_version=$SANOVA_VERSION" >> $GITHUB_OUTPUT
+
+          # appVersionCode: se dispatch passou explicito usa; senao gera a partir de github.run_number
+          MANUAL_VC="${{ github.event.inputs.version_code }}"
+          if [ -n "$MANUAL_VC" ]; then
+            VC="$MANUAL_VC"
+          else
+            # base 100 pra sobrar espaco pro run_number crescer sem colidir
+            VC=$(( 100 + ${{ github.run_number }} ))
+          fi
+          echo "APP_VERSION_CODE=$VC" >> $GITHUB_ENV
+          echo "app_version_code=$VC" >> $GITHUB_OUTPUT
+          echo "[meta] SANOVA_VERSION=$SANOVA_VERSION APP_VERSION_CODE=$VC"
+
+      - name: Restaura keystore de upload (fixa) ou gera aleatoria
+        id: keystore
+        run: |
+          set -e
+          mkdir -p twa-build
+          cd twa-build
+
+          if [ -n "${{ secrets.TWA_UPLOAD_KEYSTORE_B64 }}" ]; then
+            echo "[keystore] restaurando upload key permanente do secret"
+            echo "${{ secrets.TWA_UPLOAD_KEYSTORE_B64 }}" | base64 -d > android.keystore
+            STORE_PWD="${{ secrets.TWA_UPLOAD_STORE_PWD }}"
+            KEY_PWD="${{ secrets.TWA_UPLOAD_KEY_PWD }}"
+            echo "USING_FIXED_KEYSTORE=true" >> $GITHUB_ENV
+          else
+            echo "[keystore] AVISO: secret TWA_UPLOAD_KEYSTORE_B64 ausente."
+            echo "[keystore] Gerando keystore aleatoria — o Play REJEITARA o upload"
+            echo "[keystore] porque a SHA-256 nao bate com o upload key registrado."
+            echo "[keystore] Bruno precisa criar uma keystore fixa e cravar como secret."
+            STORE_PWD=$(openssl rand -base64 24 | tr -d '/+=')
+            KEY_PWD=$(openssl rand -base64 24 | tr -d '/+=')
+            keytool -genkeypair \
+              -keystore android.keystore \
+              -storepass "$STORE_PWD" -keypass "$KEY_PWD" \
+              -alias android -keyalg RSA -keysize 2048 -validity 36500 \
+              -dname "CN=Sanova, OU=Sanova, O=MEDFAST, L=BeloHorizonte, ST=MG, C=BR"
+            echo "USING_FIXED_KEYSTORE=false" >> $GITHUB_ENV
+          fi
+
+          echo "STORE_PWD=$STORE_PWD" >> $GITHUB_ENV
+          echo "KEY_PWD=$KEY_PWD" >> $GITHUB_ENV
+          FP=$(keytool -list -v -keystore android.keystore -alias android -storepass "$STORE_PWD" \
+            | grep "SHA256:" | head -1 | sed 's/.*SHA256: //' | tr -d ' \t\r\n')
+          echo "[keystore] SHA-256 desta build: $FP"
+          echo "SHA256_FP=$FP" >> $GITHUB_ENV
+
+      - name: Bubblewrap init + build
+        env:
+          STORE_PWD: ${{ env.STORE_PWD }}
+          KEY_PWD: ${{ env.KEY_PWD }}
+          APP_VERSION_CODE: ${{ env.APP_VERSION_CODE }}
+          SANOVA_VERSION: ${{ env.SANOVA_VERSION }}
+        run: |
+          set -e
+          cd twa-build
+
+          npm install -g @bubblewrap/cli@latest
+
+          cat > twa-manifest.json <<EOF
+          {
+            "packageId": "br.app.sanova",
+            "host": "sanova.app.br",
+            "name": "Sanova",
+            "launcherName": "Sanova",
+            "display": "standalone",
+            "themeColor": "#0f4f24",
+            "navigationColor": "#0f4f24",
+            "navigationColorDark": "#0f4f24",
+            "navigationDividerColor": "#0f4f24",
+            "navigationDividerColorDark": "#0f4f24",
+            "backgroundColor": "#0a1f0e",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://sanova.app.br/icon-512.png",
+            "maskableIconUrl": "https://sanova.app.br/icon-192.png",
+            "splashScreenFadeOutDuration": 300,
+            "appVersionName": "${SANOVA_VERSION}",
+            "appVersionCode": ${APP_VERSION_CODE},
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://sanova.app.br/manifest.json",
+            "fallbackType": "customtabs",
+            "features": {
+              "locationDelegation": { "enabled": false },
+              "playBilling": { "enabled": false }
+            },
+            "signingKey": {
+              "path": "./android.keystore",
+              "alias": "android"
+            },
+            "alphaDependencies": { "enabled": false },
+            "enableSiteSettingsShortcut": true,
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://sanova.app.br/",
+            "minSdkVersion": 19,
+            "orientation": "portrait",
+            "fingerprints": []
+          }
+          EOF
+
+          mkdir -p $HOME/.bubblewrap
+          cat > $HOME/.bubblewrap/config.json <<EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_HOME"
+          }
+          EOF
+
+          bubblewrap build \
+            --skipPwaValidation \
+            --signingKeyPath=./android.keystore \
+            --signingKeyAlias=android 2>&1 | tee build.log \
+            || (echo "build falhou"; tail -80 build.log; exit 1)
+
+      - name: Localiza AAB gerado
+        id: locate
+        run: |
+          set -e
+          AAB_PATH=$(find twa-build -name "*.aab" -type f | head -1)
+          if [ -z "$AAB_PATH" ]; then
+            echo "[FAIL] AAB nao encontrado"
+            find twa-build -type f -name "*.aab" -o -name "*.apk" | head -20
+            exit 1
+          fi
+          cp "$AAB_PATH" sanova-twa.aab
+          ls -lh sanova-twa.aab
+          echo "aab_path=sanova-twa.aab" >> $GITHUB_OUTPUT
+
+      - name: Upload AAB como artifact (fallback pra download manual)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanova-twa-aab-v${{ env.SANOVA_VERSION }}-${{ env.APP_VERSION_CODE }}
+          path: sanova-twa.aab
+          retention-days: 30
+
+      - name: Determina track (input do dispatch OU default pra push tag)
+        id: track
+        run: |
+          set -e
+          TRACK="${{ github.event.inputs.track }}"
+          STATUS="${{ github.event.inputs.release_status }}"
+          if [ -z "$TRACK" ]; then
+            # dispatch por tag v* → default track = internal, status = draft
+            TRACK="internal"
+            STATUS="draft"
+          fi
+          echo "track=$TRACK" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+      - name: Nome do release
+        id: relname
+        run: |
+          set -e
+          NAME="${{ github.event.inputs.release_name }}"
+          if [ -z "$NAME" ]; then
+            NAME="v${SANOVA_VERSION} (${APP_VERSION_CODE})"
+          fi
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+
+      - name: Confere secret PLAY_SERVICE_ACCOUNT_JSON antes de tentar upload
+        id: guard
+        run: |
+          set -e
+          if [ -z "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "::warning::PLAY_SERVICE_ACCOUNT_JSON ausente — publish bloqueado. AAB ficou disponivel como artifact."
+            echo "publish_ok=false" >> $GITHUB_OUTPUT
+          else
+            echo "publish_ok=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload no Google Play (r0adkll/upload-google-play)
+        if: steps.guard.outputs.publish_ok == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: br.app.sanova
+          releaseFiles: sanova-twa.aab
+          track: ${{ steps.track.outputs.track }}
+          status: ${{ steps.track.outputs.status }}
+          releaseName: ${{ steps.relname.outputs.name }}
+          # whatsNewDirectory: distribution/whatsnew  # (opcional — se um dia
+          # a gente escrever changelog por track, aponta aqui)
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Publish TWA → Google Play"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| Package | \`br.app.sanova\` |"
+            echo "| SANOVA_VERSION | \`${SANOVA_VERSION}\` |"
+            echo "| appVersionCode | \`${APP_VERSION_CODE}\` |"
+            echo "| Track | \`${{ steps.track.outputs.track }}\` |"
+            echo "| Status | \`${{ steps.track.outputs.status }}\` |"
+            echo "| Release name | \`${{ steps.relname.outputs.name }}\` |"
+            echo "| Keystore fixa | \`${USING_FIXED_KEYSTORE}\` |"
+            echo "| SHA-256 desta build | \`${SHA256_FP}\` |"
+            echo "| Upload feito? | \`${{ steps.guard.outputs.publish_ok }}\` |"
+            echo ""
+            if [ "${{ steps.guard.outputs.publish_ok }}" != "true" ]; then
+              echo "> **Publish bloqueado — falta \`PLAY_SERVICE_ACCOUNT_JSON\`.** AAB baixavel"
+              echo "> como artifact acima. Ver header do arquivo pro passo-a-passo."
+            fi
+            if [ "${USING_FIXED_KEYSTORE}" != "true" ]; then
+              echo ""
+              echo "> **Keystore aleatoria em uso.** O Play REJEITA upload porque a SHA-256"
+              echo "> nao bate com a upload key registrada. Cravar secrets:"
+              echo "> - \`TWA_UPLOAD_KEYSTORE_B64\` (base64 -A da keystore permanente)"
+              echo "> - \`TWA_UPLOAD_STORE_PWD\`"
+              echo "> - \`TWA_UPLOAD_KEY_PWD\`"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
