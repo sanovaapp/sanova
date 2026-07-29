@@ -51,10 +51,15 @@ async function verifyJwt(request, env) {
   return u && u.id ? u : null;
 }
 
+// v3.10.55 (Fase 2 alertas): reusa svcHeaders + SUPABASE_URL + requirePro em alerts.js
+export { SUPABASE_URL };
+export function svcHeadersFor(env){ return svcHeaders(env); }
+
 /**
  * Middleware: usuario logado E linha em public.professionals.
  * Retorna { user, pro } ou Response com 401/403.
  */
+export
 async function requirePro(request, env, origin) {
   const user = await verifyJwt(request, env);
   if (!user) {
