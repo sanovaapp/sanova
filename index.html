@@ -4198,6 +4198,10 @@ try{
         <div id="protMuscTitulo" style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">PROTEÇÃO MUSCULAR HOJE</div>
       </div>
       <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:#0d1a10"></div>
+      <!-- v3.10.53 (Fable T52 M2): share do status de protecao muscular -->
+      <div style="margin-top:10px;text-align:right">
+        <button type="button" onclick="abrirShareProtecaoModal()" style="background:transparent;border:none;font-size:11.5px;color:#166534;font-weight:700;cursor:pointer;padding:4px 8px;text-decoration:underline">📤 Compartilhar</button>
+      </div>
     </div>
 
     <!-- Canvas legados mantidos invisíveis para não quebrar drawGauge antigo -->
@@ -6026,6 +6030,10 @@ try{
       <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><div style="width:16px;height:3px;background:#4ade80;border-radius:2px;opacity:.7"></div>Média 7 dias</div>
     </div>
     <div id="histProxPesagem" style="margin-top:10px;padding:8px 12px;background:var(--cream2);border-radius:9px;font-size:12px;color:var(--ink3);text-align:center">⏰ Pese-se amanhã cedo, antes de comer e após urinar</div>
+    <!-- v3.10.53 (Fable T52 M2): share da jornada de peso completa -->
+    <button type="button" onclick="abrirShareJornadaPesoModal()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;background:transparent;border:1.5px solid var(--g500);color:var(--g700);font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer">
+      📤 Compartilhar minha jornada
+    </button>
   </div>
 
   <!-- 6. PADRÕES OBSERVADOS -->
@@ -6386,7 +6394,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.52';
+var SANOVA_VERSION = '3.10.53';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -24914,14 +24922,19 @@ window.addEventListener('beforeunload',function(){
       + '  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
       + '    <span style="font-size:22px">📤</span>'
       + '    <div style="flex:1">'
-      + '      <div style="font-size:14px;font-weight:800;color:#fff">Compartilhar minha semana</div>'
-      + '      <div style="font-size:11px;color:rgba(232,200,120,.75);margin-top:1px">Card visual com seu progresso · sem nome · sem marca</div>'
+      + '      <div style="font-size:14px;font-weight:800;color:#fff">Compartilhar meu progresso</div>'
+      + '      <div style="font-size:11px;color:rgba(232,200,120,.75);margin-top:1px">Card visual · sem nome · sem marca</div>'
       + '    </div>'
       + '  </div>'
-      + '  <button type="button" id="btnAbrirShareSemana" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-family:var(--ss);font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.3)">Gerar card da semana</button>'
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '    <button type="button" id="btnAbrirShareSemana" style="padding:12px 8px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.3)">📅 Semana</button>'
+      + '    <button type="button" id="btnAbrirShareMes" style="padding:12px 8px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer">🗓️ Mês</button>'
+      + '  </div>'
       + '</div>';
-    var btn = document.getElementById('btnAbrirShareSemana');
-    if(btn) btn.addEventListener('click', abrirShareSemanaModal);
+    var btnS = document.getElementById('btnAbrirShareSemana');
+    if(btnS) btnS.addEventListener('click', abrirShareSemanaModal);
+    var btnM = document.getElementById('btnAbrirShareMes');
+    if(btnM) btnM.addEventListener('click', abrirShareMesModal);
   }
   window.renderCardShareSemana = renderCardShareSemana;
 
@@ -25188,6 +25201,572 @@ window.addEventListener('beforeunload',function(){
       if(typeof toast==='function') toast('Card salvo!');
     }, 'image/png');
   }
+})();
+</script>
+
+<!-- v3.10.53 (Fable T52 Mandato 2): share em TODAS as superficies de resultado.
+     Reusa a paleta/tipografia dos cards #218/#219 — variacoes do design ja
+     aprovado (nao "designs novos"). Regras regulatorias identicas: sem nome,
+     sem marca comercial, molecula opt-in default OFF (so no card mensal
+     por consistencia com o semanal). -->
+<script>
+(function(){
+  'use strict';
+
+  // Helpers publicos ja expostos: calcSemanaStats, abrirShareSemanaModal
+  // Reusa document.fonts.ready dos scripts anteriores.
+
+  function _last30Dates(){
+    var out=[], d=new Date();
+    for(var i=29;i>=0;i--){
+      var x=new Date(d); x.setDate(d.getDate()-i);
+      out.push(x.toISOString().slice(0,10));
+    }
+    return out;
+  }
+
+  function _monthName(idx){
+    return ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][idx] || '';
+  }
+
+  // ─── STATS MENSAIS ────────────────────────────────────────────────
+  function calcMesStats(){
+    try{
+      var S = window.S || {};
+      var daily = Array.isArray(S.daily) ? S.daily : [];
+      var weights = Array.isArray(S.weights) ? S.weights.slice() : [];
+      weights.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+      var dates = _last30Dates();
+      var days = dates.map(function(ds){
+        var rec = daily.find(function(x){ return x.date===ds; }) || {};
+        return { date:ds, proteinG:Number(rec.proteinG)||0, waterMl:Number(rec.waterMl)||0, exercicio:rec.exercicio||null };
+      });
+      var meta_prot = (S.profile && Number(S.profile.protein_target_g)) || 100;
+      var meta_agua = (S.profile && Number(S.profile.water_target_ml)) || 2000;
+      var diasProtOk = days.filter(function(d){ return d.proteinG >= meta_prot*0.8; }).length;
+      var diasAguaOk = days.filter(function(d){ return d.waterMl >= meta_agua*0.8; }).length;
+      var pctHidratacao = Math.round((diasAguaOk/30)*100);
+      var treinos = days.filter(function(d){ return !!d.exercicio; }).length;
+      var pesoSerie = dates.map(function(ds){
+        var w = weights.filter(function(x){ return x.date<=ds; }).pop();
+        return w ? Number(w.weight) : null;
+      });
+      var validos = pesoSerie.filter(function(v){ return v!=null && !isNaN(v); });
+      var pi = validos.length ? validos[0] : null;
+      var pf = validos.length ? validos[validos.length-1] : null;
+      var deltaPeso = (pi!=null && pf!=null) ? (pf - pi) : null;
+      var d = new Date();
+      var mensagem = _mensagemMes(diasProtOk, treinos, deltaPeso);
+      var molecula = (S.profile && S.profile.medicamento) ? String(S.profile.medicamento).trim() : '';
+      return {
+        mesNome: _monthName(d.getMonth()),
+        ano: d.getFullYear(),
+        deltaPeso: deltaPeso,
+        pesoSerie: pesoSerie,
+        diasProtOk: diasProtOk,
+        pctHidratacao: pctHidratacao,
+        treinos: treinos,
+        diasRegistrados: days.filter(function(d){ return d.proteinG>0 || d.waterMl>0; }).length,
+        mensagem: mensagem,
+        molecula: molecula,
+      };
+    }catch(e){ console.warn('[ShareMes] calc falhou', e); return null; }
+  }
+
+  function _mensagemMes(prot, tre, delta){
+    // Voz da paciente. Nao-causal.
+    if(prot >= 22 && tre >= 8) return 'Mês inteiro cravado.\nRotina virou identidade.\nContinua.';
+    if(prot >= 22) return 'Proteína no lugar.\nMês de disciplina.\nCorpo agradece.';
+    if(tre >= 8) return 'Treinos firmes o mês todo.\nEnergia crescendo.\nRitmo achado.';
+    if(delta != null && delta < -1) return 'Mês de resultado real.\nUm dia depois do outro.\nRotina que constrói.';
+    return 'Mês em andamento.\nCada dia é degrau.\nContinua vindo.';
+  }
+
+  // ─── STATS JORNADA ────────────────────────────────────────────────
+  function calcJornadaStats(){
+    try{
+      var S = window.S || {};
+      var weights = Array.isArray(S.weights) ? S.weights.slice() : [];
+      if(!weights.length) return null;
+      weights.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+      var wi = Number(weights[0].weight);
+      var wf = Number(weights[weights.length-1].weight);
+      var delta = wf - wi;
+      var dias = 1;
+      try{
+        var d0 = new Date(weights[0].date+'T12:00:00');
+        var d1 = new Date(weights[weights.length-1].date+'T12:00:00');
+        dias = Math.max(1, Math.round((d1-d0)/86400000));
+      }catch(e){}
+      return {
+        pesoInicio: wi,
+        pesoAtual: wf,
+        deltaTotal: delta,
+        dias: dias,
+        pesoSerie: weights.map(function(w){ return { date:w.date, weight:Number(w.weight) }; }),
+      };
+    }catch(e){ console.warn('[ShareJornada] calc falhou', e); return null; }
+  }
+
+  // ─── STATS PROTECAO MUSCULAR ──────────────────────────────────────
+  function calcProtecaoStats(){
+    try{
+      var S = window.S || {};
+      var daily = Array.isArray(S.daily) ? S.daily : [];
+      var meta_prot = (S.profile && Number(S.profile.protein_target_g)) || 100;
+      // Streak: dias consecutivos com proteina >= 80% meta, de hoje pra tras
+      var streak = 0;
+      var hoje = new Date();
+      for(var i=0;i<90;i++){
+        var d = new Date(hoje); d.setDate(hoje.getDate()-i);
+        var ds = d.toISOString().slice(0,10);
+        var rec = daily.find(function(x){ return x.date===ds; });
+        var prot = rec ? Number(rec.proteinG)||0 : 0;
+        if(prot >= meta_prot*0.8) streak++;
+        else break;
+      }
+      // 30d taxa
+      var last30 = [];
+      for(var j=0;j<30;j++){
+        var dd = new Date(hoje); dd.setDate(hoje.getDate()-j);
+        var dss = dd.toISOString().slice(0,10);
+        var rrc = daily.find(function(x){ return x.date===dss; });
+        last30.push(rrc ? Number(rrc.proteinG)||0 : 0);
+      }
+      var diasOk30 = last30.filter(function(v){ return v>=meta_prot*0.8; }).length;
+      return { streak:streak, diasOk30:diasOk30, metaProt:meta_prot };
+    }catch(e){ console.warn('[ShareProtecao] calc falhou', e); return null; }
+  }
+
+  // ─── CANVAS: MES (variacao do semanal com dados 30d) ─────────────
+  function _drawMesCard(canvas, stats, opts){
+    opts = opts || {};
+    var showMolecula = !!opts.showMolecula;
+    var ctx = canvas.getContext('2d');
+    var W=1080, H=1920;
+    canvas.width=W; canvas.height=H;
+
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    ctx.save();
+    ctx.globalAlpha=.08;
+    ctx.translate(W-60,-60); ctx.rotate(28*Math.PI/180);
+    if(typeof _drawShareLeafHelper==='function'){
+      _drawShareLeafHelper(ctx, 0, 0, 240, '#86efac', '#0F5C2F');
+    }
+    ctx.restore();
+
+    var PAD=90, y=90;
+
+    // brand
+    _leaf(ctx, PAD, y+5, 32);
+    ctx.fillStyle='#bbf7d0'; ctx.font='italic 500 32px "Fraunces", Georgia, serif';
+    ctx.textBaseline='top'; ctx.fillText('Sanova', PAD+62, y+8);
+    y += 75;
+
+    // data
+    ctx.fillStyle='rgba(245,240,227,.45)';
+    ctx.font='600 16px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText((stats.mesNome + ' · ' + stats.ano).toUpperCase(), PAD, y);
+    y += 95;
+
+    ctx.fillStyle='#c8a76a';
+    ctx.font='600 22px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText('SEU MÊS', PAD, y);
+    y += 50;
+
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='400 120px "DM Serif Display", Georgia, serif';
+    ctx.fillText('Mês', PAD, y);
+    y += 110;
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 300 120px "Fraunces", Georgia, serif';
+    ctx.fillText('em movimento.', PAD, y);
+    y += 165;
+
+    // delta peso 30d
+    var deltaTxt='—';
+    if(stats.deltaPeso!=null){
+      var s = stats.deltaPeso<0?'−':(stats.deltaPeso>0?'+':'');
+      deltaTxt = s + Math.abs(stats.deltaPeso).toFixed(1).replace('.',',');
+    }
+    ctx.fillStyle='#c8a76a'; ctx.fillRect(PAD, y, 6, 180);
+    ctx.fillStyle='#86efac';
+    ctx.font='400 200px "DM Serif Display", Georgia, serif';
+    ctx.fillText(deltaTxt, PAD+34, y);
+    var dm = ctx.measureText(deltaTxt);
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 300 44px "Fraunces", Georgia, serif';
+    ctx.fillText('kg no mês', PAD+34+dm.width+28, y+120);
+    y += 240;
+
+    // grafico 30d (maior que o semanal)
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 400 26px "Fraunces", Georgia, serif';
+    ctx.fillText('— peso 30 dias', PAD, y);
+    y += 40;
+    _drawLineChart(ctx, PAD, y, W-PAD*2, 200, stats.pesoSerie);
+    y += 220 + 60;
+
+    // stats 3-col
+    var statsTop=y;
+    ctx.strokeStyle='rgba(134,239,172,.32)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    var statY = y + 34;
+    var colW = (W-PAD*2)/3;
+    var items = [
+      { icon:'🥩', num:stats.diasProtOk+'/30', lbl:'PROTEÍNA' },
+      { icon:'💧', num:stats.pctHidratacao+'%', lbl:'HIDRATAÇÃO' },
+      { icon:'💪', num:String(stats.treinos), lbl:'TREINOS' },
+    ];
+    items.forEach(function(it,i){
+      var cx = PAD + colW*i + colW/2;
+      ctx.textAlign='center';
+      ctx.font='38px system-ui, "Apple Color Emoji", sans-serif';
+      ctx.fillStyle='#f5f0e3'; ctx.fillText(it.icon, cx, statY);
+      ctx.fillStyle='#f5f0e3';
+      ctx.font='400 58px "DM Serif Display", Georgia, serif';
+      ctx.fillText(it.num, cx, statY+62);
+      ctx.fillStyle='rgba(245,240,227,.72)';
+      ctx.font='600 17px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.fillText(it.lbl, cx, statY+138);
+      ctx.textAlign='left';
+      if(i>0){
+        ctx.strokeStyle='rgba(134,239,172,.22)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(PAD+colW*i, statY-10); ctx.lineTo(PAD+colW*i, statY+150); ctx.stroke();
+      }
+    });
+    y = statsTop + 220;
+    ctx.strokeStyle='rgba(134,239,172,.32)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+    y += 60;
+
+    // mensagem
+    ctx.fillStyle='#c8a76a';
+    ctx.font='400 130px "DM Serif Display", Georgia, serif';
+    ctx.fillText('“', PAD, y-30);
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 44px "Fraunces", Georgia, serif';
+    (stats.mensagem||'').split('\n').forEach(function(ln,i){ ctx.fillText(ln, PAD, y+44+i*56); });
+
+    // footer padrao
+    _footerSlogan(ctx, W, H-90);
+    if(showMolecula && stats.molecula){
+      ctx.fillStyle='rgba(245,240,227,.45)';
+      ctx.font='500 14px "Plus Jakarta Sans", system-ui, sans-serif';
+      ctx.textAlign='right';
+      ctx.fillText('Tratamento: ' + stats.molecula, W-90, H-82);
+      ctx.textAlign='left';
+    }
+  }
+
+  // ─── CANVAS: JORNADA (foco no grafico e delta total) ─────────────
+  function _drawJornadaCard(canvas, stats){
+    var ctx = canvas.getContext('2d');
+    var W=1080, H=1350;
+    canvas.width=W; canvas.height=H;
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    var PAD=80, y=80;
+    _leaf(ctx, PAD, y+5, 32);
+    ctx.fillStyle='#bbf7d0'; ctx.textBaseline='top';
+    ctx.font='italic 500 32px "Fraunces", Georgia, serif';
+    ctx.fillText('Sanova', PAD+62, y+8);
+    y += 80;
+
+    ctx.fillStyle='rgba(245,240,227,.45)';
+    ctx.font='600 16px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText(('Minha jornada · ' + stats.dias + ' dias').toUpperCase(), PAD, y);
+    y += 60;
+
+    // Delta total dourado grande
+    var deltaTxt='—';
+    if(stats.deltaTotal!=null){
+      var s = stats.deltaTotal<0?'−':(stats.deltaTotal>0?'+':'');
+      deltaTxt = s + Math.abs(stats.deltaTotal).toFixed(1).replace('.',',');
+    }
+    ctx.fillStyle='#86efac';
+    ctx.font='400 180px "DM Serif Display", Georgia, serif';
+    ctx.fillText(deltaTxt, PAD, y);
+    var dm = ctx.measureText(deltaTxt);
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 300 40px "Fraunces", Georgia, serif';
+    ctx.fillText('kg desde o começo', PAD+dm.width+24, y+110);
+    y += 220;
+
+    // grafico grande
+    var chartH = 480;
+    _drawLineChart(ctx, PAD, y, W-PAD*2, chartH, stats.pesoSerie.map(function(p){ return p.weight; }));
+    y += chartH + 40;
+
+    // datas inicio → fim
+    ctx.fillStyle='rgba(245,240,227,.5)';
+    ctx.font='500 20px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.textAlign='left';
+    var d0 = stats.pesoSerie[0].date;
+    var d1 = stats.pesoSerie[stats.pesoSerie.length-1].date;
+    ctx.fillText(d0.split('-').reverse().join('/'), PAD, y);
+    ctx.textAlign='right';
+    ctx.fillText('hoje', W-PAD, y);
+    ctx.textAlign='left';
+
+    _footerSlogan(ctx, W, H-90);
+  }
+
+  // ─── CANVAS: PROTECAO MUSCULAR (celebra streak) ───────────────────
+  function _drawProtecaoCard(canvas, stats){
+    var ctx = canvas.getContext('2d');
+    var W=1080, H=1350;
+    canvas.width=W; canvas.height=H;
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    var PAD=80, y=90;
+    _leaf(ctx, PAD, y+5, 32);
+    ctx.fillStyle='#bbf7d0'; ctx.textBaseline='top';
+    ctx.font='italic 500 32px "Fraunces", Georgia, serif';
+    ctx.fillText('Sanova', PAD+62, y+8);
+    y += 100;
+
+    ctx.fillStyle='#c8a76a';
+    ctx.font='600 22px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText('PROTEÇÃO MUSCULAR', PAD, y);
+    y += 60;
+
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='400 96px "DM Serif Display", Georgia, serif';
+    ctx.fillText('Massa magra', PAD, y);
+    y += 88;
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 300 96px "Fraunces", Georgia, serif';
+    ctx.fillText('preservada.', PAD, y);
+    y += 160;
+
+    // Streak big
+    ctx.fillStyle='#c8a76a'; ctx.fillRect(PAD, y, 6, 220);
+    ctx.fillStyle='#86efac';
+    ctx.font='400 240px "DM Serif Display", Georgia, serif';
+    ctx.fillText(String(stats.streak), PAD+34, y);
+    var dm = ctx.measureText(String(stats.streak));
+    ctx.fillStyle='rgba(245,240,227,.72)';
+    ctx.font='italic 300 44px "Fraunces", Georgia, serif';
+    ctx.fillText('dias seguidos', PAD+34+dm.width+28, y+90);
+    ctx.font='italic 300 28px "Fraunces", Georgia, serif';
+    ctx.fillText('com proteína em dia', PAD+34+dm.width+28, y+145);
+    y += 280;
+
+    // 30d taxa
+    ctx.fillStyle='rgba(245,240,227,.55)';
+    ctx.font='500 20px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillText(stats.diasOk30 + ' de 30 dias no alvo · meta ' + stats.metaProt + 'g/dia', PAD, y);
+
+    _footerSlogan(ctx, W, H-90);
+  }
+
+  // ─── PRIMITIVAS COMPARTILHADAS ────────────────────────────────────
+  function _leaf(ctx, x, y, size){
+    ctx.save(); ctx.translate(x, y);
+    var k = size/100;
+    ctx.fillStyle='#22c55e';
+    ctx.beginPath();
+    ctx.moveTo(50*k, 8*k);
+    ctx.bezierCurveTo(12*k,42*k, 16*k,92*k, 16*k,92*k);
+    ctx.bezierCurveTo(22*k,132*k, 50*k,138*k, 50*k,138*k);
+    ctx.bezierCurveTo(78*k,132*k, 84*k,92*k, 84*k,92*k);
+    ctx.bezierCurveTo(88*k,42*k, 50*k,8*k, 50*k,8*k);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#0F5C2F'; ctx.globalAlpha=.7; ctx.lineWidth=Math.max(1, k*1.5);
+    ctx.beginPath();
+    ctx.moveTo(50*k,8*k); ctx.lineTo(50*k,138*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(68*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(72*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(70*k,100*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(32*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(28*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(30*k,100*k);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function _roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function _drawLineChart(ctx, x, y, w, h, serie){
+    var vals = serie.filter(function(v){ return v!=null && !isNaN(v); });
+    if(vals.length < 2){
+      ctx.fillStyle='rgba(245,240,227,.35)';
+      ctx.font='italic 24px "Fraunces", Georgia, serif';
+      ctx.textAlign='left';
+      ctx.fillText('Poucos registros pra gráfico', x, y+h/2);
+      return;
+    }
+    var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
+    if(mn===mx){ mn-=0.5; mx+=0.5; }
+    var pts = serie.map(function(v,i){
+      var xx = x + (i/(serie.length-1))*w;
+      var yy = y + h - ((v==null?mn:v-mn)/(mx-mn))*(h-10) - 5;
+      return { x:xx, y:yy };
+    });
+    var grad = ctx.createLinearGradient(0,y,0,y+h);
+    grad.addColorStop(0,'rgba(134,239,172,0.42)');
+    grad.addColorStop(1,'rgba(134,239,172,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.lineTo(pts[pts.length-1].x, y+h);
+    ctx.lineTo(pts[0].x, y+h);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#86efac'; ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for(var j=1;j<pts.length;j++) ctx.lineTo(pts[j].x, pts[j].y);
+    ctx.stroke();
+    var last = pts[pts.length-1];
+    ctx.fillStyle='#bbf7d0';
+    ctx.strokeStyle='#0a3a20'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(last.x, last.y, 10, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+
+  function _footerSlogan(ctx, W, footerY){
+    ctx.strokeStyle='rgba(134,239,172,.20)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(80, footerY-30); ctx.lineTo(W-80, footerY-30); ctx.stroke();
+    ctx.textAlign='center';
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 40px "Fraunces", Georgia, serif';
+    var s1='Emagreça ', s2='sem murchar.';
+    var m1w = ctx.measureText(s1).width;
+    ctx.font='italic 600 40px "Fraunces", Georgia, serif';
+    var m2w = ctx.measureText(s2).width;
+    var startX = W/2 - (m1w+m2w)/2;
+    ctx.textAlign='left';
+    ctx.font='italic 300 40px "Fraunces", Georgia, serif';
+    ctx.fillText(s1, startX, footerY-8);
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 600 40px "Fraunces", Georgia, serif';
+    ctx.fillText(s2, startX+m1w, footerY-8);
+    // URL pill compacta
+    var pillTxt='sanova.app.br';
+    ctx.font='700 26px "Plus Jakarta Sans", system-ui, sans-serif';
+    var pw = ctx.measureText(pillTxt).width + 44;
+    var ph = 48, px = W/2 - pw/2, py = footerY+40;
+    ctx.fillStyle='#86efac';
+    _roundRect(ctx, px, py, pw, ph, ph/2);
+    ctx.fill();
+    ctx.fillStyle='#041b0d';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(pillTxt, W/2, py+ph/2);
+    ctx.textBaseline='top'; ctx.textAlign='left';
+  }
+
+  // ─── MODAIS ────────────────────────────────────────────────────────
+  function _abrirShareModal(opts){
+    // Generico: opts = { titulo, calc, draw, showMoleculaToggle, aspectClass }
+    var stats = opts.calc();
+    if(!stats){ if(typeof toast==='function') toast('Sem dados suficientes pra gerar card.'); return; }
+    var ov = document.createElement('div');
+    ov.setAttribute('data-spectator-block','1');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+    var molToggle = opts.showMoleculaToggle ? (''
+      + '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:rgba(255,255,255,.75);margin-bottom:12px;cursor:pointer">'
+      + '  <input type="checkbox" id="chkShareMoleculaGeneric" style="margin:0">'
+      + '  <span>Mostrar minha molécula no card <span style="color:rgba(255,255,255,.45)">(ex: Tirzepatida)</span></span>'
+      + '</label>'
+    ) : '';
+    ov.innerHTML = ''
+      + '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:480px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '    <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">' + opts.titulo + '</div>'
+      + '    <button type="button" id="btnFecharShareGeneric" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>'
+      + '  </div>'
+      + '  <canvas id="shareGenericCanvas" style="width:100%;height:auto;display:block;border-radius:12px;background:#041b0d;margin-bottom:12px"></canvas>'
+      + '  ' + molToggle
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '    <button type="button" id="btnShareGenericCompartilhar" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer">📤 Compartilhar</button>'
+      + '    <button type="button" id="btnShareGenericBaixar" style="padding:14px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-weight:700;font-size:13.5px;cursor:pointer">💾 Baixar</button>'
+      + '  </div>'
+      + '  <div style="margin-top:10px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.45);text-align:center">Sem nome, sem marca comercial. Sanova só assinatura.</div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    var canvas = document.getElementById('shareGenericCanvas');
+    var chkMol = document.getElementById('chkShareMoleculaGeneric');
+    function redraw(){
+      opts.draw(canvas, stats, { showMolecula: !!(chkMol && chkMol.checked) });
+    }
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(redraw).catch(redraw);
+    } else { redraw(); }
+    if(chkMol) chkMol.addEventListener('change', redraw);
+    document.getElementById('btnFecharShareGeneric').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.getElementById('btnShareGenericCompartilhar').addEventListener('click', function(){ _shareCanvas(canvas, opts.fileName||('sanova-'+Date.now()+'.png')); });
+    document.getElementById('btnShareGenericBaixar').addEventListener('click', function(){ _downloadCanvas(canvas, opts.fileName||('sanova-'+Date.now()+'.png')); });
+  }
+
+  function _shareCanvas(canvas, fname){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var file = new File([blob], fname, { type:'image/png' });
+      var payload = { files:[file], title:'Sanova', text:'sanova.app.br — emagreça sem murchar' };
+      if(navigator.canShare && navigator.canShare(payload)){
+        navigator.share(payload).catch(function(err){
+          if(err && err.name==='AbortError') return;
+          _downloadCanvas(canvas, fname);
+        });
+      } else { _downloadCanvas(canvas, fname); }
+    }, 'image/png');
+  }
+  function _downloadCanvas(canvas, fname){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if(typeof toast==='function') toast('Card salvo!');
+    }, 'image/png');
+  }
+
+  window.abrirShareMesModal = function(){
+    _abrirShareModal({
+      titulo: '🗓️ Card do mês',
+      calc: calcMesStats,
+      draw: _drawMesCard,
+      showMoleculaToggle: true,
+      fileName: 'sanova-mes-'+Date.now()+'.png',
+    });
+  };
+  window.abrirShareJornadaPesoModal = function(){
+    _abrirShareModal({
+      titulo: '📈 Card da jornada',
+      calc: calcJornadaStats,
+      draw: _drawJornadaCard,
+      showMoleculaToggle: false,
+      fileName: 'sanova-jornada-'+Date.now()+'.png',
+    });
+  };
+  window.abrirShareProtecaoModal = function(){
+    _abrirShareModal({
+      titulo: '💪 Card proteção muscular',
+      calc: calcProtecaoStats,
+      draw: _drawProtecaoCard,
+      showMoleculaToggle: false,
+      fileName: 'sanova-protecao-'+Date.now()+'.png',
+    });
+  };
 })();
 </script>
 
