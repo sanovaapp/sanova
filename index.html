@@ -3051,10 +3051,14 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   letter-spacing:-.01em;
   /* v3.10.45 (Fable Turno 39+43): line-height:1 evita emoji "vazar" pra cima
      dentro do ring de 54px. Sem isso o glifo do 💪 ficava cortado nas bordas
-     em alguns renders Android. */
+     em alguns renders Android.
+     v3.10.54 (Fable T53 P2): aumenta a caixa pra 40x40 + overflow:visible pra
+     acomodar o glifo emoji nativo do Android (system font renderiza levemente
+     maior que a font-metric — 32px cortava a base do 💪). */
   line-height:1;
   display:flex;align-items:center;justify-content:center;
-  width:32px;height:32px;
+  width:40px;height:40px;
+  overflow:visible;
 }
 .pilar-mini-info{flex:1;min-width:0}
 .pilar-mini-ttl{
@@ -6394,7 +6398,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.53';
+var SANOVA_VERSION = '3.10.54';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9123,12 +9127,15 @@ function anaDone(){
   var nome=ANA.data.nome||'';
   var freq=ANA.data.farmaco==='Liraglutida'?'💊 Diário':'💉 Semanal';
 
-  // Calcular semanas de tratamento
+  // v3.10.54: unificado — anaConcluida usava Math.ceil, ceOv usava Math.floor
+  // (divergencia "semana 57 vs 58"). Agora ambos passam por semanaTratamentoDisplay
+  // (1-based). ANA.data.inicio eh o valor persistido antes de cair em S.caneta.inicio.
   var semanasTrat=null;
   if(ANA.data.inicio){
     var dtIni=new Date(ANA.data.inicio+'T12:00:00');
     var diffMs=new Date().getTime()-dtIni.getTime();
-    semanasTrat=Math.max(1,Math.ceil(diffMs/(7*24*3600000)));
+    var semanasCompletas = Math.max(0, Math.floor(diffMs/(7*24*3600000)));
+    semanasTrat = semanasCompletas + 1;
   }
 
   var rows=[
@@ -9675,6 +9682,16 @@ function sanitizeUserInput(str){
 function porData(a,b){return a.date<b.date?-1:a.date>b.date?1:0;}
 function getDH(){for(var i=0;i<S.daily.length;i++){if(S.daily[i].date===hoje()) return S.daily[i];}return null;}
 function calcSemanas(){if(!S.caneta.inicio) return null;var ini=new Date(S.caneta.inicio+'T12:00:00');return Math.max(0,Math.floor((agoraBR().getTime()-ini.getTime())/(7*24*3600*1000)));}
+// v3.10.54 (Fable T53 P2): unifica display de "semana de tratamento".
+// calcSemanas() eh 0-based (semanas COMPLETAS). Usuario ve 1-based
+// ("semana 1" no primeiro dia). Todos os locais que renderizam
+// "Semana N" DEVEM usar essa funcao. Antes: anaConcluida usava
+// Math.ceil e ceOv usava Math.floor, resultando em "semana 57 vs 58".
+function semanaTratamentoDisplay(){
+  var n = calcSemanas();
+  if(n === null) return null;
+  return n + 1;
+}
 
 /* ══ PERSISTÊNCIA ══ */
 function salvar(){
@@ -11549,8 +11566,14 @@ function renderLeituraClinicaClaro(container, janela){
 }
 
 function buildCE(){
-  var M=calcMetrics(),ma=calcMA7(),rl=perdaSemana(ma),sw=S.profile.weightStartKg,cw=M?M.w:null;
-  var perd=sw&&cw&&sw>cw?sw-cw:null,pd=proxDose(),dh=getDH(),sem=calcSemanas();
+  // v3.10.54 (Fable T53 P2): ceOv mostrava "Ritmo —" quando <8 pesagens porque
+  // usava perdaSemana(ma) direto. Agora passa por calcRitmoSemanalUnificado
+  // (que faz cascata MA7 -> media_total -> null com motivo). Mesmo comportamento
+  // do Progresso de peso e Minha jornada.
+  var M=calcMetrics(),sw=S.profile.weightStartKg,cw=M?M.w:null;
+  var _rr = (typeof calcRitmoSemanalUnificado === 'function') ? calcRitmoSemanalUnificado() : { valor: null };
+  var rl = _rr.valor;
+  var perd=sw&&cw&&sw>cw?sw-cw:null,pd=proxDose(),dh=getDH(),sem=semanaTratamentoDisplay();
   var h=new Date().getHours(),s=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
   el('ceTitle').textContent=M?s+(S.caneta.farmaco&&sem!==null?' — Semana '+sem+' de tratamento':''):'Configure seu perfil';
   el('ceSub').textContent=S.caneta.farmaco?(S.caneta.farmaco+(S.caneta.dose?' · '+S.caneta.dose:'')):'Tratamento não configurado';
@@ -14248,7 +14271,10 @@ function renderProtecaoMuscular(M, dh, kcalHoje, protHoje){
       ring.setAttribute('stroke', corRing);
       ring.style.strokeDashoffset = circ * (1 - pctMini / 100);
       iconMini.textContent = iconCurto;
-      iconMini.style.fontSize = '20px';
+      // v3.10.54 (Fable T53 P2): 18px + line-height:1 cabe folgado no ring 54px
+      // com caixa 40x40 + overflow:visible (ver .pilar-mini-pct)
+      iconMini.style.fontSize = '18px';
+      iconMini.style.lineHeight = '1';
       valMini.textContent = txtCurto;
       valMini.style.color = corRing;
       valMini.style.fontWeight = '700';
@@ -15402,7 +15428,7 @@ function render(){
   }else{['kTMB','kGET','kMeta','kPEst','kPMin','kPIdeal','kAgua','kAguaH'].forEach(function(id){var _e=el(id);if(_e)_e.textContent='—';});var _kdh=el('kDefH');if(_kdh)_kdh.textContent='—';var _kahh=el('kAguaHH');if(_kahh)_kahh.textContent='Configure seu perfil';var _abw2=el('aguaBarWrap');if(_abw2)_abw2.style.display='none';var _peq2=el('peqEl');if(_peq2)_peq2.textContent='Configure seu perfil.';var _dc2=el('dietCard');if(_dc2)_dc2.style.display='none';}
   if(S.caneta.farmaco){
     var _pc=el('proxCard');if(_pc)_pc.style.display='block';
-    setTimeout(buildPKChart,50);var _df=el('dFarm');if(_df)_df.textContent=S.caneta.farmaco;var _dd=el('dDose');if(_dd)_dd.textContent=S.caneta.dose||'—';var sem2=calcSemanas();var _ds=el('dSem');if(_ds)_ds.textContent=sem2!==null?'Semana '+sem2:'—';
+    setTimeout(buildPKChart,50);var _df=el('dFarm');if(_df)_df.textContent=S.caneta.farmaco;var _dd=el('dDose');if(_dd)_dd.textContent=S.caneta.dose||'—';var sem2=semanaTratamentoDisplay();var _ds=el('dSem');if(_ds)_ds.textContent=sem2!==null?'Semana '+sem2:'—';
     if(pd){var pv=pd.diff<=0?'Hoje! 💉':pd.diff===1?'Amanhã':'Em '+pd.diff+' dia'+(pd.diff>1?'s':'')+' ('+dataBR(pd.date)+')';var _pv=el('proxVal');if(_pv)_pv.textContent=pv;var _pt=el('proxTag');if(_pt){_pt.className=pd.diff<=0?'tag tr':pd.diff<=2?'tag tw':'tag tg';_pt.textContent=pd.diff<=0?'Hoje':pd.diff<=2?'Em breve':'Aguardando';}}
     var _chD=el('chDrug');if(_chD)_chD.textContent=S.caneta.farmaco;
     var _chDs=el('chDose');if(_chDs)_chDs.textContent=S.caneta.dose?'Dose atual: '+fmtDoseMg(S.caneta.dose):'Configure a dose abaixo';
