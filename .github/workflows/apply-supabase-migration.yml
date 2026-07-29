@@ -1,0 +1,126 @@
+name: Apply Supabase Migration
+
+# Aplica um arquivo .sql de supabase/migrations/ no projeto Supabase de prod
+# via Management API (POST /v1/projects/{ref}/database/query). Nao usa supabase
+# CLI — sem docker, sem login interativo, sem project link.
+#
+# Uso:
+#   Actions -> "Apply Supabase Migration" -> Run workflow
+#   Input: caminho do arquivo (ex: supabase/migrations/20260729000000_app_state_rls_lockdown.sql)
+#
+# Dependencias:
+#   - Secret SUPABASE_MGMT_TOKEN — PAT do Supabase (sbp_...).
+#     Cravavel via Actions ou via workflow set-supabase-mgmt-token.yml.
+#   - Secret SUPABASE_PROJECT_REF — id do projeto (parte do subdominio,
+#     ex: yjycpcydqfuvojfzwfvy). Se ausente, extrai da URL padrao.
+#
+# Idempotencia: cada migration escreve DROP POLICY IF EXISTS / CREATE TABLE
+# IF NOT EXISTS. Rerun eh seguro. Se algum SQL nao for idempotente, quebra
+# ruidoso — melhor do que corromper silenciosamente.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Path do .sql (relativo ao repo)'
+        required: true
+        default: 'supabase/migrations/20260729000000_app_state_rls_lockdown.sql'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confere secret SUPABASE_MGMT_TOKEN
+        run: |
+          set -e
+          if [ -z "${{ secrets.SUPABASE_MGMT_TOKEN }}" ]; then
+            echo "::error::secret SUPABASE_MGMT_TOKEN ausente"
+            echo "Cravar em Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+      - name: Le arquivo SQL e valida
+        id: sql
+        run: |
+          set -e
+          FILE="${{ github.event.inputs.file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::arquivo nao encontrado: $FILE"
+            exit 1
+          fi
+          BYTES=$(wc -c < "$FILE")
+          if [ "$BYTES" -lt 10 ]; then
+            echo "::error::arquivo vazio ou muito pequeno: $BYTES bytes"
+            exit 1
+          fi
+          echo "[migration] $FILE ($BYTES bytes)"
+          # Preview no summary (primeiras 30 linhas — sem exfil de secrets)
+          {
+            echo "## Migration"
+            echo ""
+            echo "**Arquivo:** \`$FILE\` ($BYTES bytes)"
+            echo ""
+            echo "**Preview (30 primeiras linhas):**"
+            echo '```sql'
+            head -30 "$FILE"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          echo "path=$FILE" >> $GITHUB_OUTPUT
+
+      - name: Descobre PROJECT_REF
+        id: ref
+        run: |
+          set -e
+          REF="${{ secrets.SUPABASE_PROJECT_REF }}"
+          if [ -z "$REF" ]; then
+            # fallback: extrai de valor conhecido documentado no HANDOFF
+            REF="yjycpcydqfuvojfzwfvy"
+            echo "[ref] usando default $REF (crave SUPABASE_PROJECT_REF pra sobrescrever)"
+          fi
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+
+      - name: POST /v1/projects/{ref}/database/query
+        env:
+          MGMT: ${{ secrets.SUPABASE_MGMT_TOKEN }}
+          REF: ${{ steps.ref.outputs.ref }}
+          FILE: ${{ steps.sql.outputs.path }}
+        run: |
+          set -e
+          # Serializa o SQL como JSON string — jq -Rs le arquivo cru e escapa
+          # aspas, newlines, etc. Sem risco de shell injection.
+          BODY=$(jq -Rs '{query: .}' "$FILE")
+          echo "$BODY" > /tmp/body.json
+          echo "[body] $(wc -c < /tmp/body.json) bytes"
+
+          HTTP=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $MGMT" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/body.json)
+
+          echo "[http] $HTTP"
+          {
+            echo ""
+            echo "**HTTP:** $HTTP"
+            echo ""
+            echo "**Resposta:**"
+            echo '```json'
+            cat /tmp/resp.json
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$HTTP" -ge 400 ]; then
+            echo "::error::Supabase mgmt API retornou $HTTP"
+            exit 1
+          fi
+          echo "[ok] migration aplicada"
