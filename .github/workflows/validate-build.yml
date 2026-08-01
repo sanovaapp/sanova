@@ -1,0 +1,40 @@
+name: Guardrail de build (single-file PWA)
+
+# Automatiza a regra inviolável do HANDOFF:
+#   "SEMPRE validar HTML balanceado + sintaxe JS antes de finalizar"
+#   "SEMPRE bumpar SANOVA_VERSION no index.html E VERSION no sw.js"
+# Roda em cada PR e em pushes de branch (menos assets binários/docs puros).
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'manifest.json'
+      - '.github/scripts/validate-build.mjs'
+      - '.github/workflows/validate-build.yml'
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'manifest.json'
+      - '.github/scripts/validate-build.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validar integridade do build
+        run: node .github/scripts/validate-build.mjs
