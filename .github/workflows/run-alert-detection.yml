@@ -10,6 +10,11 @@ name: Run Alert Detection
 # Secrets necessarios: ADMIN_OVERRIDE_TOKEN (ja existe pra outros workflows).
 
 on:
+  # Diario 12:00 UTC = 09:00 BRT — janela boa: paciente ja registrou
+  # cafe/almoco do dia anterior, pro consulta o painel antes do turno da
+  # tarde. Se ficar barulhento demais, mover pra 15:00 UTC = 12:00 BRT.
+  schedule:
+    - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
       patient_user_id:
