@@ -3792,6 +3792,12 @@ try{
           <div class="mais-lbl" id="vincLbl">Vincular profissional</div>
           <div class="mais-sub" id="vincSub">Compartilhe seu painel com seu médico ou nutricionista</div>
         </button>
+        <!-- v3.10.55 (Fase 2 LGPD): paciente ve os alertas que seu pro recebeu sobre ele -->
+        <button class="mais-btn" onclick="fecharMais();abrirMeusAlertas()" aria-label="Alertas que seu médico recebeu" style="grid-column:1/-1">
+          <span class="mais-ic" aria-hidden="true">🔔</span>
+          <div class="mais-lbl">Alertas que seu médico recebeu</div>
+          <div class="mais-sub">Transparência LGPD — veja o que o Sanova sinalizou pro seu profissional</div>
+        </button>
       </div>
     </div>
 
@@ -6398,7 +6404,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.55';
+var SANOVA_VERSION = '3.10.56';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7554,6 +7560,73 @@ function renderCobrandingPainel(){
     '<div style="font-size:18px;color:rgba(255,255,255,.4);flex-shrink:0">›</div>' +
   '</div>';
 }
+
+// v3.10.55 (Fase 2 LGPD): paciente ve alertas gerados sobre ele.
+// RLS do alert_events ja permite (patient_user_id = auth.uid()).
+// Lista via Supabase JS direto — sem endpoint dedicado, mesma
+// autenticacao que o resto do app usa.
+async function abrirMeusAlertas(){
+  var ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+  ov.innerHTML =
+    '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:520px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">' +
+    '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">' +
+    '    <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">🔔 Alertas gerados sobre você</div>' +
+    '    <button type="button" onclick="this.closest(\'[data-alerts-ov]\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>' +
+    '  </div>' +
+    '  <div style="font-size:12px;color:rgba(187,247,208,.7);line-height:1.55;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.15);border-radius:10px">' +
+    '    Transparência LGPD. Estes são os alertas que o Sanova gerou sobre você pros seus profissionais vinculados. <strong>Ausência de alerta não significa ausência de risco</strong> — o Sanova sinaliza best-effort.' +
+    '  </div>' +
+    '  <div id="meusAlertasList"><div style="padding:12px;font-size:12px;color:rgba(255,255,255,.5);text-align:center">Carregando…</div></div>' +
+    '</div>';
+  ov.setAttribute('data-alerts-ov', '1');
+  document.body.appendChild(ov);
+  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+  try{
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    if(!sb) throw new Error('supabase_indisponivel');
+    var user = (await sb.auth.getUser()).data.user;
+    if(!user) throw new Error('sem_sessao');
+    var desde = new Date(Date.now() - 90*86400000).toISOString();
+    var r = await sb.from('alert_events').select('id,alert_key,severity,factual_message,triggered_at,professional_id')
+      .eq('patient_user_id', user.id).gte('triggered_at', desde).order('triggered_at', { ascending: false }).limit(50);
+    var eventos = r.data || [];
+    var host = document.getElementById('meusAlertasList');
+    if(!eventos.length){
+      host.innerHTML = '<div style="padding:16px;font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;line-height:1.6">Nenhum alerta gerado nos últimos 90 dias.<br><span style="color:rgba(255,255,255,.4);font-size:11px">(isso não significa ausência de risco — Sanova sinaliza best-effort)</span></div>';
+      return;
+    }
+    var SEV = { red:{icon:'🔴',color:'#f3a88a'}, yellow:{icon:'🟡',color:'#fcd34d'} };
+    var LABELS = {
+      crit_kcal_piso: 'Calorias abaixo do piso fisiológico',
+      sintomas_gi: 'Sintomas GI persistentes',
+      sinais_raros_graves: 'Sinais raros graves',
+      perda_rapida: 'Perda de peso >1,5 kg/sem',
+      dose_atrasada: 'Dose atrasada',
+      prot_insuficiente: 'Proteína insuficiente',
+      agua_insuficiente: 'Água insuficiente',
+      exerc_insuficiente: 'Exercício resistido insuficiente',
+      estoque_acabando: 'Estoque acabando',
+      sem_registros: 'Sem registros há 3+ dias',
+    };
+    host.innerHTML = eventos.map(function(ev){
+      var s = SEV[ev.severity] || SEV.yellow;
+      var q = new Date(ev.triggered_at);
+      var qStr = q.toLocaleDateString('pt-BR') + ' ' + q.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+      var lbl = LABELS[ev.alert_key] || ev.alert_key;
+      var fm = String(ev.factual_message || '').replace(/[<>]/g,'');
+      return '<div style="padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:8px">' +
+        '<div style="font-size:13px;font-weight:700;color:' + s.color + ';margin-bottom:4px">' + s.icon + ' ' + lbl.replace(/[<>]/g,'') + '</div>' +
+        '<div style="font-size:12px;color:rgba(255,255,255,.75);line-height:1.5;margin-bottom:6px">' + fm + '</div>' +
+        '<div style="font-size:10.5px;color:rgba(255,255,255,.45)">' + qStr + '</div>' +
+      '</div>';
+    }).join('');
+  }catch(e){
+    var h = document.getElementById('meusAlertasList');
+    if(h) h.innerHTML = '<div style="padding:12px;font-size:12px;color:#f3a88a;text-align:center">Erro carregando: ' + (e.message||'desconhecido').replace(/[<>]/g,'') + '</div>';
+  }
+}
+window.abrirMeusAlertas = abrirMeusAlertas;
 
 function abrirVincularPro(){
   var pros = window._sanovaProsAtivos;
