@@ -6398,7 +6398,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.54';
+var SANOVA_VERSION = '3.10.55';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9702,6 +9702,10 @@ function salvar(){
   // v3.1.14: marcar timestamp para detecção de concorrência
   if(!S._meta) S._meta = {};
   S._meta.lastModified = Date.now();
+  // v3.10.55 (Fable T52 M2 — marcos): detecta marcos atingidos e oferece card.
+  // Roda AQUI (nao no render) pra pegar mudanca de estado real (pesagem nova,
+  // treino registrado). Dispara so 1 vez por marco (persistido em S._marcos_shown).
+  try{ if(typeof detectarEDispararMarcos === 'function') detectarEDispararMarcos(); }catch(e){}
   var dados=JSON.stringify(S);
 
   // v3.1.14: Sistema de backup rotativo (proteção contra corrupção)
@@ -25793,6 +25797,333 @@ window.addEventListener('beforeunload',function(){
       fileName: 'sanova-protecao-'+Date.now()+'.png',
     });
   };
+})();
+</script>
+
+<!-- v3.10.55 (Fable T52 M2): MARCOS — detector + modal celebracao + card share.
+     Reusa primitivas (_leaf, _roundRect, _footerSlogan) do modulo anterior.
+     Regras regulatorias identicas: sem nome, sem marca, voz nao-causal. -->
+<script>
+(function(){
+  'use strict';
+
+  // ─── Definicao dos marcos ────────────────────────────────────────
+  // Cada marco tem: key unica, teste(S) -> {atingido:bool, valor}, label,
+  // eyebrow (linha de contexto pequena), mensagem (voz-paciente nao-causal).
+  var MARCOS = [
+    {
+      key: 'perda_5kg',
+      label: '−5 kg',
+      eyebrow: 'CINCO KG A MENOS',
+      mensagem: 'Cinco quilos.\nUm marco real.\nRotina que constrói.',
+      teste: function(S){
+        try{
+          var pi = S.profile && Number(S.profile.weightStartKg);
+          var pa = S.profile && Number(S.profile.weightKg);
+          if(!pi || !pa) return { atingido:false };
+          var d = pi - pa;
+          return { atingido: d >= 5, valor: d };
+        }catch(e){ return { atingido:false }; }
+      },
+    },
+    {
+      key: 'perda_10kg',
+      label: '−10 kg',
+      eyebrow: 'DEZ KG A MENOS',
+      mensagem: 'Dez quilos.\nMudança que fica.\nContinua.',
+      teste: function(S){
+        try{
+          var pi = S.profile && Number(S.profile.weightStartKg);
+          var pa = S.profile && Number(S.profile.weightKg);
+          if(!pi || !pa) return { atingido:false };
+          var d = pi - pa;
+          return { atingido: d >= 10, valor: d };
+        }catch(e){ return { atingido:false }; }
+      },
+    },
+    {
+      key: 'treinos_50',
+      label: '50 treinos',
+      eyebrow: 'CINQUENTA TREINOS',
+      mensagem: 'Cinquenta treinos registrados.\nCorpo que se protege.\nMassa magra preservada.',
+      teste: function(S){
+        try{
+          var daily = Array.isArray(S.daily) ? S.daily : [];
+          var n = daily.filter(function(d){ return !!(d && d.exercicio); }).length;
+          return { atingido: n >= 50, valor: n };
+        }catch(e){ return { atingido:false }; }
+      },
+    },
+    {
+      key: 'dias_100',
+      label: '100 dias',
+      eyebrow: 'CEM DIAS COM SANOVA',
+      mensagem: 'Cem dias de rotina.\nIdentidade cravada.\nNão é mais tentativa.',
+      teste: function(S){
+        try{
+          var ini = S.caneta && S.caneta.inicio;
+          if(!ini) return { atingido:false };
+          var d0 = new Date(ini + 'T12:00:00');
+          var dias = Math.floor((Date.now() - d0.getTime()) / 86400000);
+          return { atingido: dias >= 100, valor: dias };
+        }catch(e){ return { atingido:false }; }
+      },
+    },
+  ];
+
+  // ─── Detector: chamado pelo salvar() ─────────────────────────────
+  function detectarEDispararMarcos(){
+    try{
+      var S = window.S || {};
+      if(document.body.classList.contains('spectator-mode')) return;
+      if(!S._marcos_shown) S._marcos_shown = {};
+      for(var i=0;i<MARCOS.length;i++){
+        var m = MARCOS[i];
+        if(S._marcos_shown[m.key]) continue;
+        var res = m.teste(S);
+        if(res && res.atingido){
+          S._marcos_shown[m.key] = { atingidoEm: new Date().toISOString(), valor: res.valor };
+          // Modal celebracao — nao bloqueia usuario (setTimeout pra deixar
+          // salvar() terminar seu ciclo antes de abrir DOM heavy)
+          setTimeout(function(marco, valor){
+            try{ abrirModalMarco(marco, valor); }catch(e){ console.warn('[Marcos]', e); }
+          }, 250, m, res.valor);
+          // Dispara so 1 marco por save. Proximo save dispara o proximo se
+          // tambem foi batido no mesmo ciclo — evita empilhar 3 modais.
+          break;
+        }
+      }
+    }catch(e){ console.warn('[Marcos] detector', e); }
+  }
+  window.detectarEDispararMarcos = detectarEDispararMarcos;
+
+  // ─── Modal celebracao ────────────────────────────────────────────
+  function abrirModalMarco(marco, valor){
+    var ov = document.createElement('div');
+    ov.id = 'marcoOv';
+    ov.setAttribute('data-spectator-block','1');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.innerHTML = ''
+      + '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.28);border-radius:22px;padding:32px 24px 24px;max-width:440px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif;text-align:center">'
+      + '  <div style="font-size:64px;line-height:1;margin-bottom:14px">🎉</div>'
+      + '  <div style="font-family:\'Plus Jakarta Sans\',system-ui,sans-serif;font-size:12px;font-weight:800;letter-spacing:.18em;color:#c8a76a;margin-bottom:14px">MARCO ATINGIDO</div>'
+      + '  <div style="font-family:\'DM Serif Display\',Georgia,serif;font-size:56px;line-height:1;color:#f5f0e3;margin-bottom:8px">' + escapeMarco(marco.label) + '</div>'
+      + '  <div style="font-family:\'Fraunces\',Georgia,serif;font-style:italic;font-weight:300;font-size:18px;line-height:1.5;color:rgba(245,240,227,.75);margin-bottom:24px;white-space:pre-line">' + escapeMarco(marco.mensagem) + '</div>'
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      + '    <button type="button" id="btnCompartilharMarco" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer">📤 Compartilhar</button>'
+      + '    <button type="button" id="btnFecharMarco" style="padding:14px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-weight:700;font-size:13.5px;cursor:pointer">Fechar</button>'
+      + '  </div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    document.getElementById('btnFecharMarco').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.getElementById('btnCompartilharMarco').addEventListener('click', function(){
+      ov.remove();
+      abrirShareMarcoModal(marco.key);
+    });
+  }
+  window.abrirModalMarco = abrirModalMarco;
+
+  function escapeMarco(s){
+    return String(s||'').replace(/[<>]/g, function(c){ return c === '<' ? '&lt;' : '&gt;'; });
+  }
+
+  // ─── Card share do marco ─────────────────────────────────────────
+  function _drawMarcoCard(canvas, ctx0, marco, valor){
+    var ctx = canvas.getContext('2d');
+    var W=1080, H=1350;
+    canvas.width=W; canvas.height=H;
+    var g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3a20'); g.addColorStop(1,'#041b0d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+    // Confetti decorativo (folhas pequenas espalhadas)
+    ctx.save();
+    ctx.globalAlpha = .07;
+    var seeds = [
+      { x:120, y:180, r:20, s:56 },
+      { x:900, y:150, r:-15, s:72 },
+      { x:60, y:600, r:12, s:48 },
+      { x:960, y:720, r:-22, s:64 },
+      { x:180, y:1080, r:8, s:40 },
+      { x:880, y:1180, r:-8, s:52 },
+    ];
+    seeds.forEach(function(seed){
+      ctx.save();
+      ctx.translate(seed.x, seed.y);
+      ctx.rotate(seed.r * Math.PI/180);
+      _leafMarco(ctx, 0, 0, seed.s);
+      ctx.restore();
+    });
+    ctx.restore();
+
+    var PAD=80, y=90;
+
+    // brand no topo
+    _leafMarco(ctx, PAD, y+5, 32);
+    ctx.fillStyle='#bbf7d0'; ctx.textBaseline='top';
+    ctx.font='italic 500 32px "Fraunces", Georgia, serif';
+    ctx.fillText('Sanova', PAD+62, y+8);
+    y += 100;
+
+    // Eyebrow dourado
+    ctx.fillStyle='#c8a76a';
+    ctx.font='800 22px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(marco.eyebrow, PAD, y);
+    y += 60;
+
+    // Hero — "Marco atingido"
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='400 84px "DM Serif Display", Georgia, serif';
+    ctx.fillText('Marco', PAD, y);
+    y += 84;
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 300 84px "Fraunces", Georgia, serif';
+    ctx.fillText('atingido.', PAD, y);
+    y += 130;
+
+    // Big number
+    ctx.fillStyle='#c8a76a'; ctx.fillRect(PAD, y, 6, 240);
+    ctx.fillStyle='#86efac';
+    ctx.font='400 260px "DM Serif Display", Georgia, serif';
+    ctx.fillText(marco.label, PAD+34, y);
+    y += 300;
+
+    // Mensagem cursiva
+    ctx.fillStyle='#c8a76a';
+    ctx.font='400 110px "DM Serif Display", Georgia, serif';
+    ctx.fillText('“', PAD, y-30);
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 38px "Fraunces", Georgia, serif';
+    (marco.mensagem || '').split('\n').forEach(function(ln,i){ ctx.fillText(ln, PAD, y+40+i*52); });
+
+    _footerSloganMarco(ctx, W, H-90);
+  }
+
+  function _leafMarco(ctx, x, y, size){
+    ctx.save(); ctx.translate(x, y);
+    var k = size/100;
+    ctx.fillStyle='#22c55e';
+    ctx.beginPath();
+    ctx.moveTo(50*k, 8*k);
+    ctx.bezierCurveTo(12*k,42*k, 16*k,92*k, 16*k,92*k);
+    ctx.bezierCurveTo(22*k,132*k, 50*k,138*k, 50*k,138*k);
+    ctx.bezierCurveTo(78*k,132*k, 84*k,92*k, 84*k,92*k);
+    ctx.bezierCurveTo(88*k,42*k, 50*k,8*k, 50*k,8*k);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#0F5C2F'; ctx.globalAlpha=.7; ctx.lineWidth=Math.max(1, k*1.5);
+    ctx.beginPath();
+    ctx.moveTo(50*k,8*k); ctx.lineTo(50*k,138*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(68*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(72*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(70*k,100*k);
+    ctx.moveTo(50*k,50*k); ctx.lineTo(32*k,60*k);
+    ctx.moveTo(50*k,70*k); ctx.lineTo(28*k,82*k);
+    ctx.moveTo(50*k,90*k); ctx.lineTo(30*k,100*k);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function _footerSloganMarco(ctx, W, footerY){
+    ctx.strokeStyle='rgba(134,239,172,.20)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(80, footerY-30); ctx.lineTo(W-80, footerY-30); ctx.stroke();
+    ctx.textAlign='center';
+    ctx.fillStyle='#f5f0e3';
+    ctx.font='italic 300 40px "Fraunces", Georgia, serif';
+    var s1='Emagreça ', s2='sem murchar.';
+    var m1w = ctx.measureText(s1).width;
+    ctx.font='italic 600 40px "Fraunces", Georgia, serif';
+    var m2w = ctx.measureText(s2).width;
+    var startX = W/2 - (m1w+m2w)/2;
+    ctx.textAlign='left';
+    ctx.font='italic 300 40px "Fraunces", Georgia, serif';
+    ctx.fillText(s1, startX, footerY-8);
+    ctx.fillStyle='#86efac';
+    ctx.font='italic 600 40px "Fraunces", Georgia, serif';
+    ctx.fillText(s2, startX+m1w, footerY-8);
+    // URL pill
+    var pillTxt='sanova.app.br';
+    ctx.font='700 26px "Plus Jakarta Sans", system-ui, sans-serif';
+    var pw = ctx.measureText(pillTxt).width + 44;
+    var ph = 48, px = W/2 - pw/2, py = footerY+40;
+    ctx.fillStyle='#86efac';
+    ctx.beginPath();
+    var r = ph/2;
+    ctx.moveTo(px+r, py);
+    ctx.arcTo(px+pw, py, px+pw, py+ph, r);
+    ctx.arcTo(px+pw, py+ph, px, py+ph, r);
+    ctx.arcTo(px, py+ph, px, py, r);
+    ctx.arcTo(px, py, px+pw, py, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle='#041b0d';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(pillTxt, W/2, py+ph/2);
+    ctx.textBaseline='top'; ctx.textAlign='left';
+  }
+
+  // ─── Modal share do card ─────────────────────────────────────────
+  function abrirShareMarcoModal(marcoKey){
+    var marco = MARCOS.find(function(m){ return m.key === marcoKey; });
+    if(!marco){ if(typeof toast==='function') toast('Marco inválido.'); return; }
+    var res = marco.teste(window.S || {});
+    if(!res || !res.atingido){ if(typeof toast==='function') toast('Marco ainda não atingido.'); return; }
+
+    var ov = document.createElement('div');
+    ov.setAttribute('data-spectator-block','1');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+    ov.innerHTML = ''
+      + '<div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:480px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">'
+      + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '    <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">🏆 Card ' + escapeMarco(marco.label) + '</div>'
+      + '    <button type="button" id="btnFecharShareMarco" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>'
+      + '  </div>'
+      + '  <canvas id="shareMarcoCanvas" style="width:100%;height:auto;display:block;border-radius:12px;background:#041b0d;margin-bottom:12px"></canvas>'
+      + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+      + '    <button type="button" id="btnShareMarcoCompartilhar" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer">📤 Compartilhar</button>'
+      + '    <button type="button" id="btnShareMarcoBaixar" style="padding:14px;border-radius:12px;border:1.5px solid rgba(187,247,208,.35);background:transparent;color:#bbf7d0;font-weight:700;font-size:13.5px;cursor:pointer">💾 Baixar</button>'
+      + '  </div>'
+      + '  <div style="margin-top:10px;font-size:10.5px;line-height:1.5;color:rgba(255,255,255,.45);text-align:center">Sem nome, sem marca comercial. Sanova só assinatura.</div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    var canvas = document.getElementById('shareMarcoCanvas');
+    function redraw(){ _drawMarcoCard(canvas, null, marco, res.valor); }
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(redraw).catch(redraw); } else { redraw(); }
+    document.getElementById('btnFecharShareMarco').addEventListener('click', function(){ ov.remove(); });
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.getElementById('btnShareMarcoCompartilhar').addEventListener('click', function(){ _shareMarco(canvas, marco); });
+    document.getElementById('btnShareMarcoBaixar').addEventListener('click', function(){ _downloadMarco(canvas, marco); });
+  }
+  window.abrirShareMarcoModal = abrirShareMarcoModal;
+
+  function _fileNameMarco(marco){
+    return 'sanova-marco-' + marco.key + '-' + Date.now() + '.png';
+  }
+  function _shareMarco(canvas, marco){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var file = new File([blob], _fileNameMarco(marco), { type:'image/png' });
+      var payload = { files:[file], title:'Marco '+marco.label, text:'sanova.app.br — emagreça sem murchar' };
+      if(navigator.canShare && navigator.canShare(payload)){
+        navigator.share(payload).catch(function(err){
+          if(err && err.name==='AbortError') return;
+          _downloadMarco(canvas, marco);
+        });
+      } else { _downloadMarco(canvas, marco); }
+    }, 'image/png');
+  }
+  function _downloadMarco(canvas, marco){
+    canvas.toBlob(function(blob){
+      if(!blob){ if(typeof toast==='function') toast('Erro ao gerar imagem.'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = _fileNameMarco(marco);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      if(typeof toast==='function') toast('Card salvo!');
+    }, 'image/png');
+  }
 })();
 </script>
 
