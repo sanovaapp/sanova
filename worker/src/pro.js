@@ -51,6 +51,9 @@ async function verifyJwt(request, env) {
   return u && u.id ? u : null;
 }
 
+// v3.10.57 (fix LGPD): reusa verifyJwt em alerts.js e no delete-my-account
+export { verifyJwt };
+
 // v3.10.55 (Fase 2 alertas): reusa svcHeaders + SUPABASE_URL + requirePro em alerts.js
 export { SUPABASE_URL };
 export function svcHeadersFor(env){ return svcHeaders(env); }
@@ -607,6 +610,54 @@ export async function handleSpectatorState(request, env, origin) {
 //   Limita pra 2MB depois de decode. Salva em bucket 'pro-assets' como
 //   {pro_id}/{kind}.{ext}. Atualiza professionals.foto_url ou logo_url.
 // ════════════════════════════════════════════════════════════════════
+
+// POST /api/delete-my-account   (v1.29.1 — fix LGPD critico)
+//   Auth: JWT do proprio user (nao admin token — paciente deleta a si
+//   proprio). Deleta auth.users via Supabase Admin API — cascade cobre
+//   app_state + patient_links + alert_events + professionals +
+//   subscriptions + tudo mais que referencia auth.users.
+//
+//   Contexto: privacidade.html linha 113 PROMETE "removemos seus dados
+//   em ate 30 dias" apos apagar. Antes desse fix, confirmarReset() so
+//   limpava localStorage — dados ficavam no Supabase pra sempre.
+//   Violacao real do art. 18 LGPD (direito de eliminacao).
+//
+//   Passo a passo:
+//     1. verifyJwt -> pega user_id do requester
+//     2. Chama DELETE /auth/v1/admin/users/{id} com service_role
+//     3. Cascade automatico das FKs derruba tudo relacionado
+//     4. Retorna { ok: true } — cliente aí sim limpa localStorage
+// ════════════════════════════════════════════════════════════════════
+export async function handleDeleteMyAccount(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const user = await verifyJwt(request, env);
+  if (!user) {
+    return jsonResponse({ ok: false, error: 'not_authenticated' }, 401, origin, env);
+  }
+  // Trilha minima no log — id truncado, nunca email/dados pessoais
+  // (mas registra a acao pra auditoria)
+  try { console.log('[delete-my-account] user=' + String(user.id).slice(0, 8) + '... iniciando'); } catch {}
+
+  const delUrl = SUPABASE_URL + '/auth/v1/admin/users/' + encodeURIComponent(user.id);
+  const r = await fetch(delUrl, {
+    method: 'DELETE',
+    headers: svcHeaders(env),
+  });
+  if (!r.ok) {
+    const detail = await r.text().catch(() => '');
+    return jsonResponse({
+      ok: false,
+      error: 'delete_falhou',
+      status: r.status,
+      detail: detail.slice(0, 200),
+    }, 500, origin, env);
+  }
+  try { console.log('[delete-my-account] user=' + String(user.id).slice(0, 8) + '... deletado'); } catch {}
+  return jsonResponse({ ok: true }, 200, origin, env);
+}
+
 export async function handleProAssets(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);

@@ -19,7 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
-import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState } from './pro.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
@@ -61,7 +61,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.29.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.29.1' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -81,6 +81,13 @@ export default {
       // paciente vinculada (read-only). Usado por index.html?spectator_link=X
       if (url.pathname === '/api/spectator-state' && request.method === 'GET') {
         return await handleSpectatorState(request, env, origin);
+      }
+
+      // v1.29.1 (fix LGPD critico): paciente deleta a propria conta.
+      // Cascade cobre app_state + patient_links + alert_events + professionals +
+      // subscriptions. Ver privacidade.html linha 113 (promessa 30 dias).
+      if (url.pathname === '/api/delete-my-account' && request.method === 'POST') {
+        return await handleDeleteMyAccount(request, env, origin);
       }
 
       // ─── Fase 2 Alertas (v1.29.0) ────────────────────────────

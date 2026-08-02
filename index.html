@@ -3627,7 +3627,7 @@ try{
   <div class="modal">
     <button class="modal-x" onclick="fecharReset()">✕</button>
     <div class="modal-ttl">⚠️ Apagar todos os dados?</div>
-    <div class="modal-sub">Esta ação é irreversível.</div>
+    <div class="modal-sub">Apaga <strong>tudo</strong> — seu perfil, pesagens, refeições, doses, sintomas — <strong>do seu celular e do servidor Sanova</strong>. Sua conta é excluída. Ação irreversível.</div>
     <div class="row">
       <button class="btn bp" style="flex:1" onclick="fecharReset()">Cancelar</button>
       <button class="btn bdanger" style="flex:1" onclick="confirmarReset()">Apagar tudo</button>
@@ -6404,7 +6404,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.56';
+var SANOVA_VERSION = '3.10.57';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21244,14 +21244,64 @@ function confirmarRefazer(){
   anaInit();
 }
 function fecharReset(){el('modalReset').classList.remove('open');}
-function confirmarReset(){
-  // v3.1.24: limpar TODAS as chaves do Sanova, não só LS
-  // Antes: termo de uso e outras chaves persistiam → reset não funcionava de fato
+// v3.10.57 (fix LGPD critico): confirmarReset() agora deleta REAL —
+// backend primeiro (auth.users + cascade cobre app_state, patient_links,
+// alert_events, professionals, subscriptions), so depois limpa localStorage.
+// Antes: so limpava local; dados ficavam no Supabase pra sempre, apesar da
+// promessa em privacidade.html linha 113 ("removemos em ate 30 dias").
+async function confirmarReset(){
+  var btnsModal = document.querySelectorAll('#modalReset button');
+  btnsModal.forEach(function(b){ b.disabled = true; });
+  // Feedback: troca texto do botao "Apagar tudo" enquanto processa
+  var btnConfirmar = null;
+  btnsModal.forEach(function(b){
+    if(String(b.textContent||'').trim() === 'Apagar tudo') btnConfirmar = b;
+  });
+  var textoOriginal = btnConfirmar ? btnConfirmar.textContent : null;
+  if(btnConfirmar) btnConfirmar.textContent = 'Apagando…';
+
+  // Se ha sessao logada, deleta backend primeiro
+  var backendOk = null; // null = nao tentou, true = ok, false = falhou
+  try{
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    var sess = sb ? await sb.auth.getSession() : null;
+    var token = sess && sess.data && sess.data.session ? sess.data.session.access_token : null;
+    if(token){
+      var apiBase = 'https://sanova-api.contatosanovaapp.workers.dev';
+      var resp = await fetch(apiBase + '/api/delete-my-account', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      var data = await resp.json().catch(function(){ return {}; });
+      backendOk = !!(resp.ok && data.ok);
+      if(!backendOk){
+        // Aborta reset local — evita mostrar "apagou" quando servidor ainda tem
+        if(btnConfirmar) btnConfirmar.textContent = textoOriginal || 'Apagar tudo';
+        btnsModal.forEach(function(b){ b.disabled = false; });
+        alert('Não consegui apagar do servidor: ' + (data.error || ('HTTP ' + resp.status)) +
+              '. Nada foi apagado. Tente novamente em alguns segundos ou entre em contato: contatosanovaapp@gmail.com');
+        return;
+      }
+      // Faz signOut pra invalidar a sessao antes de limpar chaves
+      try{ await sb.auth.signOut(); }catch(e){}
+    } else {
+      // Sem sessao — usuario nunca logou; so tem dados locais mesmo.
+      backendOk = null;
+    }
+  }catch(e){
+    if(btnConfirmar) btnConfirmar.textContent = textoOriginal || 'Apagar tudo';
+    btnsModal.forEach(function(b){ b.disabled = false; });
+    alert('Erro de rede ao apagar do servidor: ' + (e.message||'desconhecido') +
+          '. Nada foi apagado. Cheque sua conexão e tente de novo.');
+    return;
+  }
+
+  // Backend deletou (ou nao havia backend) — pode limpar local
   try{
     var keysToRemove = [];
     for(var i = 0; i < localStorage.length; i++){
       var k = localStorage.key(i);
-      if(k && (k.indexOf('sanova') === 0 || k === LS)){
+      if(k && (k.indexOf('sanova') === 0 || k === LS || k.indexOf('sb-') === 0)){
         keysToRemove.push(k);
       }
     }
@@ -21263,7 +21313,7 @@ function confirmarReset(){
       var sessionKeys = [];
       for(var j = 0; j < sessionStorage.length; j++){
         var sk = sessionStorage.key(j);
-        if(sk && sk.indexOf('sanova') === 0) sessionKeys.push(sk);
+        if(sk && (sk.indexOf('sanova') === 0 || sk.indexOf('sb-') === 0)) sessionKeys.push(sk);
       }
       sessionKeys.forEach(function(sk){ sessionStorage.removeItem(sk); });
     }catch(e){}
