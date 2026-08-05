@@ -144,6 +144,10 @@ a:hover{text-decoration:underline}
 const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqeWNwY3lkcWZ1dm9qZnp3ZnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzY4NDksImV4cCI6MjA2NDYxMjg0OX0.gZuFaI0Lz2GjY3PUWPaeoyhuJyz4PpIVTvshNd6cKAQ';
 const WORKER_BASE = 'https://sanova-api.contatosanovaapp.workers.dev';
+// T66 (Fable/compliance): Fase 2 alertas atras de flag ate Bruno cravar
+// limiares finais + portao regulatorio T50. Backend continua deployado
+// (endpoints + schema), mas UI nao expoe nada a pros. Religar: true.
+const FASE2_ALERTAS_ATIVA = false;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const $ = (id) => document.getElementById(id);
@@ -329,12 +333,14 @@ function viewProPanel() {
     <div class="section-title">Pacientes (${state.patients.length})</div>
     ${pacientesHtml}
 
+    ${FASE2_ALERTAS_ATIVA ? `
     <!-- v1.7.0 (Fase 2 Fable T49.1+T50): alertas ativos read-only -->
     <div class="section-title" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;gap:8px">
       <span>🔔 Alertas ativos <span id="alertsBadge" style="font-size:11px;color:rgba(187,247,208,.55);font-weight:400;margin-left:4px"></span></span>
       <button type="button" onclick="abrirPrefsAlertas()" style="background:none;border:1px solid rgba(187,247,208,.25);color:rgba(187,247,208,.7);font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer">⚙️ Preferências</button>
     </div>
     <div id="alertsList"><div class="empty" style="font-size:12px">Carregando…</div></div>
+    ` : ''}
   `;
 }
 
@@ -558,8 +564,10 @@ function render() {
       c.querySelectorAll('.patient-row[data-link-id]').forEach(row => {
         row.addEventListener('click', () => abrirPaciente(row.getAttribute('data-link-id')));
       });
-      // v1.7.0 (Fase 2): carrega alertas ativos em paralelo
-      setTimeout(() => { try { carregarAlertasAtivos(); } catch (e) { console.warn('[alertas]', e); } }, 60);
+      // v1.7.0 (Fase 2): carrega alertas ativos em paralelo — atras da flag T66
+      if (FASE2_ALERTAS_ATIVA) {
+        setTimeout(() => { try { carregarAlertasAtivos(); } catch (e) { console.warn('[alertas]', e); } }, 60);
+      }
       break;
     case 'patient': c.innerHTML = viewPatient(); break;
   }
