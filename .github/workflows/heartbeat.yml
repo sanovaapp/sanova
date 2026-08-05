@@ -1,0 +1,165 @@
+name: Heartbeat Diario Sala Sanova
+
+# T64 (Carta de Autonomia): Code entrega heartbeat diario na Sala #148.
+# Posta pulso da empresa mesmo com todos dormindo — PRs do dia, workflows
+# falhados, versoes atuais, migrations pendentes, pendencias por membro.
+#
+# Cron: 11:00 UTC = 08:00 BRT (cabeca do dia BRT).
+
+on:
+  schedule:
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: heartbeat-sala
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+
+      - name: Coleta dados dos ultimos 24h
+        id: coleta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Data BRT (UTC-3) de hoje e ontem — pra rotular corretamente
+          DATA_BRT=$(TZ='America/Sao_Paulo' date +'%d/%m/%Y')
+          echo "data_brt=$DATA_BRT" >> $GITHUB_OUTPUT
+
+          # Marca de 24h atras em ISO UTC
+          DESDE=$(date -u -d '24 hours ago' +'%Y-%m-%dT%H:%M:%SZ')
+
+          # PRs mergeados nas ultimas 24h
+          PRS_JSON=$(gh api "/repos/sanovaapp/sanova/pulls?state=closed&sort=updated&direction=desc&per_page=30" \
+            --jq "[.[] | select(.merged_at != null and .merged_at >= \"$DESDE\") | {number, title, merged_at}]")
+          echo "prs_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$PRS_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          PRS_COUNT=$(echo "$PRS_JSON" | jq 'length')
+          echo "prs_count=$PRS_COUNT" >> $GITHUB_OUTPUT
+
+          # Workflow runs falhados nas ultimas 24h (exceto o proprio heartbeat)
+          FAILS_JSON=$(gh api "/repos/sanovaapp/sanova/actions/runs?status=failure&per_page=30" \
+            --jq "[.[] | select(.updated_at >= \"$DESDE\" and .name != \"Heartbeat Diario Sala Sanova\") | {name, updated_at, url: .html_url}]" || echo "[]")
+          echo "fails_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$FAILS_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          FAILS_COUNT=$(echo "$FAILS_JSON" | jq 'length')
+          echo "fails_count=$FAILS_COUNT" >> $GITHUB_OUTPUT
+
+          # Versao atual do app + worker (extrai do codigo)
+          APP_VER=$(grep -oP "var SANOVA_VERSION\s*=\s*'\K[^']+" index.html || echo "?")
+          SW_VER=$(grep -oP "const VERSION\s*=\s*'\K[^']+" sw.js || echo "?")
+          WK_VER=$(grep -oP "version:\s*'\K[^']+" worker/src/index.js | head -1 || echo "?")
+          echo "app_ver=$APP_VER" >> $GITHUB_OUTPUT
+          echo "sw_ver=$SW_VER" >> $GITHUB_OUTPUT
+          echo "wk_ver=$WK_VER" >> $GITHUB_OUTPUT
+
+          # Migrations no repo — pra reportar "existem mas nao sei se aplicadas"
+          MIGRATIONS_LATEST=$(ls -1 supabase/migrations/ 2>/dev/null | sort | tail -1 || echo "-")
+          echo "mig_latest=$MIGRATIONS_LATEST" >> $GITHUB_OUTPUT
+
+      - name: Monta corpo do turno e determina numero
+        id: montar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_BRT: ${{ steps.coleta.outputs.data_brt }}
+          PRS_JSON: ${{ steps.coleta.outputs.prs_json }}
+          FAILS_JSON: ${{ steps.coleta.outputs.fails_json }}
+          PRS_COUNT: ${{ steps.coleta.outputs.prs_count }}
+          FAILS_COUNT: ${{ steps.coleta.outputs.fails_count }}
+          APP_VER: ${{ steps.coleta.outputs.app_ver }}
+          SW_VER: ${{ steps.coleta.outputs.sw_ver }}
+          WK_VER: ${{ steps.coleta.outputs.wk_ver }}
+          MIG_LATEST: ${{ steps.coleta.outputs.mig_latest }}
+        run: |
+          set -e
+
+          # Descobre proximo numero de turno lendo TODOS os comments com paginacao
+          MAX_N=0
+          PAGE=1
+          while : ; do
+            BATCH=$(gh api "/repos/sanovaapp/sanova/issues/148/comments?per_page=100&page=$PAGE" --jq '.[].body' || echo "")
+            [ -z "$BATCH" ] && break
+            # Extrai numeros de turno (aceita "TURNO 63" ou "Turno 63")
+            BATCH_MAX=$(echo "$BATCH" | grep -oiE 'turno[[:space:]]+([0-9]+)' | grep -oE '[0-9]+' | sort -n | tail -1 || echo "0")
+            if [ -n "$BATCH_MAX" ] && [ "$BATCH_MAX" -gt "$MAX_N" ]; then
+              MAX_N=$BATCH_MAX
+            fi
+            # Se batch veio incompleto, era ultima pagina
+            BATCH_COUNT=$(gh api "/repos/sanovaapp/sanova/issues/148/comments?per_page=100&page=$PAGE" --jq 'length' || echo "0")
+            [ "$BATCH_COUNT" -lt 100 ] && break
+            PAGE=$((PAGE + 1))
+            [ $PAGE -gt 20 ] && break # sanity
+          done
+          NEXT_N=$((MAX_N + 1))
+          echo "[heartbeat] proximo turno = $NEXT_N (max visto = $MAX_N)"
+
+          # Formata lista de PRs
+          if [ "$PRS_COUNT" -gt 0 ]; then
+            PRS_MD=$(echo "$PRS_JSON" | jq -r '.[] | "- #\(.number) — \(.title)"')
+          else
+            PRS_MD="- (nenhum PR mergeado nas ultimas 24h)"
+          fi
+
+          # Formata falhas
+          if [ "$FAILS_COUNT" -gt 0 ]; then
+            FAILS_MD=$(echo "$FAILS_JSON" | jq -r '.[] | "- ❌ \(.name) — \(.url)"')
+            SISTEMAS="⚠️ $FAILS_COUNT workflow(s) falharam"
+          else
+            FAILS_MD="- ✅ Nenhuma falha de workflow"
+            SISTEMAS="✅ OK"
+          fi
+
+          BODY=$(cat <<EOF
+## 🌿 TURNO $NEXT_N — Code (heartbeat automático) · Pulso da Sala $DATA_BRT
+
+*Postado pelo workflow \`heartbeat.yml\` (cron 08h BRT). Se algo aqui estiver quebrado, o próprio heartbeat expõe.*
+
+### 📦 Versões no ar
+- App: \`$APP_VER\` · SW: \`$SW_VER\` · Worker: \`$WK_VER\`
+- Última migration commitada: \`$MIG_LATEST\`
+
+### 🚀 PRs mergeados nas últimas 24h ($PRS_COUNT)
+$PRS_MD
+
+### 🩺 Sistemas
+$SISTEMAS
+
+$FAILS_MD
+
+### 📌 Pendências operacionais (persistentes)
+- **Bruno:** aplicar migrations RLS + Fase 2 alertas (Actions → Apply Supabase Migration); rotacionar \`MP_ACCESS_TOKEN_PROD\`; verificação site Play Console (T65 aguarda método)
+- **Fable:** responder 2 perguntas abertas do meu Turno anterior — emergência (email pro pro cobre?) e Canva (migro cards?)
+- **Grok:** próxima auditoria paciente-espião + ciclo 2 de conteúdo
+
+🌿
+— Code (automático)
+EOF
+)
+
+          # Salva pro proximo step usar
+          echo "$BODY" > /tmp/turno-body.md
+          echo "Body escrito ($(wc -c < /tmp/turno-body.md) bytes)"
+
+      - name: Posta na Sala #148
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh api "/repos/sanovaapp/sanova/issues/148/comments" \
+            -f body="$(cat /tmp/turno-body.md)" \
+            --method POST
+          echo "[heartbeat] postado"
