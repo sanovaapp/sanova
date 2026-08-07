@@ -1,0 +1,57 @@
+name: Auto-merge do que nao e decisao
+
+# O Bruno nao programa. Entao ele nao deveria apertar botao em codigo que nao
+# le. Este workflow separa as duas coisas que hoje estao empacotadas juntas no
+# clique de "Merge":
+#
+#   - mudanca de ENGENHARIA  -> entra sozinha, se passar nos portoes abaixo
+#   - mudanca de DECISAO     -> espera o Bruno, virando item da fila de decisoes
+#
+# Uma PR so entra sozinha se TODAS forem verdade:
+#
+#   1. veio de uma branch `claude/` (trabalho de agente, nao de humano)
+#   2. nao toca nenhum caminho protegido (lista abaixo)
+#   3. nao tem o label `decisao-humana`
+#   4. passa na sanidade: YAML parseia, versao subiu, nada com cara de segredo
+#   5. nenhum check do GitHub falhou
+#
+# Qualquer NAO manda a PR pra fila de decisoes em vez de mergear.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.event.check_suite.id }}
+  cancel-in-progress: true
+
+jobs:
+  avaliar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instala o parser de YAML
+        run: npm install --no-save yaml@2
+
+      - name: Decide e executa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHECK_SUITE_ID: ${{ github.event.check_suite.id }}
+        run: node .github/scripts/auto-merge.mjs
