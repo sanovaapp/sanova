@@ -90,7 +90,12 @@ async function gh(path, options = {}) {
   return r.status === 204 ? null : r.json();
 }
 
-const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
+// maxBuffer explicito: o padrao do Node e 1 MB, e o `index.html` sozinho passa
+// disso (~26 mil linhas). Sem esta linha, `git show ref:index.html` e o `git
+// diff` estouram com ENOBUFS e o portao falha em TODA PR que toque o app — que
+// e justamente a PR onde ele mais importa.
+const git = (...args) =>
+  execFileSync('git', args, { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 });
 
 // ─── Descobre de qual PR estamos falando ────────────────────────────
 // O evento `check_suite` nao traz numero de PR; traz a lista de PRs que
