@@ -121,6 +121,23 @@ const executores = {
     return { ok: false, detalhe: `${workflow} disparado mas nao concluiu em 4 min` };
   },
 
+  // Confere se um secret ja existe no repo, sem NUNCA ler o valor. A GitHub
+  // API nao devolve valor de secret, e o runner so enxerga o que o workflow
+  // injeta no env — entao a checagem e "tem conteudo?" e nada mais. O detalhe
+  // reportado leva so o nome e o comprimento; valor nao aparece em log nem em
+  // turno na Sala (o repo e publico).
+  //
+  // Existe pra tirar da fila pessoal do Bruno o "conferir se ja botei tal
+  // chave": quando ele cria o secret, o proximo ciclo anuncia sozinho e para
+  // de cobrar.
+  async secret_present({ name }) {
+    const valor = process.env[name];
+    if (!valor) {
+      return { ok: false, detalhe: `secret ${name} ainda nao existe no repo` };
+    }
+    return { ok: true, detalhe: `secret ${name} presente (${valor.length} caracteres)` };
+  },
+
   async pr_merged({ number }) {
     const pr = await gh(`/repos/${REPO}/pulls/${number}`);
     return pr.merged
@@ -178,10 +195,20 @@ function prontaPraRodar(t, porId) {
 
 const porId = Object.fromEntries(tasks.map((t) => [t.id, t]));
 
-// Trabalho real (tarefas de uma vez so) tem prioridade sobre monitores.
-// Sem isso os `repeat: true` ocupam todas as vagas do ciclo e uma migration
-// no fim da fila nunca chega a rodar — bug pego no primeiro dry-run.
-const porPrioridade = (a, b) => Number(Boolean(a.repeat)) - Number(Boolean(b.repeat));
+// Duas regras de ordenacao, nessa ordem:
+//
+//  1. Trabalho real (tarefas de uma vez so) antes de monitores. Sem isso os
+//     `repeat: true` ocupam todas as vagas do ciclo e uma migration no fim da
+//     fila nunca chega a rodar — bug pego no primeiro dry-run.
+//
+//  2. Entre iguais, quem rodou ha mais tempo vai primeiro (nunca rodou = topo).
+//     Sem isso os 6 primeiros monitores enchiam o ciclo TODA vez e um monitor
+//     na posicao 7 nunca era executado — foi o que aconteceu com os dois
+//     `schema-*`, que ficaram `pending` mesmo depois de dois ciclos verdes.
+//     Rodizio faz a fila inteira girar mesmo com MAX_POR_CICLO menor que ela.
+const desde = (t) => (t.last_run ? Date.parse(t.last_run) || 0 : 0);
+const porPrioridade = (a, b) =>
+  Number(Boolean(a.repeat)) - Number(Boolean(b.repeat)) || desde(a) - desde(b);
 
 console.log(`[worker] ${tasks.length} tarefas na fila`);
 
