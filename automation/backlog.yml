@@ -95,6 +95,27 @@ tasks:
     params:
       url: https://sanova.app.br/exclusao.html
 
+  # ─── Diagnostico de schema ─────────────────────────────────────────
+  # Confere se as migrations ja estao aplicadas, usando o service_role que
+  # ja existe no repo. Independe do PAT de management. Se estas passarem, a
+  # migration correspondente e desnecessaria.
+
+  - id: schema-alert-events
+    title: Tabela alert_events existe (schema da Fase 2 aplicado)
+    type: supabase_table
+    status: pending
+    repeat: true
+    params:
+      table: alert_events
+
+  - id: schema-alert-prefs
+    title: Tabela professional_alert_prefs existe (schema da Fase 2 aplicado)
+    type: supabase_table
+    status: pending
+    repeat: true
+    params:
+      table: professional_alert_prefs
+
   # ─── Tarefas de uma vez so ─────────────────────────────────────────
 
   - id: migration-rls-lockdown

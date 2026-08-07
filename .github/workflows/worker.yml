@@ -46,6 +46,9 @@ jobs:
       - name: Executa a fila
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Usado so pelo executor `supabase_table`, pra conferir se uma
+          # migration ja foi aplicada sem precisar do PAT de management.
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '' }}
         run: node .github/scripts/worker.mjs
 

@@ -27,6 +27,7 @@ const DRY_RUN = process.env.DRY_RUN === '1';
 
 const WORKER_HEALTH = 'https://sanova-api.contatosanovaapp.workers.dev/api/health';
 const APP_INDEX = 'https://sanova.app.br/index.html';
+const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
 
 if (!TOKEN && !DRY_RUN) {
   console.error('[worker] GITHUB_TOKEN ausente');
@@ -125,6 +126,39 @@ const executores = {
     return pr.merged
       ? { ok: true, detalhe: `#${number} mergeado` }
       : { ok: false, detalhe: `#${number} ainda aberto` };
+  },
+
+  // Confere se uma tabela existe no Supabase, via PostgREST + service_role.
+  // Serve pra saber se uma migration ja foi aplicada SEM precisar do PAT de
+  // management (que e credencial separada). PostgREST responde PGRST205 pra
+  // tabela inexistente e 200 com array pra tabela vazia — sao distinguiveis.
+  async supabase_table({ table, should_exist = true }) {
+    const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!chave) {
+      return { ok: false, detalhe: 'SUPABASE_SERVICE_ROLE_KEY ausente no runner' };
+    }
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}?select=*&limit=1`,
+      { headers: { apikey: chave, Authorization: `Bearer ${chave}` } },
+    );
+    const existe = r.ok;
+    if (!existe && r.status !== 404) {
+      const corpo = await r.text().catch(() => '');
+      // 404 sem corpo PostgREST pode ser outra coisa — reporta cru pra nao
+      // afirmar "nao existe" quando na verdade foi erro de rede ou permissao.
+      if (!corpo.includes('PGRST205') && !corpo.includes('does not exist')) {
+        return { ok: false, detalhe: `resposta inesperada HTTP ${r.status}: ${corpo.slice(0, 120)}` };
+      }
+    }
+    if (existe === should_exist) {
+      return { ok: true, detalhe: existe ? `"${table}" existe` : `"${table}" ausente, como esperado` };
+    }
+    return {
+      ok: false,
+      detalhe: existe
+        ? `"${table}" existe, mas era esperado ausente`
+        : `"${table}" NAO existe — migration correspondente ainda nao foi aplicada`,
+    };
   },
 };
 
