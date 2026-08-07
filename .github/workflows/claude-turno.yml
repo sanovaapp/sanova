@@ -1,0 +1,88 @@
+name: Turno Autonomo (Claude)
+
+# Autonomia nivel 2: aqui quem acorda e DECIDE, nao um script executando
+# lista pronta.
+#
+#   heartbeat.yml  -> NARRA o estado (1x/dia, deterministico)
+#   worker.yml     -> MUDA o estado dentro de uma fila fixa (3/3h, deterministico)
+#   claude-turno   -> LE a Sala, JULGA o que fazer, e faz  (3/3h, com modelo)
+#
+# O briefing vive em automation/briefing-turno.md, fora do YAML — de proposito.
+# Pra mudar o comportamento do agente, edite aquele arquivo, nao este.
+#
+# INERTE SEM A KEY: se o secret ANTHROPIC_API_KEY nao existir, o job termina
+# verde sem gastar nada e escreve o motivo no summary. No minuto em que o
+# secret for criado, o proximo cron ja roda de verdade — sem passo extra.
+#
+# Cron: '47 */3 * * *' = 30 min depois do worker (17 */3), pra ler a fila ja
+# atualizada em vez de disputar com ela.
+
+on:
+  schedule:
+    - cron: '47 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      foco:
+        description: 'Instrucao extra pra este disparo (opcional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: claude-turno
+  cancel-in-progress: false
+
+jobs:
+  turno:
+    runs-on: ubuntu-latest
+    steps:
+      # `secrets` nao existe no `if:` de job — por isso o gate e um step.
+      - name: Confere se a chave da API existe
+        id: gate
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "ativo=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Turno autonomo inerte"
+              echo ''
+              echo 'O secret `ANTHROPIC_API_KEY` ainda nao foi criado, entao'
+              echo 'este disparo terminou sem gastar nada.'
+              echo ''
+              echo 'Pra ligar: Settings -> Secrets and variables -> Actions ->'
+              echo 'New repository secret, com o nome exato `ANTHROPIC_API_KEY`.'
+              echo 'O proximo cron ja roda de verdade, sem mais nenhum passo.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ativo=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ativo == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Trabalha o turno
+        if: steps.gate.outputs.ativo == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          display_report: true
+          prompt: |
+            Leia `automation/briefing-turno.md` na raiz do repositorio e siga
+            aquele briefing por inteiro. Ele define quem voce e, o que fazer
+            neste disparo, e — principalmente — os limites do que voce NAO faz
+            sozinho. Leia tambem `docs/protocolo-sala.md`, que ele referencia.
+
+            Foco extra pedido neste disparo (vazio = nenhum, siga o briefing
+            normal): ${{ github.event.inputs.foco }}
+          claude_args: |
+            --max-turns 30
+            --model claude-sonnet-5
