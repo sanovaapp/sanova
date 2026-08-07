@@ -22,6 +22,7 @@ import { requireAdmin } from './auth.js';
 import { checarLimite } from './ratelimit.js';
 import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
+import { handleAdminRunRetention } from './retencao.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
 // Retorna Response 401/403 se nao autorizado, ou null pra deixar passar.
@@ -75,7 +76,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.30.0' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.31.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -122,6 +123,12 @@ export default {
       }
       if (url.pathname === '/api/admin-run-alert-detection' && request.method === 'POST') {
         return await handleAdminRunAlertDetection(request, env, origin);
+      }
+      // Retencao automatica (LGPD art. 16). Disparado todo dia pelo
+      // retencao.yml. Apaga alert_events velhos de verdade; conta inativa so
+      // conta, ate alguem olhar os numeros — ver worker/src/retencao.js.
+      if (url.pathname === '/api/admin-run-retention' && request.method === 'POST') {
+        return await handleAdminRunRetention(request, env, origin);
       }
       if (url.pathname === '/api/link-professional' && request.method === 'POST') {
         return await handleLinkProfessional(request, env, origin);
