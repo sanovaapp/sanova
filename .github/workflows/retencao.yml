@@ -1,0 +1,75 @@
+name: Retencao de dados (LGPD)
+
+# A politica de privacidade promete, em texto publico, que dado nao fica pra
+# sempre. Ate 07/08/2026 nada apagava nada — a promessa existia no papel e nao
+# no codigo. Este cron fecha isso.
+#
+# O que ele faz, todo dia:
+#   - APAGA alert_events com mais de 180 dias (reduz exposicao; direcao segura)
+#   - CONTA contas sem sinal de vida ha 24 meses, sem apagar
+#
+# Conta inativa so vira relatorio de proposito. Apagar conta de paciente e
+# irreversivel; o mecanismo fica pronto e auditavel, mas ligar de verdade e um
+# ato consciente (input `aplicar`), nunca efeito colateral de um cron que
+# ninguem leu.
+#
+# Detalhes e racional das escolhas: worker/src/retencao.js
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC = 03:00 BRT, longe do pico
+  workflow_dispatch:
+    inputs:
+      aplicar:
+        description: 'Apagar contas inativas de verdade (padrao: so relata)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retencao
+  cancel-in-progress: false
+
+jobs:
+  varrer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere o secret
+        run: |
+          set -e
+          if [ -z "${{ secrets.ADMIN_OVERRIDE_TOKEN }}" ]; then
+            echo "::error::ADMIN_OVERRIDE_TOKEN ausente — sem ele o endpoint recusa"
+            exit 1
+          fi
+
+      - name: Roda a varredura
+        env:
+          TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+          APLICAR: ${{ github.event.inputs.aplicar == 'true' && '1' || '0' }}
+        run: |
+          set -e
+          BASE="https://sanova-api.contatosanovaapp.workers.dev"
+          RESP=$(curl -sS -X POST \
+            -H "X-Admin-Token: $TOKEN" \
+            "$BASE/api/admin-run-retention?aplicar=$APLICAR")
+
+          echo "$RESP" | python3 -m json.tool || echo "$RESP"
+
+          {
+            echo "## Retencao de dados"
+            echo ''
+            echo '```json'
+            echo "$RESP" | python3 -m json.tool || echo "$RESP"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Falha o job se o Worker respondeu erro — cron silencioso que nao
+          # apaga nada e exatamente o que estamos consertando.
+          echo "$RESP" | grep -q '"ok": *true' || {
+            echo "::error::endpoint de retencao respondeu erro"
+            exit 1
+          }

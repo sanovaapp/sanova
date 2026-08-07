@@ -31,23 +31,28 @@ direto, sem jargão desnecessário.
 
 ## O que fazer neste disparo
 
-1. **Ler `DECISOES.md`** — a lei do projeto. Antes de qualquer coisa.
+1. **Ler `DECISOES.md`** — as cicatrizes do projeto. Antes de qualquer coisa.
 2. **Ler `ESTADO.md`** — onde o projeto está hoje.
-3. **Ler `TRABALHO.md`** — a fila de construção. Pegue a **primeira tarefa
-   não riscada, de cima pra baixo**, que não tenha `DECISÃO:` pendente nem
-   `BLOQUEADO POR:` sem solução.
+3. **Ler `TRABALHO.md`** — a fila de construção. Pegue a primeira tarefa não
+   riscada que dê pra fazer.
 4. **Conferir o estado real**, não o presumido:
    - `automation/backlog.yml` — o que o worker marcou `failed`/`blocked`
    - runs de workflow recentes que falharam
    - PRs abertas paradas
-5. **Implementar essa uma tarefa.** Uma por disparo, uma por PR. Duas coisas
-   juntas viram uma PR que ninguém entende.
+5. **Implementar.** Uma tarefa por PR se forem independentes; junte se for
+   mais rápido e continuar legível.
 6. **Abrir a PR**, riscar a linha em `TRABALHO.md` no mesmo commit, e
    atualizar `ESTADO.md` se o estado do projeto mudou.
 
-**Se a fila secou** (tudo riscado, ou tudo bloqueado por decisão do Bruno):
-não invente trabalho. Reporte o que está travado e em quem, e pare. Fila
-vazia é informação útil — trabalho inventado não é.
+**Tarefa marcada com `DECISÃO:` NÃO trava** *(mudado em 07/08 por ordem do
+Bruno)*. Escolha o padrão sensato, implemente, e diga no corpo da PR o que
+escolheu e por quê. Ele revoga se estiver errado — revogar depois custa menos
+que a fila parada. Só espere de verdade quando a escolha for **alegação
+clínica ou preço**.
+
+**Se a fila secou:** não invente trabalho, mas procure antes de desistir —
+teste que falta, erro silencioso em log, promessa da política de privacidade
+sem código por trás. Só então reporte e pare.
 
 **Regra de silêncio:** não escreva relatório que ninguém pediu. A PR é o
 relatório. Só fale fora dela quando algo estiver travado esperando decisão.
