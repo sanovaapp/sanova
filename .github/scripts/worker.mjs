@@ -147,19 +147,28 @@ const porId = Object.fromEntries(tasks.map((t) => [t.id, t]));
 // Trabalho real (tarefas de uma vez so) tem prioridade sobre monitores.
 // Sem isso os `repeat: true` ocupam todas as vagas do ciclo e uma migration
 // no fim da fila nunca chega a rodar — bug pego no primeiro dry-run.
-const fila = tasks
-  .filter((t) => prontaPraRodar(t, porId))
-  .sort((a, b) => Number(Boolean(a.repeat)) - Number(Boolean(b.repeat)))
-  .slice(0, MAX_POR_CICLO);
+const porPrioridade = (a, b) => Number(Boolean(a.repeat)) - Number(Boolean(b.repeat));
 
-console.log(`[worker] ${tasks.length} tarefas na fila · ${fila.length} prontas neste ciclo`);
+console.log(`[worker] ${tasks.length} tarefas na fila`);
 
 // ─── Executa ────────────────────────────────────────────────────────
+// A fila e RECALCULADA a cada tarefa concluida, nao fixada de antemao. Assim
+// uma cadeia (A desbloqueia B via blocked_by) fecha dentro do mesmo ciclo em
+// vez de precisar de um segundo disparo — o `done` de A ja conta quando B e
+// avaliada. `executadas` guarda quem ja rodou pra um `repeat` nao entrar duas
+// vezes no mesmo ciclo.
 
 const mudancas = [];
+const executadas = new Set();
 const agora = new Date().toISOString();
 
-for (const task of fila) {
+while (executadas.size < MAX_POR_CICLO) {
+  const task = tasks
+    .filter((t) => !executadas.has(t.id) && prontaPraRodar(t, porId))
+    .sort(porPrioridade)[0];
+  if (!task) break;
+
+  executadas.add(task.id);
   const executor = executores[task.type];
   const idx = tasks.findIndex((t) => t.id === task.id);
   let resultado;
@@ -178,6 +187,10 @@ for (const task of fila) {
   const statusNovo = resultado.ok ? 'done' : 'failed';
   console.log(`[worker] ${task.id}: ${statusNovo} — ${resultado.detalhe}`);
 
+  // Atualiza o objeto em memoria tambem — e o que a proxima volta do laco le
+  // pra decidir se uma tarefa dependente ja pode rodar.
+  task.status = statusNovo;
+
   doc.setIn(['tasks', idx, 'status'], statusNovo);
   doc.setIn(['tasks', idx, 'last_run'], agora);
   doc.setIn(['tasks', idx, 'last_result'], resultado.detalhe);
@@ -187,6 +200,8 @@ for (const task of fila) {
     mudancas.push({ ...task, statusAnterior, statusNovo, detalhe: resultado.detalhe });
   }
 }
+
+console.log(`[worker] ${executadas.size} tarefa(s) executada(s) neste ciclo`);
 
 // ─── Persiste ───────────────────────────────────────────────────────
 
