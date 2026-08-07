@@ -17,7 +17,7 @@
  *     daqui — nao depender de RLS pra autorizacao final.
  */
 
-import { jsonResponse, isOriginAllowed } from './http.js';
+import { jsonResponse, isOriginAllowed, corsHeaders } from './http.js';
 import { CRITERIOS_PM, calcEstadoProtecaoMuscular, gerarInviteCode } from './clinical.js';
 
 const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
@@ -656,6 +656,95 @@ export async function handleDeleteMyAccount(request, env, origin) {
   }
   try { console.log('[delete-my-account] user=' + String(user.id).slice(0, 8) + '... deletado'); } catch {}
   return jsonResponse({ ok: true }, 200, origin, env);
+}
+
+// GET /api/export-my-data   (v1.29.2 — LGPD art. 18 portabilidade)
+//   Auth: JWT do proprio user. Devolve TUDO que o Sanova guarda sobre
+//   ele, em JSON legivel por maquina e por humano, com Content-Disposition
+//   pra baixar como arquivo.
+//
+//   Cobre as 6 tabelas que referenciam auth.users:
+//     app_state, subscriptions, patient_links, alert_events,
+//     professionals, professional_alert_prefs
+//
+//   Nao vaza dado de terceiro: patient_links traz so os vinculos DELE;
+//   se ele for profissional, traz os vinculos dele como pro mas SEM o
+//   app_state dos pacientes (isso vive no /api/spectator-state, que exige
+//   validacao de vinculo ativo a cada leitura).
+// ════════════════════════════════════════════════════════════════════
+export async function handleExportMyData(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const user = await verifyJwt(request, env);
+  if (!user) {
+    return jsonResponse({ ok: false, error: 'not_authenticated' }, 401, origin, env);
+  }
+  try { console.log('[export-my-data] user=' + String(user.id).slice(0, 8) + '...'); } catch {}
+
+  const uid = encodeURIComponent(user.id);
+  async function q(path) {
+    try {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: svcHeaders(env) });
+      if (!r.ok) return { _erro: 'consulta_falhou', status: r.status };
+      return await r.json().catch(() => []);
+    } catch (e) {
+      return { _erro: String((e && e.message) || e).slice(0, 120) };
+    }
+  }
+
+  // Se o user for profissional, precisa do pro.id pra buscar as prefs
+  const profs = await q('professionals?user_id=eq.' + uid + '&select=*');
+  const proId = Array.isArray(profs) && profs[0] ? profs[0].id : null;
+
+  const [estado, assinaturas, vinculosComoPaciente, alertasSobreMim] = await Promise.all([
+    q('app_state?user_id=eq.' + uid + '&select=*'),
+    q('subscriptions?user_id=eq.' + uid + '&select=*'),
+    q('patient_links?patient_user_id=eq.' + uid + '&select=*'),
+    q('alert_events?patient_user_id=eq.' + uid + '&select=*&order=triggered_at.desc'),
+  ]);
+
+  let vinculosComoProfissional = null;
+  let prefsDeAlerta = null;
+  if (proId) {
+    [vinculosComoProfissional, prefsDeAlerta] = await Promise.all([
+      q('patient_links?professional_id=eq.' + encodeURIComponent(proId) + '&select=id,patient_user_id,status,consent_version,consented_at,revoked_at'),
+      q('professional_alert_prefs?professional_id=eq.' + encodeURIComponent(proId) + '&select=*'),
+    ]);
+  }
+
+  const pacote = {
+    _sobre_este_arquivo: {
+      descricao: 'Exportacao completa dos seus dados no Sanova, conforme art. 18 da LGPD (direito de portabilidade).',
+      gerado_em: new Date().toISOString(),
+      formato: 'JSON',
+      observacao: 'Se voce apagar sua conta (Mais > Perfil > Apagar todos os dados), tudo isto e removido dos nossos servidores.',
+    },
+    conta: {
+      id: user.id,
+      email: user.email || null,
+      criada_em: user.created_at || null,
+      ultimo_login: user.last_sign_in_at || null,
+    },
+    dados_de_saude: Array.isArray(estado) && estado[0] ? estado[0].state : null,
+    assinaturas,
+    profissionais_vinculados_a_mim: vinculosComoPaciente,
+    alertas_gerados_sobre_mim: alertasSobreMim,
+    meu_cadastro_profissional: Array.isArray(profs) && profs[0] ? profs[0] : null,
+    meus_pacientes_vinculados: vinculosComoProfissional,
+    minhas_preferencias_de_alerta: prefsDeAlerta,
+  };
+
+  const nome = 'sanova-meus-dados-' + new Date().toISOString().slice(0, 10) + '.json';
+  return new Response(JSON.stringify(pacote, null, 2), {
+    status: 200,
+    headers: {
+      ...corsHeaders(origin, env),
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + nome + '"',
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
 export async function handleProAssets(request, env, origin) {
