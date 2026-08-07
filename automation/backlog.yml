@@ -41,7 +41,7 @@ tasks:
     repeat: true
     params:
       expected: "1.29.2"
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: v1.29.2
 
   - id: app-no-ar
@@ -51,7 +51,7 @@ tasks:
     repeat: true
     params:
       expected: "3.10.59"
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: v3.10.59
 
   - id: verificacao-google-1
@@ -62,7 +62,7 @@ tasks:
     params:
       url: https://sanova.app.br/googlec78077745bdb0836.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: HTTP 200
 
   - id: verificacao-google-2
@@ -73,7 +73,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -84,7 +84,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -94,7 +94,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-08-07T04:25:22.862Z
+    last_run: 2026-08-07T05:01:26.055Z
     last_result: HTTP 200
 
   # ─── Diagnostico de schema ─────────────────────────────────────────
