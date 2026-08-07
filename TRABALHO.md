@@ -1,0 +1,115 @@
+# 🌿 O que construir
+
+Esta é a **lista de tarefas do robô** — o que ele pega quando acorda, de cima
+pra baixo.
+
+Não confundir com `automation/backlog.yml`, que é a lista de **vigilância**
+(coisas pra ficar de olho, tipo "o app está no ar?"). Aqui é a lista de
+**construção**.
+
+O turno autônomo (`claude-turno.yml`, de 6 em 6 horas) lê este arquivo, pega
+a primeira tarefa livre de cima pra baixo, implementa, abre a PR e risca a
+linha daqui. Se todas estiverem riscadas, ele não inventa trabalho — reporta
+que a fila secou e para.
+
+---
+
+## Como escrever uma tarefa aqui
+
+```
+- [ ] Título curto e concreto
+      POR QUE: o problema real, em uma frase
+      PRONTO QUANDO: como saber que acabou, de forma verificável
+      DECISÃO: (só se precisar) o que o Bruno tem que escolher antes
+```
+
+Regras que valem pra toda tarefa desta lista:
+
+- **Uma tarefa por PR.** Duas coisas juntas viram uma PR que ninguém entende.
+- **Se mexer em texto que o paciente lê, limiar clínico ou preço**, a PR sai
+  com o rótulo `decisao-humana`. Na dúvida, marca.
+- **Tarefa com `DECISÃO:` pendente não se implementa.** Vira pergunta na fila
+  de decisões e espera. Adivinhar o que o Bruno quer é pior que esperar.
+- Antes de começar, ler `DECISOES.md`. É a lei do projeto.
+
+---
+
+## Fila
+
+### Segurança e LGPD — o que protege paciente vem primeiro
+
+- [ ] **Rate limit no worker**
+      POR QUE: hoje qualquer um pode martelar os endpoints da API sem limite.
+      É o caminho mais barato pra derrubar o serviço ou inflar a conta.
+      PRONTO QUANDO: chamadas acima do teto por IP respondem 429 em vez de
+      processar, e o teto está documentado no próprio código.
+
+- [ ] **Parar de vazar detalhe interno nos erros**
+      POR QUE: `console.error` e respostas de erro do worker devolvem
+      mensagem crua do backend pro navegador. Isso entrega ao curioso o
+      formato das tabelas e o motivo exato da falha.
+      PRONTO QUANDO: o cliente recebe mensagem genérica; o detalhe fica só no
+      log do servidor.
+
+- [ ] **Retenção automática de dados**
+      POR QUE: a política de privacidade promete que dado não fica pra
+      sempre. Hoje não existe nada que apague — a promessa está no papel e
+      não no código.
+      PRONTO QUANDO: existe rotina agendada que apaga o que passou do prazo,
+      e o prazo bate com o que a política diz.
+      DECISÃO: qual prazo? A política atual fala em 30 dias após exclusão de
+      conta, mas não diz nada sobre conta inativa. Precisa da chamada do
+      Bruno antes de implementar.
+
+### Bugs abertos
+
+- [ ] **Badge de peso mostra 20 quando deveria mostrar 21 kg**
+      POR QUE: relatado pelo Bruno, não reproduzido. Provável arredondamento
+      pra baixo em vez de arredondamento normal.
+      PRONTO QUANDO: reproduzido com um caso concreto, corrigido, e o caso
+      vira teste pra não voltar.
+      DECISÃO: preciso de um print da tela com o número errado, ou dos dados
+      que geraram ele. Sem isso eu chuto — e chute em número de peso é
+      exatamente o tipo de coisa que não se chuta num app de saúde.
+
+- [ ] **Contraste ruim em "PROTEÇÃO MUSCULAR"**
+      POR QUE: relatado pelo Bruno, não reproduzido. Texto pouco legível
+      sobre o fundo em alguma combinação de tela.
+      PRONTO QUANDO: identificado em qual tela/estado acontece e corrigido
+      com contraste que passe no mínimo de acessibilidade (WCAG AA, 4.5:1).
+      DECISÃO: preciso do print.
+
+### Play Store
+
+- [ ] **Monitor da transferência do app**
+      POR QUE: hoje só se descobre se a transferência pra conta MEDFAST saiu
+      abrindo o painel do Google. Isso é vigilância recorrente — pertence ao
+      robô, não ao Bruno.
+      PRONTO QUANDO: existe tarefa no `backlog.yml` que consulta a Google
+      Play Developer API e reporta só quando o estado muda.
+      BLOQUEADO POR: o secret `PLAY_SERVICE_ACCOUNT_JSON` não existe. Não há
+      caminho alternativo — o estado da transferência não é público.
+
+### Produto
+
+- [ ] **Ligar a Fase 2 (alertas ao profissional)**
+      POR QUE: o código está pronto e o schema aplicado, mas a interface está
+      desligada atrás de uma chave (`FASE2_ALERTAS_ATIVA = false`). Trabalho
+      feito e parado não vale nada.
+      PRONTO QUANDO: a chave está ligada e o profissional vê os alertas.
+      DECISÃO: liga tudo, ou só os 5 alertas vermelhos primeiro? Os vermelhos
+      são os que protegem; os amarelos são os que incomodam. Chamada do Bruno.
+
+---
+
+## Riscado (fica como registro, não some)
+
+- [x] RLS do `app_state` — cada paciente só alcança a própria linha, pelo
+      banco e não pela boa vontade do código
+- [x] LGPD art. 18 — apagar conta apaga de verdade no banco; portabilidade
+      virou botão
+- [x] Espelho do profissional com trava no servidor
+- [x] Cards de resultado em todas as superfícies, desenhados no aparelho
+- [x] Heartbeat que nunca tinha rodado (12 falhas seguidas por erro de parse)
+- [x] Worker autônomo executando a fila de vigilância
+- [x] Turno autônomo e `@claude`
