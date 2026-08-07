@@ -137,6 +137,34 @@ tasks:
     params:
       name: SUPABASE_MGMT_TOKEN
 
+  # A assinatura do app. Nasceu em junho dentro do ZIP do PWABuilder; se ela
+  # nao bater, o Google recusa o envio da versao nova. Sem estes tres o
+  # pipeline gera uma keystore aleatoria e o upload volta rejeitado — por isso
+  # sao monitor, e nao lembrete: descobrir isso no dia da publicacao custa dias.
+  - id: secret-keystore-play
+    title: TWA_UPLOAD_KEYSTORE_B64 existe (assinatura do app; sem ela o Play recusa)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: TWA_UPLOAD_KEYSTORE_B64
+
+  - id: secret-keystore-store-pwd
+    title: TWA_UPLOAD_STORE_PWD existe (senha do arquivo de assinatura)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: TWA_UPLOAD_STORE_PWD
+
+  - id: secret-keystore-key-pwd
+    title: TWA_UPLOAD_KEY_PWD existe (senha da chave dentro do arquivo)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: TWA_UPLOAD_KEY_PWD
+
   # ─── Diagnostico de schema ─────────────────────────────────────────
   # Confere se as migrations ja estao aplicadas, usando o service_role que
   # ja existe no repo. Independe do PAT de management. Se estas passarem, a
