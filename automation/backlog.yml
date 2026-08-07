@@ -42,7 +42,7 @@ tasks:
     status: done
     repeat: true
     params:
-      expected: "1.29.2"
+      expected: "1.30.0"
     last_run: 2026-08-07T16:07:38.763Z
     last_result: v1.29.2
 

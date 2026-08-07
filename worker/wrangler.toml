@@ -10,6 +10,36 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+# ─── Limite de chamadas por IP ────────────────────────────────
+# API nativa de rate limiting do Workers. Escolhida por nao exigir criar KV
+# nem Durable Object — nada pra provisionar a mao, sobe junto com o deploy.
+#
+# Os tetos ficam AQUI e nao no codigo porque a API nativa e assim. A lista de
+# rotas de cada faixa esta em src/ratelimit.js.
+#
+# Numeros por IP, por minuto, generosos de proposito: paciente em rede movel
+# divide IP com desconhecidos (CGNAT), e cortar alguem no meio de um registro
+# de refeicao seria pior que o abuso evitado.
+
+# Chamadas de IA — Gemini cobra POR CHAMADA, entao laco de terceiro vira
+# fatura. Faixa mais apertada da API.
+[[ratelimits]]
+name = "RL_IA"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# Escrita no banco, auth e cobranca — onde se tenta forca bruta.
+[[ratelimits]]
+name = "RL_ESCRITA"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
 # Vars publicas (nao secretas) — visiveis no codigo
 [vars]
 ALLOWED_ORIGINS = "https://sanova.app.br,https://sanovaapp.github.io,http://localhost:8080,http://localhost:5500"

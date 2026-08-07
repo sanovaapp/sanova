@@ -6,6 +6,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "test": "node --test test/*.test.mjs",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "secret:gemini": "echo $GEMINI_API_KEY | wrangler secret put GEMINI_API_KEY",
