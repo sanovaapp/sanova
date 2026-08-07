@@ -198,6 +198,45 @@ async function portaoChecks(sha) {
   return null;
 }
 
+// ─── Deploy depois do merge ─────────────────────────────────────────
+//
+// Push feito com o GITHUB_TOKEN NAO dispara outros workflows. E uma protecao
+// do GitHub contra laco infinito, e nao da pra desligar.
+//
+// Consequencia que so apareceu no primeiro merge automatico de verdade: a PR
+// #250 entrou na main e o `deploy-worker.yml` nunca rodou. O codigo estava
+// mergeado e o worker seguia na versao velha. Silenciosamente — nada falhou,
+// simplesmente nao aconteceu.
+//
+// `workflow_dispatch` via API funciona mesmo com o GITHUB_TOKEN (o executor
+// `dispatch` do worker autonomo ja depende disso e roda). Entao a saida e
+// pedir o deploy explicitamente, em vez de contar com o gatilho de push.
+const DEPLOYS = [
+  {
+    quando: (f) => f.startsWith('worker/'),
+    workflow: 'deploy-worker.yml',
+    o_que: 'Worker Cloudflare',
+  },
+];
+
+async function dispararDeploys(arquivos) {
+  for (const d of DEPLOYS) {
+    if (!arquivos.some(d.quando)) continue;
+    try {
+      await gh(`/repos/${REPO}/actions/workflows/${d.workflow}/dispatches`, {
+        method: 'POST',
+        body: JSON.stringify({ ref: 'main' }),
+      });
+      console.log(`[auto-merge] deploy pedido: ${d.o_que} (${d.workflow})`);
+    } catch (e) {
+      // Nao derruba o job: o merge ja aconteceu e desfazer seria pior. O
+      // monitor `worker-no-ar` compara a versao no ar com a esperada e acusa
+      // a divergencia no proximo ciclo.
+      console.error(`[auto-merge] FALHOU pedir deploy de ${d.o_que}: ${e.message}`);
+    }
+  }
+}
+
 // ─── Principal ──────────────────────────────────────────────────────
 
 const numero = await acharPR();
@@ -262,6 +301,7 @@ if (bloqueios.length === 0) {
     }),
   });
   console.log(`[auto-merge] #${numero} mergeada`);
+  await dispararDeploys(arquivos);
   process.exit(0);
 }
 
