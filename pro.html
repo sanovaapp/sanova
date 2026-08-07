@@ -144,10 +144,26 @@ a:hover{text-decoration:underline}
 const SUPABASE_URL = 'https://yjycpcydqfuvojfzwfvy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqeWNwY3lkcWZ1dm9qZnp3ZnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzY4NDksImV4cCI6MjA2NDYxMjg0OX0.gZuFaI0Lz2GjY3PUWPaeoyhuJyz4PpIVTvshNd6cKAQ';
 const WORKER_BASE = 'https://sanova-api.contatosanovaapp.workers.dev';
-// T66 (Fable/compliance): Fase 2 alertas atras de flag ate Bruno cravar
-// limiares finais + portao regulatorio T50. Backend continua deployado
-// (endpoints + schema), mas UI nao expoe nada a pros. Religar: true.
-const FASE2_ALERTAS_ATIVA = false;
+// Fase 2 — alertas ao profissional. LIGADA em 07/08/2026.
+//
+// Ficou atras desta flag desde o T66 esperando o Bruno cravar os limiares.
+// Hoje ele mandou parar de travar fila esperando decisao: escolher o padrao
+// sensato, entregar, e ele revoga se estiver errado.
+//
+// O padrao escolhido e o mais conservador que ja existe no codigo, e nao
+// precisou de nenhuma linha nova: as preferencias nascem com os 5 alertas
+// VERMELHOS em 'imediato' e os 5 AMARELOS em 'off' (alerts.js:327). Ou seja,
+// ligar a flag entrega exatamente "so os vermelhos" — os amarelos so aparecem
+// se o profissional pedir, um a um, na tela de Preferencias.
+//
+// Racional clinico: vermelho e o que protege (piso calorico, sintomas GI
+// persistentes, sinais raros graves, perda rapida, dose atrasada). Amarelo
+// e o que incomoda. Profissional que se acostuma a ignorar amarelo passa a
+// ignorar vermelho junto — e ai a camada inteira vira ruido.
+//
+// A deteccao continua rodando so por disparo manual do workflow. Cron diario
+// e o proximo passo, depois de olhar os primeiros alertas reais.
+const FASE2_ALERTAS_ATIVA = true;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const $ = (id) => document.getElementById(id);
