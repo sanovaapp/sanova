@@ -6413,7 +6413,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.60';
+var SANOVA_VERSION = '3.10.61';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -25500,21 +25500,62 @@ window.addEventListener('beforeunload',function(){
       var weights = Array.isArray(S.weights) ? S.weights.slice() : [];
       if(!weights.length) return null;
       weights.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-      var wi = Number(weights[0].weight);
+
+      // BUG "20 vs 21 kg" (relatado pelo Bruno, corrigido 07/08/2026):
+      //
+      // Este card usava `weights[0]` como peso inicial — a primeira PESAGEM
+      // REGISTRADA. O resto do app (painel, historico, marcos, grafico) usa
+      // `S.profile.weightStartKg` — o peso que o paciente DECLAROU como inicio
+      // do tratamento.
+      //
+      // Sao numeros diferentes sempre que a pessoa comeca o tratamento e so
+      // registra a primeira pesagem dias depois, ja tendo perdido algo. O
+      // painel dizia "perdeu 21 kg" e o card de compartilhar dizia 20.
+      //
+      // Pior que divergencia interna: o card e a peca que vai pro Instagram.
+      // Numero de peso publicado que contradiz o proprio app e erro que o
+      // paciente enxerga, e num app de saude isso custa confianca.
+      //
+      // O grafico ja resolvia isso do jeito certo (v3.1.11, linha ~16570):
+      // usa o peso declarado como primeiro ponto quando ele e anterior a
+      // primeira pesagem. Aqui era o unico lugar que tinha ficado de fora.
+      var declarado = S.profile && Number(S.profile.weightStartKg);
+      var inicioDecl = (S.profile && S.profile.startDate) || (S.caneta && S.caneta.inicio) || null;
+      var primeiraPesagem = weights[0];
+
+      var wi = Number(primeiraPesagem.weight);
+      var dataInicio = primeiraPesagem.date;
+      if(declarado && (!inicioDecl || !primeiraPesagem.date || inicioDecl <= primeiraPesagem.date)){
+        wi = declarado;
+        if(inicioDecl) dataInicio = inicioDecl;
+      }
+
       var wf = Number(weights[weights.length-1].weight);
       var delta = wf - wi;
+
+      // Os dias contam a partir da MESMA data que deu o peso inicial. Antes
+      // contava sempre da primeira pesagem — entao "perdeu X em N dias" podia
+      // misturar um X que veio do peso declarado com um N que veio da pesagem.
       var dias = 1;
       try{
-        var d0 = new Date(weights[0].date+'T12:00:00');
+        var d0 = new Date(dataInicio+'T12:00:00');
         var d1 = new Date(weights[weights.length-1].date+'T12:00:00');
         dias = Math.max(1, Math.round((d1-d0)/86400000));
       }catch(e){}
+
+      // A serie do grafico tambem ganha o ponto inicial declarado, senao a
+      // linha comeca num valor diferente do numero grande impresso no card.
+      var serie = weights.map(function(w){ return { date:w.date, weight:Number(w.weight) }; });
+      if(wi !== Number(primeiraPesagem.weight) && dataInicio){
+        serie.unshift({ date: dataInicio, weight: wi });
+      }
+
       return {
         pesoInicio: wi,
         pesoAtual: wf,
         deltaTotal: delta,
         dias: dias,
-        pesoSerie: weights.map(function(w){ return { date:w.date, weight:Number(w.weight) }; }),
+        pesoSerie: serie,
       };
     }catch(e){ console.warn('[ShareJornada] calc falhou', e); return null; }
   }
