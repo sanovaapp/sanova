@@ -1,0 +1,66 @@
+name: Worker Autonomo
+
+# Executa a fila deterministica de automation/backlog.yml e commita o resultado.
+# Complementa o heartbeat: o heartbeat NARRA o estado, o worker MUDA o estado.
+#
+# Testar local:  DRY_RUN=1 node .github/scripts/worker.mjs
+#
+# Cron: de 3 em 3 horas. Tarefas `repeat: true` funcionam como monitores
+# permanentes (deploy no ar, arquivos de verificacao, paginas exigidas pela
+# Play Store); tarefas normais rodam uma vez e param.
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Executar sem gravar nem postar'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: worker-autonomo
+  cancel-in-progress: false
+
+jobs:
+  executar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instala o parser de YAML
+        run: npm install --no-save yaml@2
+
+      - name: Executa a fila
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '' }}
+        run: node .github/scripts/worker.mjs
+
+      - name: Commita o estado da fila
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          set -e
+          if git diff --quiet automation/backlog.yml; then
+            echo "[worker] fila sem mudanca de estado — nada a commitar"
+            exit 0
+          fi
+          git config user.name "sanova-worker"
+          git config user.email "worker@sanova.app.br"
+          git add automation/backlog.yml
+          git commit -m "worker: estado da fila apos execucao automatica"
+          # Outra automacao pode ter commitado no meio; rebase antes de empurrar.
+          git pull --rebase origin main
+          git push origin HEAD:main
