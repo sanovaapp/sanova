@@ -107,35 +107,43 @@ tasks:
   - id: play-app-publicado
     title: br.app.sanova visivel na Play Store (vira `done` no dia que publicar)
     type: http_check
-    status: pending
+    status: failed
     repeat: true
     params:
       url: https://play.google.com/store/apps/details?id=br.app.sanova
       expect_contains: "br.app.sanova"
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: HTTP 404 (esperado 200)
 
   - id: secret-play-service-account
     title: PLAY_SERVICE_ACCOUNT_JSON existe (destrava a automacao da Play)
     type: secret_present
-    status: pending
+    status: failed
     repeat: true
     params:
       name: PLAY_SERVICE_ACCOUNT_JSON
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: secret PLAY_SERVICE_ACCOUNT_JSON ainda nao existe no repo
 
   - id: secret-mp-prod
     title: MP_ACCESS_TOKEN_PROD existe (rotacao pendente desde a auditoria)
     type: secret_present
-    status: pending
+    status: done
     repeat: true
     params:
       name: MP_ACCESS_TOKEN_PROD
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: secret MP_ACCESS_TOKEN_PROD presente (75 caracteres)
 
   - id: secret-supabase-mgmt
     title: SUPABASE_MGMT_TOKEN existe (PAT expira — monitor pega a expiracao)
     type: secret_present
-    status: pending
+    status: done
     repeat: true
     params:
       name: SUPABASE_MGMT_TOKEN
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: secret SUPABASE_MGMT_TOKEN presente (44 caracteres)
 
   # A assinatura do app. Nasceu em junho dentro do ZIP do PWABuilder; se ela
   # nao bater, o Google recusa o envio da versao nova. Sem estes tres o
@@ -144,18 +152,22 @@ tasks:
   - id: secret-keystore-play
     title: TWA_UPLOAD_KEYSTORE_B64 existe (assinatura do app; sem ela o Play recusa)
     type: secret_present
-    status: pending
+    status: failed
     repeat: true
     params:
       name: TWA_UPLOAD_KEYSTORE_B64
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: secret TWA_UPLOAD_KEYSTORE_B64 ainda nao existe no repo
 
   - id: secret-keystore-store-pwd
     title: TWA_UPLOAD_STORE_PWD existe (senha do arquivo de assinatura)
     type: secret_present
-    status: pending
+    status: failed
     repeat: true
     params:
       name: TWA_UPLOAD_STORE_PWD
+    last_run: 2026-08-07T19:05:32.081Z
+    last_result: secret TWA_UPLOAD_STORE_PWD ainda nao existe no repo
 
   - id: secret-keystore-key-pwd
     title: TWA_UPLOAD_KEY_PWD existe (senha da chave dentro do arquivo)
