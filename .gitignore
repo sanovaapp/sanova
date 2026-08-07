@@ -1,0 +1,19 @@
+# Dependencias instaladas localmente (ex: `npm install --no-save yaml` ao
+# testar .github/scripts/worker.mjs em dry-run). Os workflows instalam o que
+# precisam no runner; nada disso entra no repo.
+node_modules/
+
+# Artefatos de build do TWA (o AAB sai como artifact do workflow)
+twa-build/
+*.aab
+*.apk
+*.keystore
+
+# Ambiente e segredos — nunca versionar
+.env
+.env.*
+!.env.example
+
+# Lixo de sistema operacional
+.DS_Store
+Thumbs.db
