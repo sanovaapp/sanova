@@ -19,6 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
+import { checarLimite } from './ratelimit.js';
 import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
 
@@ -33,6 +34,13 @@ async function gateAdmin(request, env, origin) {
     origin,
     env
   );
+}
+
+// Codigo curto que aparece pro paciente na tela e no log do servidor, ligando
+// os dois. Nao carrega informacao nenhuma sobre a falha — so serve de ancora
+// pra achar a excecao inteira no log depois.
+function refDeErro() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 // v1.24.0: limite generico de payload pra endpoints publicos.
@@ -58,10 +66,16 @@ export default {
       });
     }
 
+    // ─── Limite de chamadas por IP ──────────────────────────
+    // Antes do roteamento: uma rota cara nao deve nem comecar a executar
+    // quando o teto ja estourou. Falha aberta — ver src/ratelimit.js.
+    const limite = await checarLimite(request, env, url, origin);
+    if (limite) return limite;
+
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.29.2' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.30.0' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -134,10 +148,20 @@ export default {
         return await handleMpWebhook(request, env);
       }
 
-      // v1.0.1: endpoint de diagnostico — chama Gemini com prompt trivial e
-      // retorna status/body cru. Sem CORS check (pra abrir no browser).
-      // Usado pra debugar billing/quota/modelo. NAO vaza a API key.
+      // Endpoint de diagnostico — chama a Gemini com prompt trivial e devolve
+      // status/corpo cru, pra debugar billing/quota/modelo.
+      //
+      // Era publico e sem CORS check ("pra abrir no browser"). Tres problemas
+      // de uma vez: (1) cada visita fazia uma chamada PAGA a Gemini, entao um
+      // laco na URL virava fatura do Bruno; (2) devolvia os 6 primeiros e os 4
+      // ultimos caracteres da chave da Gemini a quem pedisse; (3) devolvia o
+      // corpo de erro cru do Google.
+      //
+      // Agora exige admin, como qualquer outra ferramenta de diagnostico. O
+      // Bruno acessa com o mesmo X-Admin-Token que ja usa nos /api/admin-*.
       if (url.pathname === '/api/debug-gemini' && request.method === 'GET') {
+        const gate = await gateAdmin(request, env, origin);
+        if (gate) return gate;
         return await handleDebugGemini(env);
       }
 
@@ -342,9 +366,22 @@ export default {
 
       return jsonResponse({ ok: false, error: 'not_found' }, 404, origin, env);
     } catch (err) {
-      console.error('[sanova-api] erro nao tratado:', err);
+      // O detalhe do erro fica no log do servidor; o cliente recebe so um
+      // codigo. Antes daqui saia a mensagem crua do backend, que entrega de
+      // graca nome de tabela, forma da query e motivo exato da falha — mapa
+      // pronto pra quem esta sondando.
+      //
+      // O `ref` amarra os dois lados: o paciente le o codigo na tela, e quem
+      // for investigar acha o mesmo codigo no log, com a excecao inteira.
+      const ref = refDeErro();
+      console.error(`[sanova-api] erro nao tratado ref=${ref} rota=${url.pathname}`, err);
       return jsonResponse(
-        { ok: false, error: 'internal_error', message: String(err?.message || err) },
+        {
+          ok: false,
+          error: 'internal_error',
+          message: 'Algo falhou do nosso lado. Tente de novo em instantes.',
+          ref,
+        },
         500,
         origin,
         env
@@ -543,9 +580,18 @@ async function handleMpCreatePreapproval(request, env, origin) {
       tipo,
     }, 200, origin, env);
   } catch (err) {
-    console.error('[mp-create-preapproval] erro:', err);
+    // Rota publica: o detalhe do erro do Mercado Pago fica no log, nao na
+    // resposta. Ele costuma vir com id de conta, id de plano e motivo da
+    // recusa — nada disso e da conta de quem esta do outro lado.
+    const ref = refDeErro();
+    console.error(`[mp-create-preapproval] erro ref=${ref}`, err);
     return jsonResponse(
-      { ok: false, error: 'mp_error', message: String(err.message || err) },
+      {
+        ok: false,
+        error: 'mp_error',
+        message: 'Nao foi possivel iniciar a assinatura agora. Tente de novo em instantes.',
+        ref,
+      },
       500, origin, env
     );
   }

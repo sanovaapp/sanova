@@ -38,18 +38,7 @@ Regras que valem pra toda tarefa desta lista:
 
 ### Segurança e LGPD — o que protege paciente vem primeiro
 
-- [ ] **Rate limit no worker**
-      POR QUE: hoje qualquer um pode martelar os endpoints da API sem limite.
-      É o caminho mais barato pra derrubar o serviço ou inflar a conta.
-      PRONTO QUANDO: chamadas acima do teto por IP respondem 429 em vez de
-      processar, e o teto está documentado no próprio código.
-
-- [ ] **Parar de vazar detalhe interno nos erros**
-      POR QUE: `console.error` e respostas de erro do worker devolvem
-      mensagem crua do backend pro navegador. Isso entrega ao curioso o
-      formato das tabelas e o motivo exato da falha.
-      PRONTO QUANDO: o cliente recebe mensagem genérica; o detalhe fica só no
-      log do servidor.
+*As duas primeiras saíram no worker v1.30.0.*
 
 - [ ] **Retenção automática de dados**
       POR QUE: a política de privacidade promete que dado não fica pra
@@ -113,3 +102,9 @@ Regras que valem pra toda tarefa desta lista:
 - [x] Heartbeat que nunca tinha rodado (12 falhas seguidas por erro de parse)
 - [x] Worker autônomo executando a fila de vigilância
 - [x] Turno autônomo e `@claude`
+- [x] Limite de chamadas por IP nas rotas caras e nas de escrita
+      *(worker v1.30.0)*
+- [x] Erro do servidor não devolve mais o detalhe interno pro navegador —
+      o cliente recebe um código curto, o detalhe fica no log *(worker v1.30.0)*
+- [x] `/api/debug-gemini` saiu do ar público: era chamada paga a cada visita,
+      e devolvia pedaço da chave da Gemini a quem pedisse *(worker v1.30.0)*
