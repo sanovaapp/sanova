@@ -1,0 +1,92 @@
+name: Testes
+
+# O portao que faltava.
+#
+# O auto-merge (#246) so tinha checagens de sanidade — YAML parseia, versao
+# subiu, nada com cara de segredo — porque o repositorio NAO TINHA teste
+# nenhum. Isso protege contra erro grosseiro, nao contra bug de logica.
+#
+# A partir do worker v1.30.0 existe suite em worker/test/. Este workflow a
+# transforma em portao: PR que quebra teste nao entra sozinha, porque o
+# auto-merge recusa quando qualquer check falha.
+#
+# Roda rapido e sem rede de proposito. Teste que depende de servico externo
+# vira teste que falha por motivo errado, e portao que falha sozinho e portao
+# que alguem desliga.
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    name: Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Sem `npm ci`: a suite roda no runtime puro do Node, sem dependencia.
+      # Instalar wrangler aqui so adicionaria minutos e um ponto de falha.
+      - name: Testes do worker
+        working-directory: worker
+        run: npm test
+
+  automacao:
+    name: Scripts de automacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instala o parser de YAML
+        run: npm install --no-save yaml@2
+
+      # Erro de sintaxe em script de automacao nao aparece ate o cron rodar,
+      # e cron que falha as 3 da manha ninguem ve. Este check e barato e pega
+      # a classe inteira.
+      - name: Sintaxe dos scripts
+        run: |
+          set -e
+          for f in .github/scripts/*.mjs; do
+            node --check "$f"
+            echo "ok  $f"
+          done
+
+      # O heartbeat rodou 12 vezes falhando por erro de parse de YAML sem
+      # ninguem perceber. Nunca mais.
+      - name: Todo workflow e o backlog parseiam
+        run: |
+          node -e '
+            const fs = require("fs");
+            const YAML = require("yaml");
+            const alvos = fs.readdirSync(".github/workflows")
+              .filter((f) => /\.ya?ml$/.test(f))
+              .map((f) => ".github/workflows/" + f)
+              .concat(["automation/backlog.yml"]);
+            let falhou = false;
+            for (const f of alvos) {
+              try {
+                YAML.parse(fs.readFileSync(f, "utf8"));
+                console.log("ok  " + f);
+              } catch (e) {
+                console.error("ERRO " + f + ": " + e.message);
+                falhou = true;
+              }
+            }
+            process.exit(falhou ? 1 : 0);
+          '
