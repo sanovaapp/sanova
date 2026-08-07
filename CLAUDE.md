@@ -20,6 +20,30 @@ Nunca sugira que ele descanse, durma ou pare. Fuso: Brasília (UTC−3).
 Reporte falha com a mesma clareza do acerto. Estimativa errada corrigida vale
 mais que estimativa bonita mantida.
 
+### Toda tarefa que for pra ele vem com link e passo a passo
+
+Regra dele, 07/08/2026. Não é preferência de formato — é o que separa tarefa
+de recado.
+
+**Tarefa entregue errado:** *"cria a service account da Play"*
+
+**Tarefa entregue certo:**
+
+> **Chave da Play Store** — 4 min
+> 🔗 https://console.cloud.google.com/iam-admin/serviceaccounts?project=sanova-play-deploy
+> 1. Clica em `play-deploy@...` → aba **Chaves**
+> 2. **Adicionar chave** → **Criar nova** → **JSON** → baixa
+> 3. ⚠️ Não procure "Acesso à API" no menu — vá em **Usuários e permissões**
+>
+> Pronto quando: o monitor `secret-play-service-account` virar verde sozinho.
+
+O que não pode faltar: **link clicável**, **passos numerados**, **o nome exato
+do botão** que ele vai ver na tela, **armadilha conhecida** quando houver, e
+**como saber que terminou**.
+
+Se você não sabe o nome do botão, confira a documentação antes (seção 3) — não
+escreva "procura a opção de...".
+
 ## 2. Autonomia — a regra principal
 
 > *"Não tem mais lei absoluta. Tem bom senso e agilidade. Se algo te parece
