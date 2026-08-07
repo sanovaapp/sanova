@@ -19,7 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
-import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount } from './pro.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
 
 // v1.24.0: gate de admin pras rotas /api/admin-*.
@@ -61,7 +61,7 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.29.1' }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.29.2' }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -88,6 +88,12 @@ export default {
       // subscriptions. Ver privacidade.html linha 113 (promessa 30 dias).
       if (url.pathname === '/api/delete-my-account' && request.method === 'POST') {
         return await handleDeleteMyAccount(request, env, origin);
+      }
+
+      // v1.29.2 (LGPD art. 18 portabilidade): user baixa tudo que
+      // guardamos sobre ele, em JSON.
+      if (url.pathname === '/api/export-my-data' && request.method === 'GET') {
+        return await handleExportMyData(request, env, origin);
       }
 
       // ─── Fase 2 Alertas (v1.29.0) ────────────────────────────

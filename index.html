@@ -3818,6 +3818,12 @@ try{
           <div class="mais-lbl">Termos</div>
           <div class="mais-sub">Condições de uso</div>
         </button>
+        <!-- v3.10.59 (LGPD art. 18 — portabilidade): baixar tudo em JSON -->
+        <button class="mais-btn" onclick="fecharMais();baixarMeusDados()" aria-label="Baixar meus dados" style="grid-column:1/-1">
+          <span class="mais-ic" aria-hidden="true">📥</span>
+          <div class="mais-lbl">Baixar meus dados</div>
+          <div class="mais-sub">Leve tudo que guardamos sobre você, em arquivo</div>
+        </button>
         <button class="mais-btn" onclick="fecharMais();abrirSobreSanova()" aria-label="Sobre o Sanova">
           <span class="mais-ic" aria-hidden="true">ℹ️</span>
           <div class="mais-lbl">Sobre</div>
@@ -6407,7 +6413,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.58';
+var SANOVA_VERSION = '3.10.59';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7630,6 +7636,55 @@ async function abrirMeusAlertas(){
   }
 }
 window.abrirMeusAlertas = abrirMeusAlertas;
+
+// v3.10.59 (LGPD art. 18): baixa TUDO que o Sanova guarda sobre o usuario
+// num JSON. Backend monta o pacote (/api/export-my-data) lendo as 6 tabelas
+// que referenciam auth.users. Sem sessao, cai no fallback local (o app
+// funciona offline-first, entao o localStorage tem o essencial).
+async function baixarMeusDados(){
+  if(document.body.classList.contains('spectator-mode')){
+    if(typeof toast==='function') toast('Indisponível no modo espelho.');
+    return;
+  }
+  if(typeof toast==='function') toast('Preparando seu arquivo…');
+  try{
+    var sb = (typeof window.SanovaSB === 'function') ? window.SanovaSB() : null;
+    var sess = sb ? await sb.auth.getSession() : null;
+    var token = sess && sess.data && sess.data.session ? sess.data.session.access_token : null;
+
+    var blob, nome;
+    if(token){
+      var resp = await fetch('https://sanova-api.contatosanovaapp.workers.dev/api/export-my-data', {
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      blob = await resp.blob();
+      nome = 'sanova-meus-dados-' + new Date().toISOString().slice(0,10) + '.json';
+    } else {
+      // Sem login: exporta o que existe no aparelho
+      var pacote = {
+        _sobre_este_arquivo: {
+          descricao: 'Exportacao local dos seus dados no Sanova (art. 18 LGPD). Voce nao estava logado, entao este arquivo traz o que esta guardado neste aparelho.',
+          gerado_em: new Date().toISOString(),
+        },
+        dados_de_saude: window.S || null,
+      };
+      blob = new Blob([JSON.stringify(pacote, null, 2)], { type:'application/json' });
+      nome = 'sanova-meus-dados-local-' + new Date().toISOString().slice(0,10) + '.json';
+    }
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    if(typeof toast==='function') toast('Arquivo salvo! 📥');
+  }catch(e){
+    alert('Não consegui montar o arquivo: ' + ((e && e.message) || 'erro desconhecido') +
+          '\n\nTente de novo em alguns segundos. Se persistir: contatosanovaapp@gmail.com');
+  }
+}
+window.baixarMeusDados = baixarMeusDados;
 
 function abrirVincularPro(){
   var pros = window._sanovaProsAtivos;
