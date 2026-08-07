@@ -121,6 +121,23 @@ const executores = {
     return { ok: false, detalhe: `${workflow} disparado mas nao concluiu em 4 min` };
   },
 
+  // Confere se um secret ja existe no repo, sem NUNCA ler o valor. A GitHub
+  // API nao devolve valor de secret, e o runner so enxerga o que o workflow
+  // injeta no env — entao a checagem e "tem conteudo?" e nada mais. O detalhe
+  // reportado leva so o nome e o comprimento; valor nao aparece em log nem em
+  // turno na Sala (o repo e publico).
+  //
+  // Existe pra tirar da fila pessoal do Bruno o "conferir se ja botei tal
+  // chave": quando ele cria o secret, o proximo ciclo anuncia sozinho e para
+  // de cobrar.
+  async secret_present({ name }) {
+    const valor = process.env[name];
+    if (!valor) {
+      return { ok: false, detalhe: `secret ${name} ainda nao existe no repo` };
+    }
+    return { ok: true, detalhe: `secret ${name} presente (${valor.length} caracteres)` };
+  },
+
   async pr_merged({ number }) {
     const pr = await gh(`/repos/${REPO}/pulls/${number}`);
     return pr.merged

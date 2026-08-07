@@ -14,12 +14,16 @@ name: Turno Autonomo (Claude)
 # verde sem gastar nada e escreve o motivo no summary. No minuto em que o
 # secret for criado, o proximo cron ja roda de verdade — sem passo extra.
 #
-# Cron: '47 */3 * * *' = 30 min depois do worker (17 */3), pra ler a fila ja
-# atualizada em vez de disputar com ela.
+# Cron: '47 */6 * * *' = 4x por dia, sempre 30 min depois de um ciclo do
+# worker (17 */3), pra ler a fila ja atualizada em vez de disputar com ela.
+#
+# Por que 6h e nao 3h: o primeiro run real custou US$ 0,39 (20 turnos, 71s)
+# fazendo uma tarefa RASA. A 3/3h isso da ~US$ 92/mes; a 6/6h, ~US$ 46. Trocar
+# o intervalo e uma linha — se o turno autonomo provar que entrega, sobe.
 
 on:
   schedule:
-    - cron: '47 */3 * * *'
+    - cron: '47 */6 * * *'
   workflow_dispatch:
     inputs:
       foco:
@@ -75,6 +79,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           display_report: true
+          # O run de teste da instalacao terminou com 12 permission denials —
+          # o agente gastou turnos batendo em ferramenta bloqueada em vez de
+          # trabalhar. Regra de permissao e ADITIVA (concede sem perguntar,
+          # nao remove nada), entao liberar Bash e WebFetch e seguro e corta
+          # a maior parte das negativas.
+          settings: |
+            {"permissions": {"allow": ["Bash", "WebFetch"]}}
           prompt: |
             Leia `automation/briefing-turno.md` na raiz do repositorio e siga
             aquele briefing por inteiro. Ele define quem voce e, o que fazer

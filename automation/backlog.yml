@@ -26,6 +26,8 @@
 #   app_version     params: expected            (bate contra SANOVA_VERSION no ar)
 #   dispatch        params: workflow, inputs, requires_secret
 #   pr_merged       params: number
+#   supabase_table  params: table, should_exist (default true)
+#   secret_present  params: name                (só "existe?", nunca lê o valor)
 #
 # O worker roda no maximo 6 tarefas por ciclo e nunca reexecuta uma tarefa
 # `done` (a menos que tenha `repeat: true`). Falha nao trava a fila: a tarefa
@@ -96,6 +98,44 @@ tasks:
       url: https://sanova.app.br/exclusao.html
     last_run: 2026-08-07T10:09:09.538Z
     last_result: HTTP 200
+
+  # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
+  # Regra do CEO cravada no T84: antes de pedir qualquer coisa ao Bruno,
+  # perguntar "isso pode virar monitor?". Estas quatro sao o "pode".
+  # Reportam SO quando mudam de estado — enquanto seguem iguais, silencio.
+
+  - id: play-app-publicado
+    title: br.app.sanova visivel na Play Store (vira `done` no dia que publicar)
+    type: http_check
+    status: pending
+    repeat: true
+    params:
+      url: https://play.google.com/store/apps/details?id=br.app.sanova
+      expect_contains: "br.app.sanova"
+
+  - id: secret-play-service-account
+    title: PLAY_SERVICE_ACCOUNT_JSON existe (destrava a automacao da Play)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: PLAY_SERVICE_ACCOUNT_JSON
+
+  - id: secret-mp-prod
+    title: MP_ACCESS_TOKEN_PROD existe (rotacao pendente desde a auditoria)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: MP_ACCESS_TOKEN_PROD
+
+  - id: secret-supabase-mgmt
+    title: SUPABASE_MGMT_TOKEN existe (PAT expira — monitor pega a expiracao)
+    type: secret_present
+    status: pending
+    repeat: true
+    params:
+      name: SUPABASE_MGMT_TOKEN
 
   # ─── Diagnostico de schema ─────────────────────────────────────────
   # Confere se as migrations ja estao aplicadas, usando o service_role que
