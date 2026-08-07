@@ -1,0 +1,78 @@
+name: Mencao ao Claude (@claude)
+
+# O jeito do Bruno mandar servico do celular, sem abrir sessao nem escrever
+# prompt: comentar `@claude <o que precisa>` em qualquer issue ou PR — inclusive
+# na propria Sala (#148).
+#
+# Diferente do claude-turno.yml, aqui nao tem cron: so roda quando alguem
+# chama. Nao gasta nada parado.
+#
+# Tambem INERTE sem o secret ANTHROPIC_API_KEY.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  responder:
+    # Filtro barato antes de subir runner: so segue se '@claude' aparece de fato.
+    if: >
+      contains(github.event.comment.body, '@claude') ||
+      contains(github.event.review.body, '@claude') ||
+      contains(github.event.issue.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confere se a chave da API existe
+        id: gate
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "ativo=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Mencao ignorada"
+              echo ''
+              echo 'Alguem chamou `@claude`, mas o secret `ANTHROPIC_API_KEY`'
+              echo 'ainda nao existe. Crie o secret e chame de novo.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ativo=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ativo == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Atende a mencao
+        if: steps.gate.outputs.ativo == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_sticky_comment: true
+          prompt: |
+            Antes de responder, leia `automation/briefing-turno.md` — ele define
+            quem voce e no projeto Sanova, a higiene obrigatoria do repositorio
+            publico, e os limites do que voce NAO faz sozinho (credencial, 2FA,
+            aceite de termo, ato irreversivel, dado de paciente, publicacao na
+            loja). Esses limites valem aqui igual.
+
+            Depois atenda o que foi pedido na mencao. Se o pedido cair num dos
+            limites, nao execute: explique em uma frase e diga exatamente o que
+            o Bruno precisa fazer.
+          claude_args: |
+            --max-turns 30
+            --model claude-sonnet-5
