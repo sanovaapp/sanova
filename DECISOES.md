@@ -4,9 +4,9 @@ Isto **não é histórico**. É a lei do projeto — o conjunto de regras que
 qualquer agente (ou pessoa) precisa conhecer antes de escrever uma linha,
 gerar uma peça ou falar com um paciente.
 
-Foram tomadas ao longo de meses na issue #148. Estão aqui porque decisão
-enterrada em comentário nº 74 de uma thread de 100+ não é decisão — é
-arqueologia.
+Foram tomadas ao longo de meses, na issue #148 e no `HANDOFF.md`. Estão aqui
+porque decisão enterrada no comentário nº 74 de uma thread de 100+ não é
+decisão — é arqueologia.
 
 **Regra deste arquivo:** só entra o que é permanente. Estado do dia vive em
 `ESTADO.md`. Se uma linha daqui envelhecer, ela é *corrigida*, não apagada,
@@ -98,23 +98,85 @@ dependa de um agente de janela (Chrome, chat). Só cron roda sozinho. Se
 depende de alguém abrir alguma coisa, o passo é humano — escreva pra o
 humano.
 
-## 6. Regras de código
+## 6. Regras de código — cada uma custou uma sessão pra aprender
 
-- **Nunca apagar `index_vitorioso_sanova.html`.** Regra sagrada, sem
-  discussão.
+**Não mexer, sem discussão:**
+
+- **`index_vitorioso_sanova.html`** — nunca apagar. Regra sagrada.
+- **Não modularizar o `index.html`.** Ele é um arquivo único de ~26 mil
+  linhas de propósito. Reescrever em framework não está na mesa — só edições
+  cirúrgicas.
+- **`S.caneta`** — nome legado, não renomear. Metade do app depende dele.
+- **Logo 🌿 no header e os ícones PNG** — não mexer.
+- **`skipWaiting()` no service worker** — não reverter. Sem ele, paciente
+  fica preso em versão velha (já aconteceu, custou uma noite).
+- **Bloqueio de F12** — manter. Tem valor jurídico no Brasil.
+- **Liraglutida no código** — manter. Saxenda é real; tirar a molécula
+  exclui os pacientes que a usam.
+- **Foto do frasco** — não restaurar. Decisão **clínica**: letra pequena em
+  foto de frasco é risco de erro de dose.
+
+**Sempre:**
+
+- **Subir `SANOVA_VERSION` no `index.html` E `VERSION` no `sw.js`** a cada
+  mudança. Esquecer um dos dois é como o paciente fica preso em cache.
+- **Validar HTML balanceado e sintaxe JS** antes de dar por pronto.
+- **Trabalho vai em branch + PR.** Nunca push direto na `main`.
 - **Nada de lógica em bash dentro de YAML.** O heartbeat falhou 12 vezes
   seguidas por erro de parse causado por markdown dentro de `run: |`. Lógica
   vive em `.github/scripts/*.mjs`; prompt longo vive em `.md`.
-- **Subir `SANOVA_VERSION`** a cada mudança em `index.html` — o worker
-  monitora a versão no ar contra o que o repo espera.
-- **Trabalho vai em branch + PR.** Nunca push direto na `main`.
 
-## 7. Como falar com o Bruno
+## 7. Como pensar antes de decidir — os 5 chapéus
+
+Nenhuma mudança é só técnica. Antes de cravar, passe pelos cinco, nesta
+ordem:
+
+| | Pergunta |
+|---|---|
+| 👤 **Paciente** | Um toque a mais é fricção. Um rótulo confuso confunde. |
+| 🎨 **Designer** | Contraste WCAG AA, mobile-first 412×915. "Letrinha pequena" é bug, não opinião. |
+| 🏗️ **Arquiteto** | Cache, sincronização, o que acontece se o evento X chegar antes do Y. Race condition mata. |
+| 💻 **Programador** | Edição cirúrgica, sintaxe validada, versão subida. |
+| 🩺 **Clínica** | Literatura real, conservadorismo em GLP-1 (proteína alta + treino resistido preservam massa magra), pisos fisiológicos: **1200 kcal mulher, 1500 kcal homem**. |
+
+O 5º existe porque o Bruno é médico e precisa de contraponto, não de eco.
+
+## 8. Antes de orientar o Bruno em tela externa
+
+**Confira o estado atual da tela antes de dar o caminho.** UI de Play
+Console, Google Cloud e registro.br muda com frequência; memória de
+treinamento envelhece.
+
+Esta regra existe porque foi violada e custou caro: em 16/06 o Code levou o
+Bruno **uma hora** procurando "Acesso à API" no Play Console, e a tela já não
+era mais o caminho. Bastava um fetch na documentação.
+
+**Quando o Bruno disser "está quebrado", a primeira pergunta é qual versão
+aparece em Mais → Sobre.** Cache de service worker historicamente responde
+por ~30% dos "bugs" reportados. Corrigir código que não está com defeito é
+pior que não corrigir nada.
+
+**Se falta uma ferramenta, peça explicitamente.** "Preciso de Z, o caminho
+pra criar é A." Não improvisar workaround frágil nem fingir que dá pra
+seguir sem.
+
+## 9. Como falar com o Bruno
 
 Português direto, sem jargão desnecessário. Ele é médico e fundador, não
-programador — explique o *porquê*, não só o comando.
+programador — explique o *porquê*, não só o comando. Se metade do que você
+escreveu ele não entendeu, o texto está errado, não ele.
 
-**Nunca sugerir que ele descanse, durma ou pare.**
+**Fuso do projeto: Brasília (UTC−3).**
+
+**Nunca sugerir que ele descanse, durma ou pare.** Ele trabalha em horários
+diversos e decide sozinho quando parar. Sugerir isso é paternalismo, não
+parceria.
+
+**Modo contínuo.** Reportar entregas, não pedir licença a cada passo.
 
 Reportar o que falhou com a mesma clareza do que funcionou. Estimativa
 errada corrigida vale mais que estimativa bonita mantida.
+
+**A palavra final é dele.** Opinião de sócia ou de outro agente é input
+qualificado, não veto. Havendo conflito, executa-se a decisão do Bruno e
+registra-se a divergência.

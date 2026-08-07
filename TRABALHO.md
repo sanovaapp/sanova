@@ -52,21 +52,43 @@ Regras que valem pra toda tarefa desta lista:
 
 ### Bugs abertos
 
+> ⚠️ **Antes de investigar qualquer um dos dois:** conferir qual versão
+> aparece em **Mais → Sobre** no celular do Bruno. Cache de service worker
+> responde historicamente por ~30% dos "bugs" relatados aqui. Se a versão for
+> menor que a do ar, o bug pode não existir mais — e corrigir código que não
+> tem defeito é pior que não corrigir nada. *(regra migrada do HANDOFF)*
+
 - [ ] **Badge de peso mostra 20 quando deveria mostrar 21 kg**
-      POR QUE: relatado pelo Bruno, não reproduzido. Provável arredondamento
-      pra baixo em vez de arredondamento normal.
+      POR QUE: relatado pelo Bruno, não reproduzido.
+      JÁ INVESTIGADO (07/08): varri o `index.html` atrás de arredondamento
+      pra baixo em valor de peso. `rd()` usa `Math.round` (correto), os
+      marcos usam comparação direta, e **não existe nenhum `Math.floor`,
+      `toFixed(0)` ou `parseInt` aplicado a peso**. A hipótese do
+      arredondamento está descartada — o bug é em outro lugar, e sem ver a
+      tela eu não sei em qual dos ~20 lugares que mostram peso.
       PRONTO QUANDO: reproduzido com um caso concreto, corrigido, e o caso
       vira teste pra não voltar.
-      DECISÃO: preciso de um print da tela com o número errado, ou dos dados
-      que geraram ele. Sem isso eu chuto — e chute em número de peso é
-      exatamente o tipo de coisa que não se chuta num app de saúde.
+      DECISÃO: print da tela com o número errado. Chute em número de peso,
+      num app de saúde, é exatamente o que não se faz.
 
 - [ ] **Contraste ruim em "PROTEÇÃO MUSCULAR"**
       POR QUE: relatado pelo Bruno, não reproduzido. Texto pouco legível
       sobre o fundo em alguma combinação de tela.
       PRONTO QUANDO: identificado em qual tela/estado acontece e corrigido
       com contraste que passe no mínimo de acessibilidade (WCAG AA, 4.5:1).
-      DECISÃO: preciso do print.
+      DECISÃO: print.
+
+- [ ] **Número decimal aparece com ponto em vez de vírgula**
+      POR QUE: achado em 07/08 enquanto eu caçava o bug do peso. O app é
+      brasileiro e mostra "20.5 kg" em vez de "20,5 kg" na maioria das
+      telas. São **52 usos de `toFixed()` no `index.html` e só 9 com a
+      troca por vírgula** — ou seja, a inconsistência é a regra, não a
+      exceção.
+      PRONTO QUANDO: existe um helper único de formatação, todos os lugares
+      passam por ele, e há teste cobrindo o helper.
+      CUIDADO: são ~43 pontos de alteração num arquivo de 26 mil linhas, e
+      eu não consigo ver o app rodando. Fazer em levas pequenas e
+      verificáveis, começando pelas telas de peso — não numa varredura só.
 
 ### Play Store
 
