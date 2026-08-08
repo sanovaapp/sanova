@@ -3,7 +3,7 @@
 Onde o projeto está **hoje**. Arquivo volátil por natureza — sobrescrito, não
 acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
-*Atualizado em 07/08/2026.*
+*Atualizado em 08/08/2026.*
 
 ---
 
@@ -11,12 +11,18 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
 | | Versão |
 |---|---|
-| App (`index.html`) | `3.10.59` |
-| Worker Cloudflare | `1.29.2` |
+| App (`index.html`) | `3.10.61` |
+| Worker Cloudflare | `1.31.0` |
 | Domínio | `sanova.app.br` (HTTPS, Pages) |
 
 ## Fechado recentemente
 
+- **Fase 2 ligada** — alertas ao profissional saem do ar atrás de flag:
+  os 5 vermelhos chegam em `imediato`, os 5 amarelos ficam `off` até o
+  profissional pedir um a um.
+- **Retenção automática de dados** — `alert_events` >180 dias apaga de
+  verdade; conta inativa >24 meses só conta (apagar é ato consciente).
+  Cron diário 03:00 BRT, falha se o endpoint responder erro.
 - **RLS do `app_state` trancado no banco** — cada paciente só alcança a
   própria linha, por policy. Era o buraco mais sério da auditoria.
 - **Schema da Fase 2 aplicado** — `alert_events` e
@@ -59,15 +65,10 @@ sozinho — ninguém precisa conferir painel.
 
 ### Fila do Code
 
-- Retenção automática de dados (cron)
-- Rate limit no worker
-- Sanitizar `console.error` (não vazar detalhe de backend pro cliente)
-
-## Fase 2 (alertas) — pronta, desligada
-
-Schema aplicado e endpoints escritos, mas a interface está atrás da flag
-`FASE2_ALERTAS_ATIVA = false` em `pro.html`. Ligar é decisão de produto, não
-de engenharia.
+Ver `TRABALHO.md` — fila de construção. Neste momento: contraste de
+"PROTEÇÃO MUSCULAR" (esperando print), vírgula decimal no lugar do ponto
+em number formatting, e monitor da transferência do app (bloqueado por
+secret).
 
 ## Como o trabalho anda sozinho
 

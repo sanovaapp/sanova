@@ -36,20 +36,6 @@ Regras que valem pra toda tarefa desta lista:
 
 ## Fila
 
-### Segurança e LGPD — o que protege paciente vem primeiro
-
-*As duas primeiras saíram no worker v1.30.0.*
-
-- [ ] **Retenção automática de dados**
-      POR QUE: a política de privacidade promete que dado não fica pra
-      sempre. Hoje não existe nada que apague — a promessa está no papel e
-      não no código.
-      PRONTO QUANDO: existe rotina agendada que apaga o que passou do prazo,
-      e o prazo bate com o que a política diz.
-      DECISÃO: qual prazo? A política atual fala em 30 dias após exclusão de
-      conta, mas não diz nada sobre conta inativa. Precisa da chamada do
-      Bruno antes de implementar.
-
 ### Bugs abertos
 
 > ⚠️ **Antes de investigar qualquer um dos dois:** conferir qual versão
@@ -88,20 +74,17 @@ Regras que valem pra toda tarefa desta lista:
       BLOQUEADO POR: o secret `PLAY_SERVICE_ACCOUNT_JSON` não existe. Não há
       caminho alternativo — o estado da transferência não é público.
 
-### Produto
-
-- [ ] **Ligar a Fase 2 (alertas ao profissional)**
-      POR QUE: o código está pronto e o schema aplicado, mas a interface está
-      desligada atrás de uma chave (`FASE2_ALERTAS_ATIVA = false`). Trabalho
-      feito e parado não vale nada.
-      PRONTO QUANDO: a chave está ligada e o profissional vê os alertas.
-      DECISÃO: liga tudo, ou só os 5 alertas vermelhos primeiro? Os vermelhos
-      são os que protegem; os amarelos são os que incomodam. Chamada do Bruno.
-
 ---
 
 ## Riscado (fica como registro, não some)
 
+- [x] Retenção automática de dados — `alert_events` >180 dias apaga de
+      verdade; conta inativa >24 meses só conta (apagar é ato consciente,
+      `aplicar=1`). Cron diário 03:00 BRT. *(PR #254)*
+- [x] Fase 2 ligada (alertas ao profissional) — entrou no padrão mais
+      conservador que já existia no código: os 5 alertas vermelhos em
+      `imediato`, os 5 amarelos em `off` até o profissional pedir.
+      *(PR #254)*
 - [x] Badge de peso "20 vs 21 kg" — duas fontes de verdade pro peso inicial (declarado vs. primeira pesagem); card de jornada usava a errada. Achado lendo o código, sem print, com 6 testes de regressão
 - [x] RLS do `app_state` — cada paciente só alcança a própria linha, pelo
       banco e não pela boa vontade do código
