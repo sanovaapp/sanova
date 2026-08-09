@@ -43,7 +43,7 @@ tasks:
     repeat: true
     params:
       expected: "1.31.0"
-    last_run: 2026-08-08T18:56:12.075Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: v1.31.0
 
   - id: app-no-ar
@@ -53,7 +53,7 @@ tasks:
     repeat: true
     params:
       expected: "3.10.60"
-    last_run: 2026-08-08T18:56:12.075Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: "no ar: 3.10.61 · esperado: 3.10.60"
 
   - id: verificacao-google-1
@@ -64,7 +64,7 @@ tasks:
     params:
       url: https://sanova.app.br/googlec78077745bdb0836.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-08T18:56:12.075Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: HTTP 200
 
   - id: verificacao-google-2
@@ -112,7 +112,7 @@ tasks:
     params:
       url: https://play.google.com/store/apps/details?id=br.app.sanova
       expect_contains: "br.app.sanova"
-    last_run: 2026-08-08T15:43:58.845Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: HTTP 404 (esperado 200)
 
   - id: secret-play-service-account
@@ -122,7 +122,7 @@ tasks:
     repeat: true
     params:
       name: PLAY_SERVICE_ACCOUNT_JSON
-    last_run: 2026-08-08T15:43:58.845Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: secret PLAY_SERVICE_ACCOUNT_JSON ainda nao existe no repo
 
   - id: secret-mp-prod
@@ -132,7 +132,7 @@ tasks:
     repeat: true
     params:
       name: MP_ACCESS_TOKEN_PROD
-    last_run: 2026-08-08T15:43:58.845Z
+    last_run: 2026-08-09T02:26:20.918Z
     last_result: secret MP_ACCESS_TOKEN_PROD presente (75 caracteres)
 
   - id: secret-supabase-mgmt
