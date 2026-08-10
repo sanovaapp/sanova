@@ -11,8 +11,8 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
 | | Versão |
 |---|---|
-| App (`index.html`) | `3.10.59` |
-| Worker Cloudflare | `1.29.2` |
+| App (`index.html`) | `3.10.61` |
+| Worker Cloudflare | `1.31.0` |
 | Domínio | `sanova.app.br` (HTTPS, Pages) |
 
 ## Fechado recentemente
