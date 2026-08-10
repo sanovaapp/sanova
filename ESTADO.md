@@ -3,7 +3,7 @@
 Onde o projeto está **hoje**. Arquivo volátil por natureza — sobrescrito, não
 acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
-*Atualizado em 07/08/2026.*
+*Atualizado em 10/08/2026.*
 
 ---
 
@@ -28,6 +28,16 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 - **Autonomia nível 2** — `claude-turno.yml` (cron 6/6h) e
   `claude-mencao.yml` (`@claude` em qualquer issue ou PR).
 - **Worker autônomo** — `automation/backlog.yml` executado de 3/3h.
+- **Fase 2 ligada** — profissional já vê os 5 alertas vermelhos
+  (`FASE2_ALERTAS_ATIVA = true`); amarelos nascem desligados, ativação é por
+  profissional. Badge de peso "20 vs 21 kg" também resolvido (era duas fontes
+  de verdade pro peso inicial). *(PR #254, 07/08)*
+- **Retenção automática de dados** — `alert_events` >180 dias apaga de
+  verdade; conta inativa >24 meses só conta (apagar é ato consciente,
+  `aplicar=1`). Cron diário 03:00 BRT. *(PR #254, 07/08)*
+- **Rate limit e sanitização de erro no worker** — limite de chamadas por IP
+  nas rotas caras/de escrita; erro interno não vaza detalhe pro navegador.
+  *(worker v1.30.0)*
 
 ## Bloqueado, e em quem
 
@@ -49,25 +59,12 @@ Metade já existe desde junho (projeto `sanova-play-deploy`, service account
 ### Outras pendências do Bruno
 
 - **`MP_ACCESS_TOKEN_PROD`** — rotação pendente desde a auditoria
-- **Prints dos 2 bugs do Painel** ainda não reproduzidos (badge de peso
-  20 vs 21 kg; contraste de "PROTEÇÃO MUSCULAR")
+- **Print do bug de contraste** em "PROTEÇÃO MUSCULAR" ainda não reproduzido
 - **Transferência do app** pra conta org MEDFAST — aceita nos dois lados,
   em fila do Google, sem ação humana pendente
 
 Cada um desses tem monitor na fila. Quando resolverem, o worker anuncia
 sozinho — ninguém precisa conferir painel.
-
-### Fila do Code
-
-- Retenção automática de dados (cron)
-- Rate limit no worker
-- Sanitizar `console.error` (não vazar detalhe de backend pro cliente)
-
-## Fase 2 (alertas) — pronta, desligada
-
-Schema aplicado e endpoints escritos, mas a interface está atrás da flag
-`FASE2_ALERTAS_ATIVA = false` em `pro.html`. Ligar é decisão de produto, não
-de engenharia.
 
 ## Como o trabalho anda sozinho
 
@@ -77,6 +74,8 @@ de engenharia.
 | `claude-turno.yml` | 6/6h | lê o estado, julga o que fazer, e faz |
 | `claude-mencao.yml` | sob demanda | `@claude <pedido>` em qualquer issue ou PR |
 | `heartbeat.yml` | 1×/dia | pulso: versões, PRs, workflows falhados |
+| `retencao.yml` | 1×/dia (03:00 BRT) | varre e apaga dado que passou do prazo da política |
+| `mp-cleanup-cron.yml` | periódico | backup automático do Mercado Pago |
 
 Para mandar serviço sem abrir sessão: comentar `@claude <o que precisa>` em
 qualquer issue ou PR do repositório.
