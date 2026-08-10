@@ -63,8 +63,20 @@ Metade já existe desde junho (projeto `sanova-play-deploy`, service account
 - **Print do contraste de "PROTEÇÃO MUSCULAR"** — é o único bug de tela que
   sobrou. O do peso foi achado sem print, lendo o código; este é contraste
   de cor, e cor eu não enxergo pelo código com a mesma confiança.
-- **Transferência do app** pra conta org MEDFAST — aceita nos dois lados,
-  em fila do Google, sem ação humana pendente
+- **Transferência do app** pra conta org MEDFAST — o Google respondeu em
+  10/08: processa **a partir de quarta, 12/08** (2 dias úteis, não acelera).
+  Sem ação humana pendente.
+
+> ⚠️ **A transferência reordena a issue #248.** Permissão de usuário no Play
+> Console pertence à conta, não ao app — convite feito na conta antiga não
+> viaja junto. Passos 1 (gerar chave) e 3 (guardar no cofre) podem ser feitos
+> a qualquer momento; o passo 2 (convidar a service account) só depois de
+> 12/08, já dentro da MEDFAST.
+>
+> O aviso do Google sobre relatórios, dados financeiros e o teto de US$ 1 mi
+> da taxa de 15% **não atinge o Sanova**: o app não usa Play Billing (cobrança
+> é Mercado Pago, por fora) e ainda não está público, então não há pedido,
+> faturamento nem histórico a perder.
 
 *`MP_ACCESS_TOKEN_PROD` saiu desta lista: já está no cofre. Foi listado sem
 conferir.*
