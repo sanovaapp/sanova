@@ -3,7 +3,7 @@
 Onde o projeto está **hoje**. Arquivo volátil por natureza — sobrescrito, não
 acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
-*Atualizado em 07/08/2026.*
+*Atualizado em 10/08/2026.*
 
 ---
 
@@ -11,12 +11,24 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
 | | Versão |
 |---|---|
-| App (`index.html`) | `3.10.59` |
-| Worker Cloudflare | `1.29.2` |
+| App (`index.html`) | `3.10.62` |
+| Worker Cloudflare | `1.30.0` |
 | Domínio | `sanova.app.br` (HTTPS, Pages) |
 
 ## Fechado recentemente
 
+- **Vírgula decimal nas telas de peso** — o app é brasileiro e imprimia
+  "20.5 kg". Helper único `nBR()`, 22 pontos de kg migrados, teste que
+  quebra se alguém escrever tela nova de kg com `toFixed` cru. Água, kcal e
+  IMC ficam pras próximas levas.
+- **Bug do peso "20 vs 21 kg"** — havia duas fontes de verdade pro peso
+  inicial (declarado na anamnese vs. primeira pesagem). O painel usava uma,
+  o card de compartilhar usava a outra. Achado lendo o código, sem print.
+- **Retenção automática de dados** — 180 dias pra `alert_events`, 24 meses
+  pra conta inativa. A política de privacidade deixou de ser só papel.
+- **Rate limit, `console.error` sanitizado e `/api/debug-gemini` fora do ar**
+  — a rota de debug era chamada paga a cada visita e devolvia pedaço da
+  chave da Gemini a quem pedisse *(worker v1.30.0)*.
 - **RLS do `app_state` trancado no banco** — cada paciente só alcança a
   própria linha, por policy. Era o buraco mais sério da auditoria.
 - **Schema da Fase 2 aplicado** — `alert_events` e
@@ -48,20 +60,22 @@ Metade já existe desde junho (projeto `sanova-play-deploy`, service account
 
 ### Outras pendências do Bruno
 
-- **`MP_ACCESS_TOKEN_PROD`** — rotação pendente desde a auditoria
-- **Prints dos 2 bugs do Painel** ainda não reproduzidos (badge de peso
-  20 vs 21 kg; contraste de "PROTEÇÃO MUSCULAR")
+- **Print do contraste de "PROTEÇÃO MUSCULAR"** — é o único bug de tela que
+  sobrou. O do peso foi achado sem print, lendo o código; este é contraste
+  de cor, e cor eu não enxergo pelo código com a mesma confiança.
 - **Transferência do app** pra conta org MEDFAST — aceita nos dois lados,
   em fila do Google, sem ação humana pendente
+
+*`MP_ACCESS_TOKEN_PROD` saiu desta lista: já está no cofre. Foi listado sem
+conferir.*
 
 Cada um desses tem monitor na fila. Quando resolverem, o worker anuncia
 sozinho — ninguém precisa conferir painel.
 
 ### Fila do Code
 
-- Retenção automática de dados (cron)
-- Rate limit no worker
-- Sanitizar `console.error` (não vazar detalhe de backend pro cliente)
+- Vírgula decimal, levas 2 e 3 (água, kcal, IMC) — 18 pontos
+- Ligar a Fase 2 (decisão de produto, ver abaixo)
 
 ## Fase 2 (alertas) — pronta, desligada
 

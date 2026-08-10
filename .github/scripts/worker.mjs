@@ -22,6 +22,7 @@ const ISSUE = 148;
 const API = 'https://api.github.com';
 const BACKLOG = 'automation/backlog.yml';
 const MAX_POR_CICLO = 6;
+const RE_VERSAO = /var SANOVA_VERSION\s*=\s*'([^']+)'/;
 const TOKEN = process.env.GITHUB_TOKEN;
 const DRY_RUN = process.env.DRY_RUN === '1';
 
@@ -82,14 +83,23 @@ const executores = {
     return { ok: true, detalhe: `v${d.version}` };
   },
 
+  // Sem `expected`, a referencia e o proprio index.html do repositorio. Assim a
+  // pergunta vira a util — "o que esta no ar e o que a gente mandou?" — e o
+  // monitor para de virar alarme falso a cada release. Cravar versao a mao aqui
+  // deixou este monitor vermelho por 3 dias so porque ninguem atualizou o YAML.
   async app_version({ expected }) {
+    const esperado = expected || (() => {
+      const m = readFileSync('index.html', 'utf8').match(RE_VERSAO);
+      return m ? m[1] : null;
+    })();
+    if (!esperado) return { ok: false, detalhe: 'SANOVA_VERSION sumiu do index.html do repo' };
+
     const r = await fetch(APP_INDEX, { cache: 'no-store' });
     if (!r.ok) return { ok: false, detalhe: `index HTTP ${r.status}` };
-    const html = await r.text();
-    const m = html.match(/var SANOVA_VERSION\s*=\s*'([^']+)'/);
+    const m = (await r.text()).match(RE_VERSAO);
     const noAr = m ? m[1] : null;
-    if (noAr !== expected) {
-      return { ok: false, detalhe: `no ar: ${noAr || '?'} · esperado: ${expected}` };
+    if (noAr !== esperado) {
+      return { ok: false, detalhe: `no ar: ${noAr || '?'} · no repo: ${esperado}` };
     }
     return { ok: true, detalhe: `v${noAr}` };
   },

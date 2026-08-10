@@ -40,15 +40,8 @@ Regras que valem pra toda tarefa desta lista:
 
 *As duas primeiras saíram no worker v1.30.0.*
 
-- [ ] **Retenção automática de dados**
-      POR QUE: a política de privacidade promete que dado não fica pra
-      sempre. Hoje não existe nada que apague — a promessa está no papel e
-      não no código.
-      PRONTO QUANDO: existe rotina agendada que apaga o que passou do prazo,
-      e o prazo bate com o que a política diz.
-      DECISÃO: qual prazo? A política atual fala em 30 dias após exclusão de
-      conta, mas não diz nada sobre conta inativa. Precisa da chamada do
-      Bruno antes de implementar.
+*Nada aberto aqui. A retenção saiu — está no riscado, com o prazo que ficou
+cravado.*
 
 ### Bugs abertos
 
@@ -65,17 +58,18 @@ Regras que valem pra toda tarefa desta lista:
       com contraste que passe no mínimo de acessibilidade (WCAG AA, 4.5:1).
       DECISÃO: print.
 
-- [ ] **Número decimal aparece com ponto em vez de vírgula**
-      POR QUE: achado em 07/08 enquanto eu caçava o bug do peso. O app é
-      brasileiro e mostra "20.5 kg" em vez de "20,5 kg" na maioria das
-      telas. São **52 usos de `toFixed()` no `index.html` e só 9 com a
-      troca por vírgula** — ou seja, a inconsistência é a regra, não a
-      exceção.
-      PRONTO QUANDO: existe um helper único de formatação, todos os lugares
-      passam por ele, e há teste cobrindo o helper.
-      CUIDADO: são ~43 pontos de alteração num arquivo de 26 mil linhas, e
-      eu não consigo ver o app rodando. Fazer em levas pequenas e
-      verificáveis, começando pelas telas de peso — não numa varredura só.
+- [ ] **Número decimal com ponto — levas 2 e 3 (água, kcal, IMC)**
+      POR QUE: a leva 1 (peso) saiu na v3.10.62 — helper `nBR()` criado e as
+      21 telas de kg passando por ele. Sobram **18 usos crus de `toFixed()`**
+      fora do peso: água em litros, kcal, IMC e o percentual de meta.
+      PRONTO QUANDO: os 18 passam por `nBR()`, e o teste de regressão em
+      `worker/test/formato-numero-br.test.mjs` cobre cada leva (hoje ele
+      guarda só as telas de kg).
+      CUIDADO: manter o método que funcionou — leva pequena, teste que
+      quebra se alguém escrever tela nova com `toFixed` cru, versão subida
+      nos dois arquivos. Não varrer o arquivo de uma vez.
+      NOTA: existem ainda ~7 lugares que já fazem `.replace('.', ',')` na
+      mão. Saída idêntica, mas fora do caminho único — unificar junto.
 
 ### Play Store
 
@@ -102,6 +96,16 @@ Regras que valem pra toda tarefa desta lista:
 
 ## Riscado (fica como registro, não some)
 
+- [x] Vírgula decimal nas telas de peso — helper único `nBR()`; 22 pontos de
+      kg migrados e um teste que quebra se alguém escrever tela nova de kg
+      com `toFixed` cru. Levas de água/kcal/IMC seguem abertas *(v3.10.62)*
+- [x] Monitor de versão do app parou de cravar a versão à mão — compara o que
+      está no ar contra o `index.html` do repositório. Ele ficou 3 dias
+      vermelho por alarme falso, que é o único jeito de um monitor atrapalhar
+- [x] Retenção automática de dados — apaga `alert_events` com mais de **180
+      dias** e sinaliza conta inativa há **24 meses**. Roda por
+      `retencao.yml`, com teste travando os dois prazos (mudar prazo agora
+      quebra teste, que é o ponto: é promessa pública, não constante)
 - [x] Badge de peso "20 vs 21 kg" — duas fontes de verdade pro peso inicial (declarado vs. primeira pesagem); card de jornada usava a errada. Achado lendo o código, sem print, com 6 testes de regressão
 - [x] RLS do `app_state` — cada paciente só alcança a própria linha, pelo
       banco e não pela boa vontade do código

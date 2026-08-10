@@ -51,8 +51,10 @@ tasks:
     type: app_version
     status: failed
     repeat: true
-    params:
-      expected: "3.10.60"
+    # Sem `expected`: a referencia e o index.html do repositorio. Cravar a versao
+    # aqui a mao deixou este monitor vermelho por 3 dias em 08-10/08 — o app subiu
+    # pra 3.10.61 e o YAML continuou pedindo 3.10.60. Alarme falso ensina a ignorar
+    # alarme, que e o unico jeito de um monitor piorar a situacao.
     last_run: 2026-08-14T19:11:31.723Z
     last_result: "no ar: 3.10.61 · esperado: 3.10.60"
 
