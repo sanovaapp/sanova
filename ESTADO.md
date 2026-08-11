@@ -63,20 +63,31 @@ Metade já existe desde junho (projeto `sanova-play-deploy`, service account
 - **Print do contraste de "PROTEÇÃO MUSCULAR"** — é o único bug de tela que
   sobrou. O do peso foi achado sem print, lendo o código; este é contraste
   de cor, e cor eu não enxergo pelo código com a mesma confiança.
-- **Transferência do app** pra conta org MEDFAST — o Google respondeu em
-  10/08: processa **a partir de quarta, 12/08** (2 dias úteis, não acelera).
-  Sem ação humana pendente.
+*A transferência do app saiu desta lista — concluída, ver abaixo.*
 
-> ⚠️ **A transferência reordena a issue #248.** Permissão de usuário no Play
-> Console pertence à conta, não ao app — convite feito na conta antiga não
-> viaja junto. Passos 1 (gerar chave) e 3 (guardar no cofre) podem ser feitos
-> a qualquer momento; o passo 2 (convidar a service account) só depois de
-> 12/08, já dentro da MEDFAST.
->
-> O aviso do Google sobre relatórios, dados financeiros e o teto de US$ 1 mi
-> da taxa de 15% **não atinge o Sanova**: o app não usa Play Billing (cobrança
-> é Mercado Pago, por fora) e ainda não está público, então não há pedido,
-> faturamento nem histórico a perder.
+## Transferência do app: concluída em 10/08
+
+O app **Sanova — Acompanhamento GLP-1** foi transferido para a conta de
+destino (a do `contatosanovaapp@gmail.com`) em **10/08/2026, 00:09 BRT**.
+Confirmado por dois canais independentes: notificação do Play Console
+(`noreply-play-console@`) e a thread de suporte `[0-6994000041877]`
+(`googleplay-developer-support@`).
+
+Com isso, **os 3 passos da issue #248 podem ser feitos de uma vez.** Não há
+mais dependência de espera. Permissão de usuário no Play Console pertence à
+conta, não ao app — o convite da service account tem que sair na conta de
+destino, que agora é onde o app está.
+
+> ⚠️ **Cuidado com data em e-mail de suporte.** O primeiro e-mail da thread
+> (06/08) anunciava "2 dias úteis" e foi lido em 10/08 como se fosse recente
+> — o que gerou uma orientação errada de esperar até 12/08. A thread já tinha
+> resposta de conclusão. **Antes de orientar com base em e-mail, conferir a
+> data da mensagem e se existe resposta mais nova na mesma thread.**
+
+O aviso do Google sobre relatórios, dados financeiros e o teto de US$ 1 mi
+da taxa de 15% **não atinge o Sanova**: o app não usa Play Billing (cobrança
+é Mercado Pago, por fora) e ainda não está público — não há pedido,
+faturamento nem histórico a perder.
 
 *`MP_ACCESS_TOKEN_PROD` saiu desta lista: já está no cofre. Foi listado sem
 conferir.*
