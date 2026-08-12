@@ -12,7 +12,7 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 | | Versão |
 |---|---|
 | App (`index.html`) | `3.10.62` |
-| Worker Cloudflare | `1.30.0` |
+| Worker Cloudflare | `1.31.0` |
 | Domínio | `sanova.app.br` (HTTPS, Pages) |
 
 ## Fechado recentemente
@@ -97,14 +97,31 @@ sozinho — ninguém precisa conferir painel.
 
 ### Fila do Code
 
+- **Religar o cron da detecção de alertas** — ver abaixo, é o mais urgente
 - Vírgula decimal, levas 2 e 3 (água, kcal, IMC) — 18 pontos
-- Ligar a Fase 2 (decisão de produto, ver abaixo)
 
-## Fase 2 (alertas) — pronta, desligada
+## Fase 2 (alertas) — **ligada** desde 07/08, mas sem quem alimente
 
-Schema aplicado e endpoints escritos, mas a interface está atrás da flag
-`FASE2_ALERTAS_ATIVA = false` em `pro.html`. Ligar é decisão de produto, não
-de engenharia.
+`FASE2_ALERTAS_ATIVA = true` em `pro.html:166` (PR #254). O padrão entregue é
+o conservador, e não precisou de linha nova: os **5 alertas vermelhos** nascem
+em `imediato` e os **5 amarelos** em `off` (`alerts.js:327`). O amarelo só
+aparece se o profissional pedir, um a um.
+
+> 🔴 **A lacuna:** `run-alert-detection.yml` está com o `schedule` comentado.
+> A interface mostra alertas, mas **nada os gera automaticamente** — só
+> disparo manual do workflow.
+>
+> O comentário no arquivo diz que o cron esperava o Bruno cravar limiares e o
+> portão regulatório T50. Os limiares **foram** cravados em 07/08 e a flag foi
+> ligada; o cron parece ter ficado para trás, não ter sido decidido.
+>
+> **Por que é sério:** profissional olhando painel vazio conclui que não há
+> nada errado com o paciente. É exatamente o que o termo invertido existe pra
+> impedir — *ausência de alerta não significa ausência de risco*.
+>
+> Ou o cron liga, ou o painel precisa dizer que a detecção é manual. **Não é
+> decisão de engenharia sozinha** — tem limiar clínico e portão regulatório
+> no meio. Levar ao Bruno com recomendação pronta.
 
 ## Como o trabalho anda sozinho
 
