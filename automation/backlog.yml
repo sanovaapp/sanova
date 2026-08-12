@@ -75,7 +75,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-12T04:59:05.595Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -86,7 +86,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-08-12T04:59:05.595Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -96,7 +96,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-08-12T04:59:05.595Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: HTTP 200
 
   # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
@@ -112,7 +112,7 @@ tasks:
     params:
       url: https://play.google.com/store/apps/details?id=br.app.sanova
       expect_contains: "br.app.sanova"
-    last_run: 2026-08-12T02:41:20.194Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: HTTP 404 (esperado 200)
 
   - id: secret-play-service-account
@@ -122,7 +122,7 @@ tasks:
     repeat: true
     params:
       name: PLAY_SERVICE_ACCOUNT_JSON
-    last_run: 2026-08-12T02:41:20.194Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: secret PLAY_SERVICE_ACCOUNT_JSON ainda nao existe no repo
 
   - id: secret-mp-prod
@@ -132,7 +132,7 @@ tasks:
     repeat: true
     params:
       name: MP_ACCESS_TOKEN_PROD
-    last_run: 2026-08-12T02:41:20.194Z
+    last_run: 2026-08-12T10:18:19.833Z
     last_result: secret MP_ACCESS_TOKEN_PROD presente (75 caracteres)
 
   - id: secret-supabase-mgmt
