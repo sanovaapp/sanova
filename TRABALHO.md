@@ -58,19 +58,6 @@ Regras que valem pra toda tarefa desta lista:
 > menor que a do ar, o bug pode não existir mais — e corrigir código que não
 > tem defeito é pior que não corrigir nada. *(regra migrada do HANDOFF)*
 
-- [ ] **Badge de peso mostra 20 quando deveria mostrar 21 kg**
-      POR QUE: relatado pelo Bruno, não reproduzido.
-      JÁ INVESTIGADO (07/08): varri o `index.html` atrás de arredondamento
-      pra baixo em valor de peso. `rd()` usa `Math.round` (correto), os
-      marcos usam comparação direta, e **não existe nenhum `Math.floor`,
-      `toFixed(0)` ou `parseInt` aplicado a peso**. A hipótese do
-      arredondamento está descartada — o bug é em outro lugar, e sem ver a
-      tela eu não sei em qual dos ~20 lugares que mostram peso.
-      PRONTO QUANDO: reproduzido com um caso concreto, corrigido, e o caso
-      vira teste pra não voltar.
-      DECISÃO: print da tela com o número errado. Chute em número de peso,
-      num app de saúde, é exatamente o que não se faz.
-
 - [ ] **Contraste ruim em "PROTEÇÃO MUSCULAR"**
       POR QUE: relatado pelo Bruno, não reproduzido. Texto pouco legível
       sobre o fundo em alguma combinação de tela.
@@ -115,6 +102,7 @@ Regras que valem pra toda tarefa desta lista:
 
 ## Riscado (fica como registro, não some)
 
+- [x] Badge de peso "20 vs 21 kg" — duas fontes de verdade pro peso inicial (declarado vs. primeira pesagem); card de jornada usava a errada. Achado lendo o código, sem print, com 6 testes de regressão
 - [x] RLS do `app_state` — cada paciente só alcança a própria linha, pelo
       banco e não pela boa vontade do código
 - [x] LGPD art. 18 — apagar conta apaga de verdade no banco; portabilidade
