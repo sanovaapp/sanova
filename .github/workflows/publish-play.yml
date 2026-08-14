@@ -222,7 +222,8 @@ jobs:
             "isChromeOSOnly": false,
             "isMetaQuest": false,
             "fullScopeUrl": "https://sanova.app.br/",
-            "minSdkVersion": 19,
+            "_comentario_minSdk": "21 = Android 5.0. Era 19 (Android 4.4) e o build MORRIA no merge de manifesto: a androidbrowserhelper 2.6.2, que e a biblioteca que faz o TWA funcionar, exige 21. Nao ha escolha aqui — 19 nao compila. Custo pratico: zero. Android 5.0 saiu em 2014 e cobre mais de 99% dos aparelhos em uso.",
+            "minSdkVersion": 21,
             "orientation": "portrait",
             "fingerprints": []
           }
