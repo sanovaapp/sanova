@@ -6413,7 +6413,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.61';
+var SANOVA_VERSION = '3.10.62';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -9793,6 +9793,11 @@ if(typeof document !== 'undefined' && document.addEventListener){
 }
 function fmtBR(iso){if(!iso||iso==='—') return iso||'—';var p=iso.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso;}
 function rd(x,n){return Math.round(x*Math.pow(10,n||0))/Math.pow(10,n||0);}
+// v3.10.62: numero brasileiro leva virgula. Ate aqui cada tela decidia sozinha e
+// 34 dos 52 toFixed do arquivo escapavam "20.5 kg" pro paciente. Este e o caminho
+// unico — toda casa decimal que o paciente le passa por aqui. Migracao em levas:
+// esta e a das telas de peso.
+function nBR(x,n){var v=parseFloat(x);if(!isFinite(v))v=0;return v.toFixed(n===undefined?1:n).replace('.',',');}
 function nv(v,fb){var x=parseFloat(v);return isNaN(x)?(fb!==undefined?fb:null):x;}
 function el(id){return document.getElementById(id);}
 
@@ -13453,7 +13458,7 @@ function salvarPesoRapido(){
   var idx=S.weights.findIndex(function(w){return w.date===d;});
   if(idx>=0 && retroativo){
     var pesoExistente = S.weights[idx].weight;
-    if(!confirm('Já existe pesagem nesse dia: '+pesoExistente.toFixed(1)+'kg.\nSubstituir por '+kg.toFixed(1)+'kg?')){
+    if(!confirm('Já existe pesagem nesse dia: '+nBR(pesoExistente,1)+'kg.\nSubstituir por '+nBR(kg,1)+'kg?')){
       return;
     }
   }
@@ -13466,7 +13471,7 @@ function salvarPesoRapido(){
   _setDataReg('peso', hoje());
   salvar();
   render();
-  toast('⚖️ '+kg.toFixed(1)+' kg registrado' + (retroativo ? ' em ' + _formatarDataReg(d) : '!'));
+  toast('⚖️ '+nBR(kg,1)+' kg registrado' + (retroativo ? ' em ' + _formatarDataReg(d) : '!'));
 
   // v3.1.29 FIX 3: Detecção de perda excessiva (>1.5kg/semana × 2 semanas seguidas)
   setTimeout(function(){ verificarPerdaExcessiva(); }, 500);
@@ -13533,8 +13538,8 @@ function verificarPerdaExcessiva(){
       '<div style="padding:13px 15px;background:rgba(0,0,0,.25);border-radius:10px;margin-bottom:14px">' +
         '<div style="margin-bottom:6px">Nas últimas <strong style="color:#fff">2 semanas</strong>, você perdeu:</div>' +
         '<div style="display:flex;justify-content:space-around;text-align:center;padding:10px 0">' +
-          '<div><div style="font-size:11px;color:rgba(255,255,255,.6)">Semana 1</div><div style="font-size:22px;font-weight:800;color:#fca5a5;font-family:var(--fd)">−' + perda7a14.toFixed(1) + ' kg</div></div>' +
-          '<div><div style="font-size:11px;color:rgba(255,255,255,.6)">Semana 2</div><div style="font-size:22px;font-weight:800;color:#fca5a5;font-family:var(--fd)">−' + perda7.toFixed(1) + ' kg</div></div>' +
+          '<div><div style="font-size:11px;color:rgba(255,255,255,.6)">Semana 1</div><div style="font-size:22px;font-weight:800;color:#fca5a5;font-family:var(--fd)">−' + nBR(perda7a14,1) + ' kg</div></div>' +
+          '<div><div style="font-size:11px;color:rgba(255,255,255,.6)">Semana 2</div><div style="font-size:22px;font-weight:800;color:#fca5a5;font-family:var(--fd)">−' + nBR(perda7,1) + ' kg</div></div>' +
         '</div>' +
         '<div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-top:6px;font-style:italic">Faixa saudável em GLP-1: 0,5 a 1 kg/semana</div>' +
       '</div>' +
@@ -14869,7 +14874,7 @@ function toggleEntendaMeta(){
     // que M.agua usou. Antes hardcoded "+200ml" — pra Moderada são +400, pra
     // Alta +700, Sedentário +0. Bug abria conta que não fechava com a meta exibida.
     var ajusteH2O = (typeof WBX !== 'undefined' && WBX[S.profile.activityLevel] !== undefined) ? WBX[S.profile.activityLevel] : 200;
-    html+='Seu peso atual é <strong>'+w.toFixed(1)+'kg</strong>. A fórmula é <strong>35ml × peso corporal</strong>, que resulta em '+(w*35).toFixed(0)+'ml de base. ';
+    html+='Seu peso atual é <strong>'+nBR(w,1)+'kg</strong>. A fórmula é <strong>35ml × peso corporal</strong>, que resulta em '+(w*35).toFixed(0)+'ml de base. ';
     if (ajusteH2O > 0) {
       html+='Com seu nível de atividade <strong>'+ativ.toLowerCase()+'</strong>, adicionamos mais '+ajusteH2O+'ml — total <strong>'+agua+'ml</strong>. ';
     } else {
@@ -14884,17 +14889,17 @@ function toggleEntendaMeta(){
       if(pc.pisoUsado){
         // Piso de segurança ativo: peso ideal × 1,0
         html+='Sua massa magra estimada renderia menos do que o piso de segurança clínico. ';
-        html+='Aplicamos o piso: <strong>peso ideal '+pc.pesoIdeal.toFixed(1)+'kg × 1,0 g/kg = '+prot+'g</strong>. ';
+        html+='Aplicamos o piso: <strong>peso ideal '+nBR(pc.pesoIdeal,1)+'kg × 1,0 g/kg = '+prot+'g</strong>. ';
         html+='Esse piso protege contra sarcopenia quando a massa magra calculada está baixa demais. ';
       } else {
         // Caminho principal: massa magra (Boer) × coef do objetivo
         var coefStr=pc.coef.toFixed(1).replace('.', ',');
         html+='Seu objetivo é <strong>'+objCfg2.label.toLowerCase()+'</strong>, que aplica <strong>'+coefStr+'g por kg de massa magra</strong>. ';
-        html+='Sua massa magra estimada (fórmula Boer, a partir de altura e sexo) é <strong>'+pc.lbm.toFixed(1)+'kg</strong>. ';
+        html+='Sua massa magra estimada (fórmula Boer, a partir de altura e sexo) é <strong>'+nBR(pc.lbm,1)+'kg</strong>. ';
         html+='Conta: <strong>'+coefStr+' × '+pc.lbm.toFixed(1)+' = '+prot+'g</strong>. ';
       }
     } else {
-      html+='Meta calculada a partir do seu peso (<strong>'+w.toFixed(1)+'kg</strong>): <strong>'+prot+'g</strong>. ';
+      html+='Meta calculada a partir do seu peso (<strong>'+nBR(w,1)+'kg</strong>): <strong>'+prot+'g</strong>. ';
     }
     html+='Com GLP-1 você come menos — por isso cada grama importa mais. Sem proteína suficiente, o corpo ';
     html+='usa <strong>músculo como energia</strong> durante o emagrecimento. Isso é sarcopenia — você perde firmeza, força e metabolismo.';
@@ -16545,7 +16550,7 @@ function renderConquistas(perdido){
   _ultimaConquista=ultima;
   el('msEl').style.display='flex';
   el('msIc').textContent=ultima.ic;
-  el('msMsg').textContent=perdido.toFixed(1)+' kg perdidos — '+ultima.msg.split('—')[1]||ultima.msg;
+  el('msMsg').textContent=nBR(perdido,1)+' kg perdidos — '+ultima.msg.split('—')[1]||ultima.msg;
   el('msSub').textContent=ultima.sub;
 }
 function abrirConquista(){
@@ -17746,12 +17751,12 @@ function addPeso(){
           alertaVel.style.display='block';
           alertaVel.style.background='rgba(239,68,68,.12)';
           alertaVel.style.borderColor='rgba(232,168,138,.28)';
-          alertaVel.innerHTML='🚨 <strong>Ritmo muito acelerado:</strong> '+perdido.toFixed(1)+'kg em 7 dias. Risco real de perda muscular. Aumente proteína hoje e inclua exercício de força essa semana.';
+          alertaVel.innerHTML='🚨 <strong>Ritmo muito acelerado:</strong> '+nBR(perdido,1)+'kg em 7 dias. Risco real de perda muscular. Aumente proteína hoje e inclua exercício de força essa semana.';
         } else if(perdido>1.0){
           alertaVel.style.display='block';
           alertaVel.style.background='rgba(245,158,11,.1)';
           alertaVel.style.borderColor='rgba(245,158,11,.3)';
-          alertaVel.innerHTML='⚠️ <strong>Ritmo acelerado:</strong> '+perdido.toFixed(1)+'kg em 7 dias. Ótimo resultado! Garanta proteína na meta para preservar músculo.';
+          alertaVel.innerHTML='⚠️ <strong>Ritmo acelerado:</strong> '+nBR(perdido,1)+'kg em 7 dias. Ótimo resultado! Garanta proteína na meta para preservar músculo.';
         } else {
           alertaVel.style.display='none';
         }
@@ -19178,20 +19183,20 @@ function interpretarTendenciaPeso(){
   var msg = '';
   if(direcao === 'descendo'){
     if(ritmoSemanal >= 0.3 && ritmoSemanal <= 1.0){
-      msg = '✓ Tendência saudável: perda consistente de ' + ritmoSemanal.toFixed(1) + ' kg/semana nas últimas ' + Math.floor(diasJanela/7) + ' semanas. Ritmo dentro do recomendado.';
+      msg = '✓ Tendência saudável: perda consistente de ' + nBR(ritmoSemanal,1) + ' kg/semana nas últimas ' + Math.floor(diasJanela/7) + ' semanas. Ritmo dentro do recomendado.';
     } else if(ritmoSemanal > 1.0){
-      msg = '⚠️ Perda acelerada: ' + ritmoSemanal.toFixed(1) + ' kg/semana. Atenção à proteína para preservar músculo.';
+      msg = '⚠️ Perda acelerada: ' + nBR(ritmoSemanal,1) + ' kg/semana. Atenção à proteína para preservar músculo.';
     } else {
-      msg = 'Perda lenta: ' + ritmoSemanal.toFixed(2) + ' kg/semana. Pode ser fase de adaptação ou retenção temporária.';
+      msg = 'Perda lenta: ' + nBR(ritmoSemanal,2) + ' kg/semana. Pode ser fase de adaptação ou retenção temporária.';
     }
   } else if(direcao === 'estável'){
     msg = '↔ Peso estável nas últimas ' + Math.floor(diasJanela/7) + ' semanas. Pode ser platô temporário ou fase do ciclo.';
   } else {
-    msg = '↑ Tendência de subida (' + Math.abs(ritmoSemanal).toFixed(1) + ' kg/semana). Pode ser retenção, fase do ciclo, ou hora de revisar alimentação.';
+    msg = '↑ Tendência de subida (' + nBR(Math.abs(ritmoSemanal),1) + ' kg/semana). Pode ser retenção, fase do ciclo, ou hora de revisar alimentação.';
   }
 
   if(totalPerdido > 0.5){
-    msg += ' Total desde o início: −' + totalPerdido.toFixed(1) + ' kg.';
+    msg += ' Total desde o início: −' + nBR(totalPerdido,1) + ' kg.';
   }
 
   return msg;
@@ -22056,11 +22061,11 @@ function renderRelatorio(){
       var antes = pesoSemanaPrev[pesoSemanaPrev.length-1].weight;
       var diff = ult - antes;
       var sinal = diff < 0 ? '' : '+';
-      pesoTrend = sinal + diff.toFixed(1) + ' kg';
+      pesoTrend = sinal + nBR(diff,1) + ' kg';
       pesoTrendSub = 'vs. semana anterior';
       pesoTrendCls = diff < -0.05 ? 'pos' : (diff > 0.3 ? 'warn' : 'neutro');
     } else {
-      pesoTrend = ult.toFixed(1) + ' kg';
+      pesoTrend = nBR(ult,1) + ' kg';
       pesoTrendSub = 'Primeiro registro';
     }
   }
@@ -22167,7 +22172,7 @@ function renderRelatorio(){
     var pesoMax = Math.max.apply(null, pesoSemana.map(function(w){return w.weight;}));
     var oscil = pesoMax - pesoMin;
     if(oscil > 0){
-      padroes.push({tipo:'info', txt:'Peso variou <strong>'+oscil.toFixed(1)+' kg</strong> dentro da semana ('+pesoSemana.length+' pesagens). Oscilação diária é <strong>normal</strong> — o que importa é a tendência.'});
+      padroes.push({tipo:'info', txt:'Peso variou <strong>'+nBR(oscil,1)+' kg</strong> dentro da semana ('+pesoSemana.length+' pesagens). Oscilação diária é <strong>normal</strong> — o que importa é a tendência.'});
     }
   }
 
@@ -22205,7 +22210,7 @@ function renderRelatorio(){
       var sinalVar = variacao < 0 ? '' : '+';
       var corVar = variacao < -0.05 ? '#4ade80' : (variacao > 0.3 ? '#f3a88a' : 'rgba(255,255,255,.7)');
       elRelPesoSem.innerHTML = pesoSemana.length + ' pesagens · '
-        + '<span style="color:'+corVar+';font-weight:700">' + sinalVar + variacao.toFixed(1) + ' kg</span>'
+        + '<span style="color:'+corVar+';font-weight:700">' + sinalVar + nBR(variacao,1) + ' kg</span>'
         + ' do início ao fim da semana';
     } else if(pesoSemana.length === 1){
       elRelPesoSem.textContent = '1 pesagem essa semana — pese mais de 1 vez para ver tendência';
@@ -22250,7 +22255,7 @@ function renderRelatorio(){
           maintainAspectRatio: false,
           plugins: {
             legend: {display: false},
-            tooltip: {callbacks: {label: function(c){return c.parsed.y.toFixed(1)+' kg';}}}
+            tooltip: {callbacks: {label: function(c){return nBR(c.parsed.y,1)+' kg';}}}
           },
           scales: {
             x: {grid: {color: 'rgba(255,255,255,.04)'}, ticks: {color: 'rgba(255,255,255,.5)', font: {size: 10}}},
