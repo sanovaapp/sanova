@@ -21,9 +21,35 @@ name: Turno Autonomo (Claude)
 # fazendo uma tarefa RASA. A 3/3h isso da ~US$ 92/mes; a 6/6h, ~US$ 46. Trocar
 # o intervalo e uma linha — se o turno autonomo provar que entrega, sobe.
 
+# ─── CRON DESLIGADO EM 14/08/2026 ────────────────────────────────────
+#
+# Decisao do Bruno, e ela esta certa. O balanco de uma semana rodando:
+#
+#   - produziu 1 PR (a #257), que ficou 4 dias parada sem ninguem avaliar
+#   - morreu em silencio e falhou 8 vezes seguidas sem nada avisar
+#   - custava ~US$46/mes pra isso
+#
+# O erro de premissa foi meu: montei o robo supondo que o gargalo era falta
+# de horas de programacao. Nao era. O gargalo e a Play Store, e nela o robo
+# nao toca — exige login pessoal do Bruno.
+#
+# Robo que trabalha enquanto ninguem revisa nao acelera nada: so acumula PR
+# nao lida. Com o Bruno acompanhando de perto, a sessao interativa entrega
+# mais e custa menos.
+#
+# O QUE FICA LIGADO, e por que vale:
+#   claude-mencao.yml — "@claude ..." em issue ou PR. Custa ZERO parado, e
+#                       deixa ele mandar servico do celular.
+#   worker.yml        — a fila de vigilancia. Nao usa modelo nenhum, so
+#                       minutos de Action. Foi ela que pegou a versao no ar
+#                       divergindo e os secrets faltando.
+#
+# PRA RELIGAR: descomentar as duas linhas abaixo. Vale a pena quando houver
+# fila de trabalho bem especificado E o Bruno estiver longe por dias.
+
 on:
-  schedule:
-    - cron: '47 */6 * * *'
+  # schedule:
+  #   - cron: '47 */6 * * *'
   workflow_dispatch:
     inputs:
       foco:
