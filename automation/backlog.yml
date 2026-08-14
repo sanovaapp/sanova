@@ -75,7 +75,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-13T22:00:35.806Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -86,7 +86,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-08-13T22:00:35.806Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -96,7 +96,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-08-13T22:00:35.806Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: HTTP 200
 
   # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
@@ -176,7 +176,7 @@ tasks:
     repeat: true
     params:
       name: TWA_UPLOAD_KEY_PWD
-    last_run: 2026-08-13T19:17:43.950Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: secret TWA_UPLOAD_KEY_PWD ainda nao existe no repo
 
   # ─── Diagnostico de schema ─────────────────────────────────────────
@@ -191,7 +191,7 @@ tasks:
     repeat: true
     params:
       table: alert_events
-    last_run: 2026-08-13T19:17:43.950Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: '"alert_events" existe'
 
   - id: schema-alert-prefs
@@ -201,7 +201,7 @@ tasks:
     repeat: true
     params:
       table: professional_alert_prefs
-    last_run: 2026-08-13T19:17:43.950Z
+    last_run: 2026-08-14T04:59:11.320Z
     last_result: '"professional_alert_prefs" existe'
 
   # ─── Tarefas de uma vez so ─────────────────────────────────────────
