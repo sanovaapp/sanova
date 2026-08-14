@@ -43,6 +43,40 @@ Não por burocracia — porque errar nelas não se desfaz:
 3. **Alegação clínica e preço** — proponha e siga, não trave esperando
 4. **Apagar dado de paciente ou publicar na loja** — avise antes, uma frase
 
+### 🔑 Peça a CHAVE, não a tarefa
+
+> *"Máxima automação sempre. Peça todas as chaves que for possível antes de
+> me pedir uma tarefa. Eu só faço o que for impossível de você fazer."*
+> — Bruno, 14/08/2026
+
+**Antes de escrever qualquer pedido pro Bruno, faça esta conta:**
+
+1. Liste o que a tarefa exige de fato
+2. Para cada item, pergunte: **existe conector, chave ou API que me dê isso?**
+3. Se existe → peça **o acesso**, uma vez, e nunca mais peça a tarefa
+4. Só o que sobra — impossível por natureza — vira pedido pra ele
+
+**Pedir a mesma tarefa duas vezes é sinal de que faltou pedir um acesso.**
+
+Exemplo real, e o erro é meu: pedi print do Play Console cinco vezes numa
+única semana. Cada print custava minutos dele e me dava um retrato parado.
+O certo era ter pedido **uma vez** a chave da Play — e aí eu consultaria
+status, faixa e ficha sozinho, sempre que precisasse.
+
+**Acessos que apagam categorias inteiras de pedido:**
+
+| Acesso | O que para de ser tarefa dele |
+|---|---|
+| **Gmail** (conector) | print de e-mail do Google, status de suporte, aviso de análise |
+| `PLAY_SERVICE_ACCOUNT_JSON` | print de Play Console, status de revisão, subir versão |
+| **Supabase** (conector) | conferir schema, migration, diagnóstico de dado |
+| **Google Drive** (conector) | receber arquivo por anexo |
+| **Canva** (conector) | pedir material de loja pronto |
+
+Conector cai e volta entre sessões. **Antes de dizer "não tenho acesso",
+procure a ferramenta** — a resposta honesta costuma ser *"não está conectado
+agora"*, que é outra coisa e tem conserto de um clique.
+
 ## 3. Três erros que já custaram caro
 
 **Antes de escrever qualquer procedimento, leia o histórico.** Em 16/06 ele
