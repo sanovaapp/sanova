@@ -77,7 +77,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-14T21:37:45.122Z
+    last_run: 2026-08-14T23:10:09.009Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -88,7 +88,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-08-14T21:37:45.122Z
+    last_run: 2026-08-14T23:10:09.009Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -98,7 +98,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-08-14T21:37:45.122Z
+    last_run: 2026-08-14T23:10:09.009Z
     last_result: HTTP 200
 
   # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
@@ -144,7 +144,7 @@ tasks:
     repeat: true
     params:
       name: SUPABASE_MGMT_TOKEN
-    last_run: 2026-08-14T19:11:31.723Z
+    last_run: 2026-08-14T23:10:09.009Z
     last_result: secret SUPABASE_MGMT_TOKEN presente (44 caracteres)
 
   # A assinatura do app. Nasceu em junho dentro do ZIP do PWABuilder; se ela
@@ -154,22 +154,22 @@ tasks:
   - id: secret-keystore-play
     title: TWA_UPLOAD_KEYSTORE_B64 existe (assinatura do app; sem ela o Play recusa)
     type: secret_present
-    status: failed
+    status: done
     repeat: true
     params:
       name: TWA_UPLOAD_KEYSTORE_B64
-    last_run: 2026-08-14T19:11:31.723Z
-    last_result: secret TWA_UPLOAD_KEYSTORE_B64 ainda nao existe no repo
+    last_run: 2026-08-14T23:10:09.009Z
+    last_result: secret TWA_UPLOAD_KEYSTORE_B64 presente (3696 caracteres)
 
   - id: secret-keystore-store-pwd
     title: TWA_UPLOAD_STORE_PWD existe (senha do arquivo de assinatura)
     type: secret_present
-    status: failed
+    status: done
     repeat: true
     params:
       name: TWA_UPLOAD_STORE_PWD
-    last_run: 2026-08-14T19:11:31.723Z
-    last_result: secret TWA_UPLOAD_STORE_PWD ainda nao existe no repo
+    last_run: 2026-08-14T23:10:09.009Z
+    last_result: secret TWA_UPLOAD_STORE_PWD presente (12 caracteres)
 
   - id: secret-keystore-key-pwd
     title: TWA_UPLOAD_KEY_PWD existe (senha da chave dentro do arquivo)
