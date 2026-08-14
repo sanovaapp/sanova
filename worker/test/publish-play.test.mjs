@@ -64,3 +64,27 @@ test('as senhas vao por variavel de ambiente, senao o build trava perguntando', 
   assert.match(WF, /BUBBLEWRAP_KEYSTORE_PASSWORD/);
   assert.match(WF, /BUBBLEWRAP_KEY_PASSWORD/);
 });
+
+test('BUG 4: minSdkVersion nao pode ser menor que 21', () => {
+  // O segundo disparo morreu no merge de manifesto:
+  //   "minSdkVersion 19 cannot be smaller than version 21 declared in library
+  //    [com.google.androidbrowserhelper:2.6.2]"
+  // Essa biblioteca e o que faz o TWA funcionar — nao da pra trocar nem baixar
+  // a versao dela. 19 simplesmente nao compila.
+  //
+  // Vale pros DOIS workflows que montam AAB: se so um subir, o outro volta a
+  // quebrar quando alguem usar.
+  const arquivos = ['publish-play.yml', 'build-twa-aab.yml'];
+  for (const nome of arquivos) {
+    const txt = readFileSync(
+      new URL(`../../.github/workflows/${nome}`, import.meta.url),
+      'utf8',
+    );
+    const m = txt.match(/"minSdkVersion":\s*(\d+)/);
+    assert.ok(m, `${nome}: minSdkVersion sumiu do manifesto`);
+    assert.ok(
+      Number(m[1]) >= 21,
+      `${nome}: minSdkVersion ${m[1]} — a androidbrowserhelper exige 21`,
+    );
+  }
+});

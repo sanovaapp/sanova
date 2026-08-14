@@ -133,7 +133,7 @@ jobs:
             "isChromeOSOnly": false,
             "isMetaQuest": false,
             "fullScopeUrl": "https://sanova.app.br/",
-            "minSdkVersion": 19,
+            "minSdkVersion": 21,
             "orientation": "portrait",
             "fingerprints": []
           }
