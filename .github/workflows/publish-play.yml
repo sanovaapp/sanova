@@ -126,6 +126,10 @@ jobs:
             echo "${{ secrets.TWA_UPLOAD_KEYSTORE_B64 }}" | base64 -d > android.keystore
             STORE_PWD="${{ secrets.TWA_UPLOAD_STORE_PWD }}"
             KEY_PWD="${{ secrets.TWA_UPLOAD_KEY_PWD }}"
+            # A keystore de junho veio do PWABuilder, e o alias dela e
+            # `my-key-alias` — nao `android`, que era o chute do workflow. Com o
+            # alias errado o keytool nao acha a chave e a assinatura falha.
+            KEY_ALIAS="my-key-alias"
             echo "USING_FIXED_KEYSTORE=true" >> $GITHUB_ENV
           else
             echo "[keystore] AVISO: secret TWA_UPLOAD_KEYSTORE_B64 ausente."
@@ -134,29 +138,49 @@ jobs:
             echo "[keystore] Bruno precisa criar uma keystore fixa e cravar como secret."
             STORE_PWD=$(openssl rand -base64 24 | tr -d '/+=')
             KEY_PWD=$(openssl rand -base64 24 | tr -d '/+=')
+            KEY_ALIAS="android"
             keytool -genkeypair \
               -keystore android.keystore \
               -storepass "$STORE_PWD" -keypass "$KEY_PWD" \
-              -alias android -keyalg RSA -keysize 2048 -validity 36500 \
+              -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 36500 \
               -dname "CN=Sanova, OU=Sanova, O=MEDFAST, L=BeloHorizonte, ST=MG, C=BR"
             echo "USING_FIXED_KEYSTORE=false" >> $GITHUB_ENV
           fi
 
           echo "STORE_PWD=$STORE_PWD" >> $GITHUB_ENV
           echo "KEY_PWD=$KEY_PWD" >> $GITHUB_ENV
-          FP=$(keytool -list -v -keystore android.keystore -alias android -storepass "$STORE_PWD" \
+          echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+
+          # Se o alias estiver errado o keytool devolve vazio aqui. Antes isso
+          # passava batido e o erro so aparecia la na frente, disfarcado.
+          FP=$(keytool -list -v -keystore android.keystore -alias "$KEY_ALIAS" -storepass "$STORE_PWD" \
             | grep "SHA256:" | head -1 | sed 's/.*SHA256: //' | tr -d ' \t\r\n')
+          if [ -z "$FP" ]; then
+            echo "::error::nao consegui ler a SHA-256 da keystore com o alias '$KEY_ALIAS'"
+            exit 1
+          fi
           echo "[keystore] SHA-256 desta build: $FP"
           echo "SHA256_FP=$FP" >> $GITHUB_ENV
 
-      - name: Bubblewrap init + build
+      - name: Bubblewrap update + build
         env:
           STORE_PWD: ${{ env.STORE_PWD }}
           KEY_PWD: ${{ env.KEY_PWD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
           APP_VERSION_CODE: ${{ env.APP_VERSION_CODE }}
           SANOVA_VERSION: ${{ env.SANOVA_VERSION }}
+          # O Bubblewrap le as senhas destas variaveis quando roda sem
+          # terminal interativo. Sem elas ele PERGUNTA, e num runner ninguem
+          # responde — o build morre esperando entrada.
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ env.STORE_PWD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ env.KEY_PWD }}
         run: |
-          set -e
+          # pipefail e o conserto do bug que fez esta etapa mentir: com
+          # `cmd | tee log`, o `set -e` olha o codigo do TEE, nao do cmd. O
+          # bubblewrap falhava, o tee dava certo, e a etapa ficava verde em 12
+          # segundos sem gerar AAB nenhum. O erro so aparecia na etapa seguinte,
+          # como "arquivo nao encontrado" — sintoma longe da causa.
+          set -eo pipefail
           cd twa-build
 
           npm install -g @bubblewrap/cli@latest
@@ -191,7 +215,7 @@ jobs:
             },
             "signingKey": {
               "path": "./android.keystore",
-              "alias": "android"
+              "alias": "${KEY_ALIAS}"
             },
             "alphaDependencies": { "enabled": false },
             "enableSiteSettingsShortcut": true,
@@ -212,11 +236,20 @@ jobs:
           }
           EOF
 
+          # `update` gera o projeto Android a partir do twa-manifest.json. Ele
+          # FALTAVA — o workflow escrevia o manifesto e chamava `build` direto,
+          # sem projeto nenhum pra construir. Por isso o build "terminava" em
+          # segundos sem produzir AAB. A etapa se chamava "init + build" e nao
+          # rodava nem um nem outro.
+          echo "[bubblewrap] gerando o projeto Android a partir do manifesto"
+          bubblewrap update --skipVersionUpgrade --manifest=./twa-manifest.json 2>&1 | tee update.log
+
+          echo "[bubblewrap] construindo o AAB"
           bubblewrap build \
             --skipPwaValidation \
+            --manifest=./twa-manifest.json \
             --signingKeyPath=./android.keystore \
-            --signingKeyAlias=android 2>&1 | tee build.log \
-            || (echo "build falhou"; tail -80 build.log; exit 1)
+            --signingKeyAlias="$KEY_ALIAS" 2>&1 | tee build.log
 
       - name: Localiza AAB gerado
         id: locate
