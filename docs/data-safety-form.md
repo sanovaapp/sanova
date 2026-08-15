@@ -1,24 +1,30 @@
 # 🌿 Data Safety Form — respostas pré-preenchidas (Play Console)
 
-> ## 🔴 Pendente: a declaração no Play Console está desatualizada
+> ## 🟡 Corrigido no painel em 15/08 — falta enviar para revisão
 >
-> O formulário foi respondido e marcado como concluído em julho. Depois
-> disso, a **v3.10.63** passou a enviar registros de falha pro PostHog, e a
-> seção **4b** deste arquivo — *Informações e desempenho do app* — nunca foi
-> declarada no painel.
+> **O que eu disse que estava errado, e não estava:** afirmei que a categoria
+> *Informações e desempenho do app* nunca tinha sido declarada. **Ela estava
+> declarada**, com *Registros de falhas* e *Diagnóstico* marcados. Eu li a
+> ausência da seção **neste arquivo** e concluí ausência **no painel** — que
+> é a mesma troca de fonte que já tinha me derrubado nos 14 dias, no mesmo
+> dia. Documento não é tela.
 >
-> **Por que isso é sério:** declaração de Segurança dos dados incompleta é
-> uma das causas mais comuns de recusa, e para app de saúde o Google confere
-> com lupa. Se aparecesse depois dos 14 dias de teste fechado, custaria o
-> ciclo inteiro.
+> **O que estava mesmo errado:** a obrigatoriedade. Os dois tipos constavam
+> como *"A coleta de dados é obrigatória: os usuários não podem desativá-la"*,
+> e o app **permite desativar** (Mais → Privacidade, conferido antes de cada
+> envio em `Sanova.reportarErro`). Declarar que o paciente não pode desligar
+> algo que ele pode desligar é declaração falsa — corrigido para
+> *"Os usuários podem escolher se os dados são coletados"* nos dois.
 >
-> **O que fazer:** Play Console → Políticas e programas → Conteúdo do app →
-> Segurança dos dados → editar → marcar *Registros de falhas* e
-> *Diagnósticos* conforme a seção 4b. É formulário, não decisão clínica.
+> **🔴 Pendente, 2 cliques:** a alteração está **salva mas não enviada**. O
+> painel avisou: *"A mudança foi salva. Acesse 'Visão geral da publicação'
+> para enviar a atualização para revisão."* Enquanto não for enviada, o que
+> vale para o Google continua sendo a versão antiga.
+> Caminho: **Visão geral da publicação → Enviar alterações para revisão**.
 >
-> **Regra que sai daí:** mudança no app que abra categoria nova de coleta
-> exige revisitar esta declaração **antes** de subir a versão. Trocar o que
-> o app manda sem trocar o que o app declara é criar dívida invisível.
+> **Regra que sai daí:** mudança no app que mexa em coleta exige revisitar
+> esta declaração **antes** de subir a versão — e revisitar significa **abrir
+> o painel**, não reler este arquivo.
 
 > T70 pré-staging. Respostas prontas pro formulário "Segurança dos dados"
 > do Play Console, baseadas na arquitetura real do app (auditada 29/07,
@@ -74,19 +80,23 @@
   mascaramento de inputs, opt-out disponível em Mais → Privacidade).
   Finalidade: analytics. Compartilhado: NÃO (PostHog é operador/processor).
 
-### 4b. Informações e desempenho do app ⚠️ **FALTOU NA DECLARAÇÃO ORIGINAL**
+### 4b. Informações e desempenho do app
 
-> Esta seção não existia quando o formulário foi respondido (29/07). Ela
-> passou a ser necessária na **v3.10.63**, quando o app começou a enviar
-> exceções pro PostHog (`Sanova.reportarErro` → `posthog.captureException`,
-> PR #262). **A declaração no Play Console está desatualizada em relação ao
-> app que está hoje na faixa de teste fechado.**
+> Esta seção não existia neste arquivo até 15/08 — **mas os dois tipos já
+> estavam marcados no painel**. O que estava divergente era a obrigatoriedade
+> (ver aviso no topo). Escrito aqui para que a próxima conferência compare
+> campo a campo em vez de presumir.
+>
+> Aplica-se desde a **v3.10.63**, quando o app começou a enviar exceções pro
+> PostHog (`Sanova.reportarErro` → `posthog.captureException`, PR #262).
 
 - **Registros de falhas**: SIM — coleta. O app captura exceção de JavaScript
   e promise rejeitada sem tratamento, e envia ao PostHog (host EU).
   Finalidade: **análise de apps** (diagnóstico de defeito).
   Compartilhado: NÃO (PostHog é operador/*processor*).
-  Opcional: **SIM** — respeita o mesmo opt-out do analytics
+  Opcional: **SIM** — texto exato no painel: *"Os usuários podem escolher se
+  os dados são coletados"*. Estava marcado como obrigatório até 15/08.
+  Respeita o mesmo opt-out do analytics
   (Mais → Privacidade), conferido antes de cada envio.
   Processado efemeramente: NÃO.
 

@@ -83,9 +83,16 @@ produção* está desabilitado, e os dois requisitos abertos são
 **O relógio dos 14 dias não começou** — ele só começa quando as 12 pessoas
 aceitarem. É a tarefa mais lenta da fila e a única sem atalho.
 
-**A faixa já está armada.** A v3.10.63 (109) está no teste fechado com status
-`completed`, não rascunho — instalável no minuto em que alguém aceitar o
-convite. Não falta mais nada do lado técnico: falta gente.
+**A faixa está armada, com uma correção.** Eu disse que a v3.10.63 (109)
+estava instalável — o painel mostra **"Em análise"**. O que está disponível
+para testadores hoje é a versão `1 (1.0.0.0)`, lançada em 14/08 18:20. Basta:
+o requisito *"Publique uma versão de teste fechado"* aparece **concluído**, e
+a 109 entra sozinha quando a revisão sair.
+
+**Link de participação** (só funciona para quem estiver na lista de e-mails):
+`https://play.google.com/apps/testing/br.app.sanova`
+
+Não falta mais nada do lado técnico. Falta gente.
 
 > ⛔ Este arquivo e outros três diziam que **conta de organização é isenta**
 > desses 14 dias. Estava errado — ver `DECISOES.md`, seção 6c.
