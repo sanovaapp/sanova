@@ -255,15 +255,36 @@ jobs:
       - name: Localiza AAB gerado
         id: locate
         run: |
-          set -e
-          AAB_PATH=$(find twa-build -name "*.aab" -type f | head -1)
+          set -eo pipefail
+          # O Bubblewrap gera DOIS .aab e so um serve:
+          #   twa-build/app/build/outputs/bundle/release/app-release.aab  <- cru do Gradle, SEM assinatura
+          #   twa-build/app-release-bundle.aab                            <- assinado pelo Bubblewrap
+          # `find | head -1` pegava o de cima e o Google devolvia
+          # "All uploaded bundles must be signed". Agora escolhe pelo nome.
+          echo "[aab] candidatos encontrados:"
+          find twa-build -name "*.aab" -type f -printf '  %p\n' | sort
+
+          AAB_PATH=""
+          for c in twa-build/app-release-bundle.aab \
+                   twa-build/app/build/outputs/bundle/release/app-release-bundle.aab; do
+            [ -f "$c" ] && AAB_PATH="$c" && break
+          done
           if [ -z "$AAB_PATH" ]; then
-            echo "[FAIL] AAB nao encontrado"
-            find twa-build -type f -name "*.aab" -o -name "*.apk" | head -20
+            echo "::error::AAB assinado nao encontrado. O Bubblewrap gera app-release-bundle.aab; so apareceu o cru do Gradle."
             exit 1
           fi
+          echo "[aab] escolhido: $AAB_PATH"
           cp "$AAB_PATH" sanova-twa.aab
           ls -lh sanova-twa.aab
+
+          # Confere a assinatura AQUI, nao la no Google. Sem isso, um bundle cru
+          # viaja 8 segundos de upload pra ser recusado do outro lado.
+          if ! jarsigner -verify sanova-twa.aab > jarsigner.log 2>&1; then
+            echo "::error::sanova-twa.aab NAO esta assinado — o Play recusaria. Saida do jarsigner abaixo."
+            tail -20 jarsigner.log
+            exit 1
+          fi
+          echo "[aab] assinatura conferida com jarsigner"
           echo "aab_path=sanova-twa.aab" >> $GITHUB_OUTPUT
 
       - name: Upload AAB como artifact (fallback pra download manual)
@@ -299,9 +320,14 @@ jobs:
 
       - name: Confere secret PLAY_SERVICE_ACCOUNT_JSON antes de tentar upload
         id: guard
+        env:
+          # Interpolar o secret direto no `[ -z "..." ]` quebrava: o JSON tem
+          # aspas dentro, o bash reabria a string e reclamava "too many
+          # arguments". Por variavel de ambiente o valor chega inteiro.
+          SA_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           set -e
-          if [ -z "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then
+          if [ -z "$SA_JSON" ]; then
             echo "::warning::PLAY_SERVICE_ACCOUNT_JSON ausente — publish bloqueado. AAB ficou disponivel como artifact."
             echo "publish_ok=false" >> $GITHUB_OUTPUT
           else
