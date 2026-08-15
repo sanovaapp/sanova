@@ -73,14 +73,16 @@ cravado.*
 
 ### Play Store
 
-- [ ] **Monitor da transferência do app**
-      POR QUE: hoje só se descobre se a transferência pra conta MEDFAST saiu
-      abrindo o painel do Google. Isso é vigilância recorrente — pertence ao
-      robô, não ao Bruno.
-      PRONTO QUANDO: existe tarefa no `backlog.yml` que consulta a Google
-      Play Developer API e reporta só quando o estado muda.
-      BLOQUEADO POR: o secret `PLAY_SERVICE_ACCOUNT_JSON` não existe. Não há
-      caminho alternativo — o estado da transferência não é público.
+- [x] ~~**Monitor da transferência do app**~~ — sem objeto. A transferência
+      saiu em 10/08 e o `publish-play.yml` já fala com a Play API direto.
+
+- [ ] **Vigilância do estado da revisão**
+      POR QUE: hoje só se descobre se o Google aprovou abrindo o painel. Isso
+      é vigilância recorrente — pertence ao robô, não ao Bruno.
+      PRONTO QUANDO: existe tarefa no `backlog.yml` que consulta a Play
+      Developer API e reporta **só quando o estado muda**.
+      DESBLOQUEADO: `PLAY_SERVICE_ACCOUNT_JSON` existe e funciona desde
+      15/08. A mesma máquina de token do `publish-play.yml` serve aqui.
 
 ### Produto
 

@@ -6,7 +6,7 @@ Escrito em português simples de propósito — o dono deste checklist é o Brun
 que é médico, não programador. Se alguma linha aqui só faz sentido pra
 engenheiro, ela está mal escrita e deve ser reescrita.
 
-*Atualizado em 07/08/2026.*
+*Atualizado em 15/08/2026.*
 
 ---
 
@@ -17,7 +17,10 @@ de qualquer celular. O que falta é estar **na Play Store**.
 
 Ele já foi enviado uma vez, em 18/07, e foi **recusado** — não por qualidade,
 mas por tipo de conta: a política do Google exige conta de organização para
-app de saúde. Por isso a mudança pra conta **MEDFAST**.
+app de saúde. Por isso a mudança pra conta **MEDFAST**, concluída em 10/08.
+
+Desde 15/08 a **esteira de publicação está pronta e testada**: o robô monta o
+app, assina, e sobe no Play Console sozinho. O que resta é o Google analisar.
 
 ## 🎁 A boa notícia que muda o prazo
 
@@ -33,46 +36,41 @@ semanas do cronograma**. Quando a revisão aprovar, publica direto.
 
 ---
 
-## Etapa 1 — Destravar a esteira
+## Etapa 1 — Destravar a esteira ✅ **concluída em 15/08**
 
-*Isto pode acontecer hoje, sem esperar o Google.*
+*A esteira está de pé. O robô sobe versão sozinho.*
 
-### 1.1 — A chave da Play Store 🔴 **maior alavanca da fila inteira**
+### 1.1 — A chave da Play Store ✅
 
-Sem ela, tudo que envolve a loja é clique manual seu. Com ela, o robô sobe
-versão sozinho.
-
-- [ ] **Bruno** — 4 minutos, 3 telas. Caminho em
-      [`docs/prompt-chrome-service-account.md`](docs/prompt-chrome-service-account.md)
+Feito. A conta de serviço `play-deploy@` está convidada no Play Console da
+conta org e o secret `PLAY_SERVICE_ACCOUNT_JSON` está no cofre.
 
 > ⚠️ **Não procure "Acesso à API"** no menu do Play Console. Essa tela deixou
 > de ser o caminho. Vá em **Usuários e permissões** e convide o e-mail da
 > conta de serviço como convidaria uma pessoa. Foi isso que custou uma hora
 > em 16/06.
 
-### 1.2 — Achar o arquivo de assinatura de junho 🔴 **e este é urgente**
+> ⚠️ Permissão recém-marcada **leva horas pra valer na API**. Um 403 logo
+> depois de marcar é propagação, não erro de configuração. Esperar e disparar
+> de novo resolve — não mexa em nada.
 
-Todo app na Play tem uma "assinatura" — um arquivo que prova que a versão
-nova veio de quem fez a versão velha. **Se a assinatura não bater, o Google
-recusa o envio.**
+### 1.2 — A assinatura de junho ✅
 
-A assinatura do Sanova nasceu em junho, dentro do pacote que o PWABuilder
-gerou (`Sanova_-_Google_Play_package.zip`). Dentro dele há um arquivo
-`signing.keystore` e outro com as duas senhas.
+O ZIP do PWABuilder foi achado. As três peças estão no cofre
+(`TWA_UPLOAD_KEYSTORE_B64`, `TWA_UPLOAD_STORE_PWD`, `TWA_UPLOAD_KEY_PWD`) e a
+impressão digital bate com o `assetlinks.json` publicado.
 
-- [ ] **Bruno** — localizar esse ZIP (celular, Downloads, e-mail, nuvem)
+### 1.3 — Testar a esteira antes de precisar dela ✅
 
-**Se o ZIP existir**, três coisas vão pro cofre e a esteira fica completa:
-`TWA_UPLOAD_KEYSTORE_B64`, `TWA_UPLOAD_STORE_PWD`, `TWA_UPLOAD_KEY_PWD`.
+Testado de verdade, não no papel: rodada 7 do `publish-play.yml` subiu a
+v3.10.63 na faixa de teste interno e o Google devolveu `COMMITED_EDIT_ID`.
 
-**Se o ZIP tiver sumido**, não é o fim — o Google permite pedir a troca da
-chave de envio. Mas leva alguns dias e é um pedido manual. Por isso é
-urgente saber **agora**, não no dia da publicação.
+Cinco bugs no caminho, sete rodadas, nenhuma tarefa sua. O detalhe de cada um
+está no `DECISOES.md`, seção 6b.
 
-### 1.3 — Testar a esteira antes de precisar dela
-
-- [ ] **Robô** — assim que os secrets existirem, rodar o pipeline em modo
-      rascunho e confirmar que o Google aceita a autenticação
+**Como subir uma versão nova, daqui em diante:** Actions → *Publish TWA to
+Google Play* → *Run workflow* → escolher faixa e status. O número da versão o
+próprio Google informa; ninguém digita nada.
 
 ---
 
