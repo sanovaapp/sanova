@@ -335,9 +335,12 @@ Console e pela thread de suporte `[0-6994000041877]`).
 
 **Por que a conta mudou:** o envio de 18/07 foi recusado — não por qualidade,
 mas por tipo de conta. A política do Google exige **conta de organização**
-para app de saúde. Efeito colateral bom: conta de organização é **isenta** da
-exigência de 12 testadores por 14 dias. A mudança apaga duas semanas do
-cronograma.
+para app de saúde.
+
+> ⛔ **Correção de 15/08:** este parágrafo dizia que conta de organização é
+> isenta dos 12 testadores por 14 dias. **Não é.** Com a conta org ativa, o
+> painel mostra os dois requisitos abertos e o botão de produção desabilitado.
+> Ver `LANCAMENTO.md`, Etapa 2.
 
 **O que falta:** os 3 passos da issue **#248** (gerar chave no Google Cloud →
 convidar a service account no Play Console → colar o secret no GitHub). Todos

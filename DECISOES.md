@@ -189,6 +189,24 @@ Uma etapa de 40 linhas que chamava a API na mão devolveu HTTP 200: a permissão
 só estava propagando. **Construir o diagnóstico custou uma rodada; chutar
 custaria três e uma tarefa dele por chute.**
 
+## 6c. A tela vence a documentação — 15/08/2026
+
+Quatro documentos deste repositório afirmavam que **conta de organização é
+isenta** dos 12 testadores por 14 dias. A afirmação vinha da documentação
+pública do Google, que fala em *"contas pessoais criadas depois de
+13/11/2023"*.
+
+O painel do Play Console, lido na tela com a conta org já ativa, mostra os
+dois requisitos **abertos** e o botão *Solicitar a produção* **desabilitado**.
+
+Não interessa qual das duas fontes "deveria" estar certa. **A que decide é a
+que tem o botão.** Custou uma expectativa de prazo errada carregada por
+semanas e repetida em quatro arquivos.
+
+Regra que sai daí, e ela generaliza: **afirmação sobre comportamento de
+plataforma externa só entra em documento depois de vista na tela.** Quando só
+houver a documentação, escreva que é a documentação que diz — não que é assim.
+
 ## 7. Como pensar antes de decidir — os 5 chapéus
 
 Nenhuma mudança é só técnica. Antes de cravar, passe pelos cinco, nesta

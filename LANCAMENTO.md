@@ -22,17 +22,30 @@ app de saúde. Por isso a mudança pra conta **MEDFAST**, concluída em 10/08.
 Desde 15/08 a **esteira de publicação está pronta e testada**: o robô monta o
 app, assina, e sobe no Play Console sozinho. O que resta é o Google analisar.
 
-## 🎁 A boa notícia que muda o prazo
+## ⛔ Os 14 dias VALEM — corrigido em 15/08
 
-A conta pessoal do Google tem uma exigência pesada: **12 testadores usando o
-app por 14 dias seguidos** antes de poder publicar de verdade.
+**Este documento afirmava o contrário e estava errado.** Dizia que conta de
+organização é isenta dos 12 testadores por 14 dias, e que a mudança pra
+MEDFAST apagava duas semanas do cronograma.
 
-**Conta de organização é isenta disso.** A regra do Google diz, literalmente,
-que ela vale para *"desenvolvedores com contas pessoais criadas depois de 13
-de novembro de 2023"*.
+O painel do Play Console, lido na tela em 15/08, diz outra coisa. Na seção
+**Produção → Solicitar o acesso de produção**, com a conta de organização já
+ativa, os dois itens estão abertos:
 
-Ou seja: a mudança pra MEDFAST não só resolve a recusa — **ela apaga duas
-semanas do cronograma**. Quando a revisão aprovar, publica direto.
+> Tenha pelo menos 12 testadores que aceitaram participar do teste fechado
+> — *0 testador está participando no momento*
+>
+> Faça o teste fechado com no mínimo 12 testadores por pelo menos 14 dias
+
+E o botão **Solicitar a produção** está **desabilitado**.
+
+A regra da isenção existiu e foi lida na documentação. **A tela venceu a
+documentação** — e é exatamente por isso que o `DECISOES.md` manda conferir a
+tela antes de orientar. Custou uma expectativa de prazo errada.
+
+**O que isso muda de concreto:** o relógio dos 14 dias **não começou**, porque
+há **0 testadores**. Ele começa no dia em que 12 pessoas aceitarem o convite
+do teste fechado — não antes.
 
 ---
 
@@ -74,31 +87,55 @@ próprio Google informa; ninguém digita nada.
 
 ---
 
-## Etapa 2 — Publicar
+## Etapa 2 — O teste fechado ⬅ **é aqui que estamos**
 
-*Depende do Google concluir a transferência. Nada aqui é controlável por nós.*
+*Estado lido na tela em 15/08. Tudo conferido, nada deduzido.*
 
-### 2.1 — Conferir o que chegou na conta MEDFAST
+### O que já está pronto ✅
 
-A ficha da loja, as declarações e a versão enviada **migram junto**. Não
-migram: a lista de testadores e as permissões de conta de serviço.
+| item | estado |
+|---|---|
+| Conta | Organização, ativa |
+| Status da política | Sem problemas, na conta e no app |
+| Alterações em análise | Nenhuma — publicado em 14/08 |
+| Declarações obrigatórias | **10 de 10 concluídas** |
+| Ficha da loja | No ar, sem erro |
+| Teste fechado | 4 de 5 tarefas |
 
-- [ ] `br.app.sanova` aparece na conta org — *o monitor avisa sozinho*
-- [ ] Ficha intacta: título, descrições, imagens
-- [ ] Declarações de saúde e privacidade migradas
+As 10 declarações, todas fechadas: Apps de saúde · ID de publicidade ·
+Recursos financeiros · Apps governamentais · Segurança dos dados · Política
+de Privacidade · Anúncios · Detalhes do login · Classificações de conteúdo ·
+Público-alvo e conteúdo.
 
-### 2.2 — Reenviar pra revisão
+### 2.1 — Os 12 testadores 🔴 **o único bloqueio real**
 
-- [ ] **Bruno** — Painel de publicação → *Enviar alterações para revisão*
+- [ ] **Bruno** — 12 pessoas que aceitem o convite do teste fechado
 
-Nada precisa ser refeito. As mudanças enviadas em 18/07 continuam válidas; o
-que mudou foi o tipo de conta, que era justamente o motivo da recusa.
+Hoje são **0**. O relógio dos 14 dias começa quando elas aceitarem, e não
+antes. É a tarefa mais lenta da fila inteira e a única que não tem atalho.
 
-**Prazo esperado:** 1 a 7 dias. App de saúde costuma demorar mais.
+Vale qualquer pessoa com conta Google: colegas, familiares, equipe. Não
+precisa ser paciente — precisa aceitar o convite e manter o app instalado.
 
-### 2.3 — Aprovou
+### 2.2 — Os 14 dias
 
-- [ ] **Bruno** — publicar em produção *(direto, sem os 14 dias — conta org)*
+- [ ] **Ninguém** — é espera. O robô acompanha e avisa quando fechar.
+
+### 2.3 — Solicitar acesso de produção
+
+- [ ] **Bruno** — Painel → Produção → *Solicitar a produção*
+
+O botão está **cinza** hoje. Ele acende sozinho quando 2.1 e 2.2 fecharem.
+
+### 2.4 — Publicar
+
+- [ ] **Bruno** — a decisão de colocar na mão de paciente real é dele
+
+### 2.5 — Pendência menor, sem pressa
+
+- [ ] Capturas de tela de tablet de 7" e 10" — marcadas como obrigatórias na
+      ficha, mas **sem erro exibido** e sem bloquear nada hoje. Resolver antes
+      da produção, não antes do teste fechado.
 
 ---
 

@@ -265,10 +265,11 @@ apareceu na conta de destino.
 Falta também a `PLAY_SERVICE_ACCOUNT_JSON` — sem ela toda operação de loja é
 manual. Não bloqueia a primeira publicação, só a automação das próximas.
 
-> 🎁 **Descoberta que vale duas semanas:** conta de **organização é isenta**
-> da exigência de 12 testadores por 14 dias. A regra do Google vale só para
-> *"contas pessoais criadas depois de 13/11/2023"*. Se a conta de destino for
-> org de verdade, publica direto na aprovação.
+> ⛔ **Isto aqui estava errado — corrigido em 15/08.** Dizia que conta de
+> organização é isenta dos 12 testadores por 14 dias. Não é: o painel do Play
+> Console, com a conta org já ativa, mostra os dois requisitos abertos e o
+> botão *Solicitar a produção* desabilitado. A documentação dizia uma coisa,
+> a tela diz outra, **a tela vence**. Ver `LANCAMENTO.md`.
 
 ## Aberto, com o motivo
 
