@@ -1,5 +1,25 @@
 # 🌿 Data Safety Form — respostas pré-preenchidas (Play Console)
 
+> ## 🔴 Pendente: a declaração no Play Console está desatualizada
+>
+> O formulário foi respondido e marcado como concluído em julho. Depois
+> disso, a **v3.10.63** passou a enviar registros de falha pro PostHog, e a
+> seção **4b** deste arquivo — *Informações e desempenho do app* — nunca foi
+> declarada no painel.
+>
+> **Por que isso é sério:** declaração de Segurança dos dados incompleta é
+> uma das causas mais comuns de recusa, e para app de saúde o Google confere
+> com lupa. Se aparecesse depois dos 14 dias de teste fechado, custaria o
+> ciclo inteiro.
+>
+> **O que fazer:** Play Console → Políticas e programas → Conteúdo do app →
+> Segurança dos dados → editar → marcar *Registros de falhas* e
+> *Diagnósticos* conforme a seção 4b. É formulário, não decisão clínica.
+>
+> **Regra que sai daí:** mudança no app que abra categoria nova de coleta
+> exige revisitar esta declaração **antes** de subir a versão. Trocar o que
+> o app manda sem trocar o que o app declara é criar dívida invisível.
+
 > T70 pré-staging. Respostas prontas pro formulário "Segurança dos dados"
 > do Play Console, baseadas na arquitetura real do app (auditada 29/07,
 > PRs #222 #230 #235). Se o formulário do Google mudar de estrutura, as
@@ -53,6 +73,38 @@
 - **Interações no app**: SIM — coleta (analytics PostHog, host EU,
   mascaramento de inputs, opt-out disponível em Mais → Privacidade).
   Finalidade: analytics. Compartilhado: NÃO (PostHog é operador/processor).
+
+### 4b. Informações e desempenho do app ⚠️ **FALTOU NA DECLARAÇÃO ORIGINAL**
+
+> Esta seção não existia quando o formulário foi respondido (29/07). Ela
+> passou a ser necessária na **v3.10.63**, quando o app começou a enviar
+> exceções pro PostHog (`Sanova.reportarErro` → `posthog.captureException`,
+> PR #262). **A declaração no Play Console está desatualizada em relação ao
+> app que está hoje na faixa de teste fechado.**
+
+- **Registros de falhas**: SIM — coleta. O app captura exceção de JavaScript
+  e promise rejeitada sem tratamento, e envia ao PostHog (host EU).
+  Finalidade: **análise de apps** (diagnóstico de defeito).
+  Compartilhado: NÃO (PostHog é operador/*processor*).
+  Opcional: **SIM** — respeita o mesmo opt-out do analytics
+  (Mais → Privacidade), conferido antes de cada envio.
+  Processado efemeramente: NÃO.
+
+  **O que sobe:** mensagem do erro, pilha, arquivo e linha, origem
+  (`window.error` ou `promise`), versão do app e a tela (hash da URL,
+  truncado em 40 caracteres).
+  **O que NÃO sobe, por construção:** o objeto de estado `S`, qualquer
+  trecho de `localStorage`, e o valor que causou o erro. Travado por teste.
+
+- **Diagnósticos**: SIM — coleta. O *session replay* do PostHog registra a
+  sessão com todos os inputs e textos mascarados
+  (`maskAllInputs: true`, `maskTextSelector: '*'`,
+  `blockSelector: '[data-ph-no-capture], input, textarea'`).
+  Declarado por precaução: a gravação carrega sinais de tempo e desempenho,
+  e no vocabulário do Google isso é *Diagnostics*. **Declarar a mais não
+  custa nada; declarar a menos é violação de política.**
+
+- **Outros dados de desempenho do app**: NÃO.
 
 ### 5. Identificadores
 - **ID de usuário**: SIM — coleta (UUID Supabase Auth). Finalidade:
