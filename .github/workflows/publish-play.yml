@@ -36,6 +36,7 @@ on:
         options:
           - internal
           - closed
+          - open
           - production
       release_status:
         description: 'Status do release'
@@ -390,7 +391,30 @@ jobs:
             TRACK="internal"
             STATUS="draft"
           fi
-          echo "track=$TRACK" >> $GITHUB_OUTPUT
+
+          # A lista suspensa fala a lingua do painel; a API fala outra. O
+          # painel diz "teste fechado" e "teste aberto"; a API so aceita
+          #   production, beta, alpha, internal
+          # Mandar "closed" derrubava o job com
+          #   Track(s) "closed" could not be found
+          # Nunca tinha aparecido porque toda rodada ate 15/08 usou internal.
+          case "$TRACK" in
+            closed)  API_TRACK="alpha" ;;
+            open)    API_TRACK="beta" ;;
+            *)       API_TRACK="$TRACK" ;;
+          esac
+
+          case "$API_TRACK" in
+            production|beta|alpha|internal) ;;
+            *)
+              echo "::error::track '$TRACK' nao existe na Play API. Validos: internal, closed (=alpha), open (=beta), production."
+              exit 1
+              ;;
+          esac
+
+          echo "[track] escolhido '$TRACK' → API '$API_TRACK', status '$STATUS'"
+          echo "track=$API_TRACK" >> $GITHUB_OUTPUT
+          echo "track_label=$TRACK" >> $GITHUB_OUTPUT
           echo "status=$STATUS" >> $GITHUB_OUTPUT
 
       - name: Nome do release

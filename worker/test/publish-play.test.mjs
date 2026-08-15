@@ -19,8 +19,25 @@ const WF = readFileSync(
   'utf8',
 );
 
+/**
+ * Recorta do inicio de uma etapa ate o inicio da proxima.
+ *
+ * Existe porque `WF.slice(indexOf(a), indexOf(b))` ja me enganou duas vezes:
+ * se `b` aparece ANTES de `a` no arquivo — e "Nome do release" aparece, como
+ * descricao de um campo do dispatch — a fatia sai vazia e o teste passa sem
+ * olhar nada. Aqui a busca do fim comeca depois do inicio, e fatia vazia e
+ * erro alto.
+ */
+function etapaEntre(inicio, fim) {
+  const a = WF.indexOf(inicio);
+  assert.ok(a >= 0, `etapa "${inicio}" sumiu do workflow`);
+  const b = WF.indexOf(fim, a + inicio.length);
+  assert.ok(b > a, `marcador de fim "${fim}" nao aparece depois de "${inicio}"`);
+  return WF.slice(a, b);
+}
+
 // Recorta a etapa de build, que e onde os tres bugs moravam.
-const etapa = WF.slice(WF.indexOf('Bubblewrap update + build'), WF.indexOf('Localiza AAB'));
+const etapa = etapaEntre('Bubblewrap update + build', 'Localiza AAB');
 
 test('a etapa de build existe com o nome do que ela faz', () => {
   // Chamava-se "init + build" e nao rodava nenhum dos dois. Nome que mente
@@ -55,7 +72,7 @@ test('BUG 3: o alias da chave nao pode ser cravado a mao', () => {
 
 test('a leitura da SHA-256 falha alto quando o alias esta errado', () => {
   // Antes devolvia vazio em silencio e o erro aparecia paginas depois.
-  const keystore = WF.slice(WF.indexOf('Restaura keystore'), WF.indexOf('Bubblewrap update'));
+  const keystore = etapaEntre('Restaura keystore', 'Bubblewrap update');
   assert.match(keystore, /if \[ -z "\$FP" \]/, 'falta o guarda de SHA-256 vazia');
   assert.match(keystore, /::error::/, 'o guarda tem que falhar o job, nao so avisar');
 });
@@ -72,7 +89,7 @@ test('BUG 5: o AAB escolhido tem que ser o assinado, nao o cru do Gradle', () =>
   // app/build/outputs/bundle/release/ e o assinado em app-release-bundle.aab.
   // `find | head -1` pegava o primeiro que a travessia devolvesse, e nao ha
   // ordem garantida: o mesmo workflow podia passar num dia e falhar no outro.
-  const localiza = WF.slice(WF.indexOf('Localiza AAB'), WF.indexOf('Upload AAB como artifact'));
+  const localiza = etapaEntre('Localiza AAB', 'Upload AAB como artifact');
   assert.ok(
     !/find\s+twa-build\s+-name\s+"\*\.aab".*\|\s*head\s+-1/.test(localiza),
     'o AAB nao pode ser escolhido por `find | head -1` — nao ha ordem garantida',
@@ -84,7 +101,7 @@ test('BUG 5: o AAB escolhido tem que ser o assinado, nao o cru do Gradle', () =>
 test('a assinatura e conferida antes do upload, nao depois', () => {
   // Sem isso o bundle cru viaja o upload inteiro pra ser recusado do outro
   // lado — e o erro chega como mensagem do Google, longe da causa.
-  const localiza = WF.slice(WF.indexOf('Localiza AAB'), WF.indexOf('Upload AAB como artifact'));
+  const localiza = etapaEntre('Localiza AAB', 'Upload AAB como artifact');
   assert.match(localiza, /jarsigner -verify/, 'falta `jarsigner -verify` antes do upload');
   assert.match(localiza, /::error::/, 'a conferencia tem que derrubar o job, nao so avisar');
 });
@@ -126,6 +143,38 @@ test('o 403 do Google e traduzido antes de virar tarefa pro Bruno', () => {
   assert.match(WF, /androidpublisher\.googleapis\.com/, 'o diagnostico tem que chamar a API de verdade');
   assert.match(WF, /SERVICE_DISABLED/, 'falta traduzir "API desligada"');
   assert.match(WF, /applicationNotFound/, 'falta traduzir "app nao esta nesta conta"');
+});
+
+test('BUG 6: o nome da faixa e traduzido pra lingua da Play API', () => {
+  // A lista suspensa oferece "closed" e "open" porque e assim que o painel
+  // chama. A API so conhece production, beta, alpha, internal. Mandar
+  // "closed" derrubava o job:
+  //   Track(s) "closed" could not be found
+  // Ficou escondido ate 15/08 porque toda rodada tinha usado "internal".
+  const etapa = etapaEntre('Determina track', 'Nome do release');
+  assert.match(etapa, /closed\)\s*API_TRACK="alpha"/, 'falta traduzir closed → alpha');
+  assert.match(etapa, /open\)\s*API_TRACK="beta"/, 'falta traduzir open → beta');
+  assert.match(etapa, /production\|beta\|alpha\|internal/,
+    'falta a lista branca das faixas que a API aceita');
+  assert.match(etapa, /::error::/, 'faixa invalida tem que derrubar o job antes do upload');
+});
+
+test('toda opcao da lista suspensa tem traducao conhecida', () => {
+  // Se alguem acrescentar uma opcao no dropdown e esquecer do `case`, ela
+  // viaja crua pra API e o job morre no ultimo passo. Este teste casa as duas
+  // listas.
+  const bloco = etapaEntre("description: 'Play Console track", 'release_status');
+  const opcoes = [...bloco.matchAll(/^\s+- (\w+)$/gm)].map((m) => m[1]);
+  assert.ok(opcoes.length >= 4, `esperava 4+ opcoes, achei ${opcoes.length}`);
+  const etapa = etapaEntre('Determina track', 'Nome do release');
+  const API = ['production', 'beta', 'alpha', 'internal'];
+  for (const o of opcoes) {
+    const traduzida = new RegExp(`${o}\\)\\s*API_TRACK=`).test(etapa);
+    assert.ok(
+      API.includes(o) || traduzida,
+      `a opcao '${o}' nao e nome de faixa da API nem tem traducao no case`,
+    );
+  }
 });
 
 test('BUG 4: minSdkVersion nao pode ser menor que 21', () => {
