@@ -29,6 +29,23 @@ o caso de uso legítimo do Chrome.
 
 ---
 
+## Nomes de menu — conferidos na tela em 15/08
+
+A primeira versão deste prompt errou três caminhos. Ficam registrados porque
+UI de Play Console muda e memória de treinamento envelhece:
+
+| o que eu escrevi | o que está na tela |
+|---|---|
+| `Política e programas` (menu raiz) | `Monitorar e aprimorar` → `Políticas e programas` |
+| `Teste e lançamento` | `Testar e lançar` |
+| — | as declarações vivem em `Políticas e programas` → **`Conteúdo do app`** |
+
+**Armadilha:** na área da ficha da loja existe um link **"Configurar"** que
+não abre a ficha — abre *"Configurar experimento na página Detalhes do App"*,
+que é teste A/B. Sair sem salvar.
+
+---
+
 ## Como usar
 
 1. Abra o Chrome já **logado na conta Google que tem o Play Console da Sanova**
@@ -75,28 +92,38 @@ ROTEIRO — abra nesta ordem e anote o que encontrar
    ANOTE a frase do topo LITERALMENTE, palavra por palavra.
    Se houver uma lista de "Alterações em análise", ANOTE cada item.
 
-4. Menu esquerdo → "Política e programas" → "Status da política".
+4. Menu esquerdo → "Monitorar e aprimorar" → "Políticas e programas" →
+   "Status da política".
    ANOTE se existe algum aviso, restrição, rejeição ou app sinalizado, e o
    texto exato de cada um. Se não houver nada, escreva "sem avisos".
 
-5. Menu esquerdo → "Teste e lançamento" → "Produção".
+5. Mesmo lugar → "Políticas e programas" → "Conteúdo do app".
+   Esta é a tela das declarações obrigatórias.
+   ANOTE, item por item, o nome de cada declaração e o status ao lado dela.
+   Os que costumam aparecer: Política de privacidade, Acesso ao app,
+   Anúncios, Classificação de conteúdo, Público-alvo e conteúdo,
+   Segurança dos dados, Apps de saúde, Conformidade governamental,
+   Recursos financeiros.
+
+6. Menu esquerdo → "Testar e lançar" → "Produção".
    ANOTE se existe alguma versão ali, qual o número dela, e qual o status
    (rascunho / em análise / publicada / rejeitada / nenhuma).
 
-6. Menu esquerdo → "Teste e lançamento" → "Testes" → "Teste interno".
+7. Menu esquerdo → "Testar e lançar" → "Testes" → "Teste interno".
    ANOTE se aparece a versão de nome "v3.10.63 (108)" e qual o status dela.
    ANOTE quantos testadores existem na lista.
 
-7. Menu esquerdo → "Crescer" → "Presença na loja" → "Ficha principal da loja".
+8. Ficha da loja. CUIDADO: numa tabela dessa área existe um link "Configurar"
+   que NÃO abre a ficha — abre "Configurar experimento na página Detalhes do
+   App", que é teste A/B. Se cair nessa tela, saia sem salvar e sem avançar.
+   A ficha certa fica em "Crescer" → "Presença na loja" → "Ficha principal
+   da loja" (o nome pode variar; use o que você vir).
    ANOTE se algum campo está marcado como incompleto ou com erro.
 
-8. Procure a área de tarefas pendentes do app. Ela costuma se chamar
-   "Configurar seu app", "Visão geral do lançamento do app" ou "Set up your
-   app", e fica no painel do app.
+9. Volte ao painel do app e procure a área de tarefas pendentes — costuma se
+   chamar "Configurar seu app", "Visão geral do lançamento do app" ou "Set up
+   your app".
    ANOTE CADA item que ainda esteja incompleto, com o nome exato dele.
-   Os que mais aparecem: Segurança dos dados, Classificação de conteúdo,
-   Público-alvo e conteúdo, Apps de saúde, Anúncios, Acesso ao app,
-   Política de privacidade, Conformidade governamental.
 
 FORMATO DA RESPOSTA — devolva exatamente assim, sem texto extra antes ou
 depois:
@@ -105,17 +132,24 @@ CONTA: <nome da conta de desenvolvedor>
 PAINEL DE PUBLICAÇÃO: <frase literal do topo>
 ALTERAÇÕES EM ANÁLISE: <lista, ou "nenhuma">
 STATUS DA POLÍTICA: <texto, ou "sem avisos">
+CONTEÚDO DO APP — uma linha por declaração, no formato "nome: status":
+- <nome da declaração>: <status literal ao lado dela>
+- <nome da declaração>: <status literal ao lado dela>
 PRODUÇÃO: <versão e status, ou "nenhuma versão">
 TESTE INTERNO: <a 108 está lá? status? quantos testadores?>
 FICHA DA LOJA: <completa, ou o que falta>
-PENDÊNCIAS ABERTAS:
+PENDÊNCIAS ABERTAS NO PAINEL:
 - <item>
 - <item>
 BLOQUEIA PRODUÇÃO AGORA? <sim ou não, e o motivo em uma frase>
 TELAS QUE NÃO ABRIRAM: <lista, ou "nenhuma">
+NOMES DE MENU DIFERENTES DO ROTEIRO: <lista, ou "nenhum">
 
 Se você não conseguiu abrir alguma tela, diga qual e por quê. Não preencha
 campo nenhum por dedução — se não viu, escreva "não vi".
+
+IMPORTANTE: devolva TODOS os campos acima numa única resposta, do primeiro ao
+último. Resposta parcial não serve — é ela inteira que decide o próximo passo.
 >>>
 ```
 

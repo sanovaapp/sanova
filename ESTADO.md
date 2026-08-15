@@ -72,6 +72,23 @@ Cinco bugs custaram sete rodadas. Todos travados por teste em
 
 ## Bloqueado, e em quem
 
+### 12 testadores no teste fechado 🔴 **o único bloqueio real da loja**
+
+Estado lido no painel em 15/08: **0 testadores**. O botão *Solicitar a
+produção* está desabilitado, e os dois requisitos abertos são
+
+> Tenha pelo menos 12 testadores que aceitaram participar do teste fechado
+> Faça o teste fechado com no mínimo 12 testadores por pelo menos 14 dias
+
+**O relógio dos 14 dias não começou** — ele só começa quando as 12 pessoas
+aceitarem. É a tarefa mais lenta da fila e a única sem atalho.
+
+> ⛔ Este arquivo e outros três diziam que **conta de organização é isenta**
+> desses 14 dias. Estava errado — ver `DECISOES.md`, seção 6c.
+
+Todo o resto da loja está pronto: 10 de 10 declarações concluídas, ficha no
+ar sem erro, política sem avisos, nenhuma alteração em análise.
+
 ### Pendências do Bruno
 
 - **Print do contraste de "PROTEÇÃO MUSCULAR"** — é o único bug de tela que
