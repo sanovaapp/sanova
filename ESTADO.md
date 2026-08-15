@@ -83,6 +83,10 @@ produção* está desabilitado, e os dois requisitos abertos são
 **O relógio dos 14 dias não começou** — ele só começa quando as 12 pessoas
 aceitarem. É a tarefa mais lenta da fila e a única sem atalho.
 
+**A faixa já está armada.** A v3.10.63 (109) está no teste fechado com status
+`completed`, não rascunho — instalável no minuto em que alguém aceitar o
+convite. Não falta mais nada do lado técnico: falta gente.
+
 > ⛔ Este arquivo e outros três diziam que **conta de organização é isenta**
 > desses 14 dias. Estava errado — ver `DECISOES.md`, seção 6c.
 
