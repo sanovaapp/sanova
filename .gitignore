@@ -17,3 +17,7 @@ twa-build/
 # Lixo de sistema operacional
 .DS_Store
 Thumbs.db
+
+# gerados por automation/capturas-loja.mjs
+capturas-loja/
+automation/fontes-loja.css
