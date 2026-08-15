@@ -80,6 +80,84 @@ jobs:
         with:
           node-version: 22
 
+      # Roda ANTES do JDK, do SDK e dos 90s de Gradle. Duas razoes:
+      #   1. se o acesso a Play estiver quebrado, o job morre em 5 segundos
+      #      com a causa escrita, em vez de 2 minutos depois com uma pagina HTML
+      #   2. e daqui que sai o proximo appVersionCode — perguntado ao Google,
+      #      nao chutado por ninguem
+      - name: Diagnostico de acesso a Play API (traduz o 403) + proximo versionCode
+        id: playapi
+        env:
+          SA_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -eo pipefail
+          if [ -z "$SA_JSON" ]; then
+            echo "::warning::PLAY_SERVICE_ACCOUNT_JSON ausente — segue so pra gerar o AAB como artifact."
+            echo "next_vc=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          printf '%s' "$SA_JSON" > sa.json
+          SA_EMAIL=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("sa.json","utf8")).client_email||"?")')
+          SA_PROJ=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("sa.json","utf8")).project_id||"?")')
+          echo "[diag] service account: $SA_EMAIL"
+          echo "[diag] projeto Cloud:   $SA_PROJ"
+
+          # Token OAuth assinado com a propria chave. Nada da chave e impresso.
+          TOKEN=$(node -e '
+            const c=JSON.parse(require("fs").readFileSync("sa.json","utf8"));
+            const crypto=require("crypto");
+            const b=o=>Buffer.from(JSON.stringify(o)).toString("base64url");
+            const now=Math.floor(Date.now()/1000);
+            const head=b({alg:"RS256",typ:"JWT"});
+            const body=b({iss:c.client_email,scope:"https://www.googleapis.com/auth/androidpublisher",
+                          aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600});
+            const sig=crypto.createSign("RSA-SHA256").update(head+"."+body).sign(c.private_key).toString("base64url");
+            const jwt=head+"."+body+"."+sig;
+            fetch("https://oauth2.googleapis.com/token",{method:"POST",
+              headers:{"content-type":"application/x-www-form-urlencoded"},
+              body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:jwt})})
+              .then(r=>r.json()).then(j=>{ if(!j.access_token){console.error(JSON.stringify(j));process.exit(1);}
+                                          process.stdout.write(j.access_token); });
+          ')
+          echo "[diag] token OAuth obtido — a CHAVE esta valida"
+
+          API=https://androidpublisher.googleapis.com/androidpublisher/v3/applications/br.app.sanova
+          CODE=$(curl -s -o resp.txt -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Length: 0" "$API/edits")
+          echo "[diag] HTTP $CODE"
+
+          if [ "$CODE" != "200" ]; then
+            echo "--- resposta crua ---"; head -c 2000 resp.txt; echo; echo "---------------------"
+            # As tres causas que produzem 403 aqui, cada uma com conserto diferente.
+            if grep -qi 'SERVICE_DISABLED\|has not been used in project\|accessNotConfigured' resp.txt; then
+              echo "::error::A Google Play Android Developer API esta DESLIGADA no projeto $SA_PROJ. Ligar em: https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com?project=$SA_PROJ"
+            elif grep -qi 'insufficient permissions\|does not have permission\|permissionDenied' resp.txt; then
+              echo "::error::A chave e valida mas $SA_EMAIL nao tem permissao no app br.app.sanova. Play Console -> Usuarios e permissoes -> $SA_EMAIL -> aba Apps -> br.app.sanova com 'Gerenciar versoes'. Mudanca de permissao leva ate algumas horas pra valer na API — se acabou de marcar, esperar e disparar de novo resolve sozinho."
+            elif grep -qi 'applicationNotFound\|Package not found' resp.txt; then
+              echo "::error::A conta enxergada por $SA_EMAIL nao contem o app br.app.sanova. Acontece quando a service account foi convidada numa conta de desenvolvedor diferente da dona atual do app."
+            else
+              echo "::error::Erro nao catalogado na Play API — corpo cru acima."
+            fi
+            exit 1
+          fi
+          echo "[diag] OK — a service account enxerga br.app.sanova"
+
+          # Pergunta ao Google qual o maior versionCode ja enviado e soma 1.
+          # Antes isso era `100 + run_number`, que colide se o workflow for
+          # recriado (run_number volta a 1) e obriga alguem a digitar o numero.
+          EDIT=$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("resp.txt","utf8")).id)')
+          curl -s -H "Authorization: Bearer $TOKEN" "$API/edits/$EDIT/bundles" > bundles.json || true
+          NEXT=$(node -e '
+            let m=0;
+            try {
+              const j=JSON.parse(require("fs").readFileSync("bundles.json","utf8"));
+              for (const b of (j.bundles||[])) if (b.versionCode > m) m = b.versionCode;
+            } catch (e) {}
+            process.stdout.write(String(m + 1));
+          ')
+          echo "[diag] maior versionCode ja no Play + 1 = $NEXT"
+          echo "next_vc=$NEXT" >> $GITHUB_OUTPUT
+
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
@@ -102,13 +180,20 @@ jobs:
           echo "SANOVA_VERSION=$SANOVA_VERSION" >> $GITHUB_ENV
           echo "sanova_version=$SANOVA_VERSION" >> $GITHUB_OUTPUT
 
-          # appVersionCode: se dispatch passou explicito usa; senao gera a partir de github.run_number
+          # appVersionCode, em ordem de confianca:
+          #   1. o que o dispatch mandou (escape hatch, raramente usado)
+          #   2. o que o proprio Google disse ser o proximo livre
+          #   3. 100 + run_number — so se a Play API estiver fora do ar
+          # O (3) existe pra build de artifact continuar saindo sem a chave;
+          # ele COLIDE se o workflow for recriado, por isso e o ultimo recurso.
           MANUAL_VC="${{ github.event.inputs.version_code }}"
+          API_VC="${{ steps.playapi.outputs.next_vc }}"
           if [ -n "$MANUAL_VC" ]; then
-            VC="$MANUAL_VC"
+            VC="$MANUAL_VC"; echo "[meta] versionCode veio do dispatch"
+          elif [ -n "$API_VC" ]; then
+            VC="$API_VC"; echo "[meta] versionCode veio da Play API"
           else
-            # base 100 pra sobrar espaco pro run_number crescer sem colidir
-            VC=$(( 100 + ${{ github.run_number }} ))
+            VC=$(( 100 + ${{ github.run_number }} )); echo "::warning::versionCode caiu no fallback run_number — pode colidir"
           fi
           echo "APP_VERSION_CODE=$VC" >> $GITHUB_ENV
           echo "app_version_code=$VC" >> $GITHUB_OUTPUT
@@ -333,66 +418,6 @@ jobs:
           else
             echo "publish_ok=true" >> $GITHUB_OUTPUT
           fi
-
-      - name: Diagnostico de acesso a Play API (traduz o 403)
-        if: steps.guard.outputs.publish_ok == 'true'
-        env:
-          SA_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-        run: |
-          set -eo pipefail
-          # O erro que derrubou a rodada 4 chegou como PAGINA HTML do Google:
-          #   "Your client does not have permission to get URL /.../edits"
-          # HTML nao diz qual das causas e. Esta etapa chama a API na mao,
-          # imprime o corpo cru e traduz. Nunca imprime a chave — so o e-mail
-          # da service account, que e publico por natureza.
-          printf '%s' "$SA_JSON" > sa.json
-          SA_EMAIL=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("sa.json","utf8")).client_email||"?")')
-          SA_PROJ=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("sa.json","utf8")).project_id||"?")')
-          echo "[diag] service account: $SA_EMAIL"
-          echo "[diag] projeto Cloud:   $SA_PROJ"
-
-          # Token OAuth a partir da chave da service account.
-          TOKEN=$(GOOGLE_APPLICATION_CREDENTIALS=sa.json node -e '
-            const {execSync}=require("child_process");
-            const c=JSON.parse(require("fs").readFileSync("sa.json","utf8"));
-            const crypto=require("crypto");
-            const b=o=>Buffer.from(JSON.stringify(o)).toString("base64url");
-            const now=Math.floor(Date.now()/1000);
-            const head=b({alg:"RS256",typ:"JWT"});
-            const body=b({iss:c.client_email,scope:"https://www.googleapis.com/auth/androidpublisher",
-                          aud:"https://oauth2.googleapis.com/token",iat:now,exp:now+3600});
-            const sig=crypto.createSign("RSA-SHA256").update(head+"."+body).sign(c.private_key).toString("base64url");
-            const jwt=head+"."+body+"."+sig;
-            fetch("https://oauth2.googleapis.com/token",{method:"POST",
-              headers:{"content-type":"application/x-www-form-urlencoded"},
-              body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion:jwt})})
-              .then(r=>r.json()).then(j=>{ if(!j.access_token){console.error(JSON.stringify(j));process.exit(1);}
-                                          process.stdout.write(j.access_token); });
-          ')
-          echo "[diag] token OAuth obtido — a CHAVE esta valida"
-
-          CODE=$(curl -s -o resp.txt -w '%{http_code}' -X POST \
-            -H "Authorization: Bearer $TOKEN" -H "Content-Length: 0" \
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/br.app.sanova/edits")
-          echo "[diag] HTTP $CODE"
-          echo "--- resposta crua ---"; head -c 2000 resp.txt; echo; echo "---------------------"
-
-          if [ "$CODE" = "200" ]; then
-            echo "[diag] OK — a service account enxerga br.app.sanova. Upload deve passar."
-            exit 0
-          fi
-
-          # Traducao das tres causas que produzem 403 aqui.
-          if grep -qi 'SERVICE_DISABLED\|has not been used in project\|accessNotConfigured' resp.txt; then
-            echo "::error::A Google Play Android Developer API esta DESLIGADA no projeto $SA_PROJ. Ligar em: https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com?project=$SA_PROJ"
-          elif grep -qi 'insufficient permissions\|does not have permission\|permissionDenied' resp.txt; then
-            echo "::error::A chave e valida mas $SA_EMAIL nao tem permissao no app br.app.sanova. Conferir em Play Console -> Usuarios e permissoes -> $SA_EMAIL -> aba Apps -> br.app.sanova com 'Gerenciar versoes'. Mudanca de permissao pode levar ate 24h pra valer na API."
-          elif grep -qi 'applicationNotFound\|Package not found' resp.txt; then
-            echo "::error::A conta enxergada por $SA_EMAIL nao contem o app br.app.sanova. Isso acontece quando a service account foi convidada numa conta de desenvolvedor diferente da que hoje e dona do app."
-          else
-            echo "::error::403/erro nao catalogado — corpo cru acima."
-          fi
-          exit 1
 
       - name: Upload no Google Play (r0adkll/upload-google-play)
         if: steps.guard.outputs.publish_ok == 'true'

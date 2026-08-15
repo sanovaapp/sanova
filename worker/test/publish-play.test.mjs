@@ -92,11 +92,31 @@ test('a assinatura e conferida antes do upload, nao depois', () => {
 test('o secret do Play nao e interpolado dentro de teste do bash', () => {
   // `[ -z "${{ secrets.X }}" ]` quebrava com "too many arguments" — o JSON tem
   // aspas dentro e o bash reabria a string. Vai por variavel de ambiente.
-  const guard = WF.slice(WF.indexOf('Confere secret PLAY_SERVICE_ACCOUNT_JSON'), WF.indexOf('Diagnostico de acesso'));
+  // Vale pro arquivo inteiro de proposito: recortar por nome de etapa ja me
+  // enganou uma vez — mudei a ordem das etapas, a fatia virou string vazia e
+  // o teste passou sem olhar nada.
   assert.ok(
-    !/\[ -z "\$\{\{ secrets\./.test(guard),
+    !/\[ -z "\$\{\{ secrets\./.test(WF),
     'secret interpolado direto no `[ -z ]` — o JSON quebra o quoting do bash',
   );
+});
+
+test('o appVersionCode e perguntado ao Google, nao chutado', () => {
+  // Era `100 + run_number`: colide se o workflow for recriado (run_number
+  // volta a 1) e obriga alguem a digitar o numero a cada release. Agora sai
+  // do maior versionCode ja aceito pelo Play, + 1.
+  assert.match(WF, /edits\/\$EDIT\/bundles/, 'falta consultar os bundles ja enviados');
+  assert.match(WF, /next_vc=/, 'o proximo versionCode tem que virar output da etapa');
+  assert.match(WF, /steps\.playapi\.outputs\.next_vc/, 'o build tem que consumir o versionCode da API');
+});
+
+test('o acesso a Play e conferido ANTES do build, nao depois', () => {
+  // 90 segundos de Gradle antes de descobrir que a chave nao entra e desperdicio
+  // — e foi assim que as rodadas 4, 5 e 6 gastaram duas horas.
+  const iDiag = WF.indexOf('Diagnostico de acesso a Play API');
+  const iBuild = WF.indexOf('Bubblewrap update + build');
+  assert.ok(iDiag > 0 && iBuild > iDiag,
+    'o diagnostico de acesso tem que vir antes do build');
 });
 
 test('o 403 do Google e traduzido antes de virar tarefa pro Bruno', () => {
