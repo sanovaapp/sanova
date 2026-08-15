@@ -38,6 +38,9 @@ UI de Play Console muda e memória de treinamento envelhece:
 |---|---|
 | `Política e programas` (menu raiz) | `Monitorar e aprimorar` → `Políticas e programas` |
 | `Teste e lançamento` | `Testar e lançar` |
+| `Testar e lançar` → `Testes` | o submenu chama-se **`Teste`**, singular |
+| `Relatório de pré-lançamento` em `Monitorar e aprimorar` | fica em **`Testar e lançar` → `Teste`** |
+| `Ficha principal da loja` | `Páginas de detalhes do app` → **`Página de detalhes padrão`** |
 | — | as declarações vivem em `Políticas e programas` → **`Conteúdo do app`** |
 
 **Armadilha:** na área da ficha da loja existe um link **"Configurar"** que

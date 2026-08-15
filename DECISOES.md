@@ -207,6 +207,19 @@ Regra que sai daí, e ela generaliza: **afirmação sobre comportamento de
 plataforma externa só entra em documento depois de vista na tela.** Quando só
 houver a documentação, escreva que é a documentação que diz — não que é assim.
 
+**E o mesmo erro voltou no mesmo dia, por outra porta.** Horas depois,
+auditei a declaração de Segurança dos dados lendo o `data-safety-form.md`,
+não achei a categoria *Informações e desempenho do app*, e anunciei que ela
+**não estava declarada no painel**. Estava. O arquivo é que não a tinha.
+
+Documento do repositório também não é tela. Ele descreve o painel na data em
+que alguém olhou, e envelhece igual. **"Conferir a declaração" significa abrir
+o Play Console — nunca reler o arquivo que fala sobre ele.**
+
+A ida não foi perdida: havia uma divergência real, só que outra. Os dois tipos
+constavam como coleta **obrigatória**, e o app permite desligar. Mas ter
+achado por acaso não desfaz ter afirmado por dedução.
+
 ## 7. Como pensar antes de decidir — os 5 chapéus
 
 Nenhuma mudança é só técnica. Antes de cravar, passe pelos cinco, nesta
