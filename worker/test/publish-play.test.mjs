@@ -65,6 +65,69 @@ test('as senhas vao por variavel de ambiente, senao o build trava perguntando', 
   assert.match(WF, /BUBBLEWRAP_KEY_PASSWORD/);
 });
 
+test('BUG 5: o AAB escolhido tem que ser o assinado, nao o cru do Gradle', () => {
+  // A rodada 6 chegou no Google e levou:
+  //   "All uploaded bundles must be signed. Please sign the bundle using jarsigner."
+  // O Bubblewrap gera DOIS .aab — o cru do Gradle em
+  // app/build/outputs/bundle/release/ e o assinado em app-release-bundle.aab.
+  // `find | head -1` pegava o primeiro que a travessia devolvesse, e nao ha
+  // ordem garantida: o mesmo workflow podia passar num dia e falhar no outro.
+  const localiza = WF.slice(WF.indexOf('Localiza AAB'), WF.indexOf('Upload AAB como artifact'));
+  assert.ok(
+    !/find\s+twa-build\s+-name\s+"\*\.aab".*\|\s*head\s+-1/.test(localiza),
+    'o AAB nao pode ser escolhido por `find | head -1` — nao ha ordem garantida',
+  );
+  assert.match(localiza, /app-release-bundle\.aab/,
+    'o AAB tem que ser escolhido pelo nome do artefato assinado');
+});
+
+test('a assinatura e conferida antes do upload, nao depois', () => {
+  // Sem isso o bundle cru viaja o upload inteiro pra ser recusado do outro
+  // lado — e o erro chega como mensagem do Google, longe da causa.
+  const localiza = WF.slice(WF.indexOf('Localiza AAB'), WF.indexOf('Upload AAB como artifact'));
+  assert.match(localiza, /jarsigner -verify/, 'falta `jarsigner -verify` antes do upload');
+  assert.match(localiza, /::error::/, 'a conferencia tem que derrubar o job, nao so avisar');
+});
+
+test('o secret do Play nao e interpolado dentro de teste do bash', () => {
+  // `[ -z "${{ secrets.X }}" ]` quebrava com "too many arguments" — o JSON tem
+  // aspas dentro e o bash reabria a string. Vai por variavel de ambiente.
+  // Vale pro arquivo inteiro de proposito: recortar por nome de etapa ja me
+  // enganou uma vez — mudei a ordem das etapas, a fatia virou string vazia e
+  // o teste passou sem olhar nada.
+  assert.ok(
+    !/\[ -z "\$\{\{ secrets\./.test(WF),
+    'secret interpolado direto no `[ -z ]` — o JSON quebra o quoting do bash',
+  );
+});
+
+test('o appVersionCode e perguntado ao Google, nao chutado', () => {
+  // Era `100 + run_number`: colide se o workflow for recriado (run_number
+  // volta a 1) e obriga alguem a digitar o numero a cada release. Agora sai
+  // do maior versionCode ja aceito pelo Play, + 1.
+  assert.match(WF, /edits\/\$EDIT\/bundles/, 'falta consultar os bundles ja enviados');
+  assert.match(WF, /next_vc=/, 'o proximo versionCode tem que virar output da etapa');
+  assert.match(WF, /steps\.playapi\.outputs\.next_vc/, 'o build tem que consumir o versionCode da API');
+});
+
+test('o acesso a Play e conferido ANTES do build, nao depois', () => {
+  // 90 segundos de Gradle antes de descobrir que a chave nao entra e desperdicio
+  // — e foi assim que as rodadas 4, 5 e 6 gastaram duas horas.
+  const iDiag = WF.indexOf('Diagnostico de acesso a Play API');
+  const iBuild = WF.indexOf('Bubblewrap update + build');
+  assert.ok(iDiag > 0 && iBuild > iDiag,
+    'o diagnostico de acesso tem que vir antes do build');
+});
+
+test('o 403 do Google e traduzido antes de virar tarefa pro Bruno', () => {
+  // A rodada 4 devolveu uma pagina HTML sem causa identificavel. Cada chute
+  // custava uma rodada e uma ida ao Play Console.
+  assert.match(WF, /Diagnostico de acesso a Play API/, 'etapa de diagnostico sumiu');
+  assert.match(WF, /androidpublisher\.googleapis\.com/, 'o diagnostico tem que chamar a API de verdade');
+  assert.match(WF, /SERVICE_DISABLED/, 'falta traduzir "API desligada"');
+  assert.match(WF, /applicationNotFound/, 'falta traduzir "app nao esta nesta conta"');
+});
+
 test('BUG 4: minSdkVersion nao pode ser menor que 21', () => {
   // O segundo disparo morreu no merge de manifesto:
   //   "minSdkVersion 19 cannot be smaller than version 21 declared in library

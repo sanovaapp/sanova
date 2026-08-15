@@ -41,24 +41,38 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
   `claude-mencao.yml` (`@claude` em qualquer issue ou PR).
 - **Worker autônomo** — `automation/backlog.yml` executado de 3/3h.
 
-## Bloqueado, e em quem
+## Publicação na Play: resolvida em 15/08
 
-### `PLAY_SERVICE_ACCOUNT_JSON` — a maior alavanca da fila
+`publish-play.yml` **sobe sozinho**. Provado na rodada 7: `COMMITED_EDIT_ID`
+gravado pelo Google, v3.10.63 na faixa de teste interno. Nenhuma tarefa do
+Bruno no caminho.
 
-Sem ela, **tudo** que envolve a Play Store é clique manual: upload de AAB,
-status de transferência, faixas, ficha. Com ela, `publish-play.yml` roda
-sozinho.
+O que o pipeline faz hoje, do início ao fim:
 
-Caminho em `docs/prompt-chrome-service-account.md`. **4 minutos, 3 telas.**
-Metade já existe desde junho (projeto `sanova-play-deploy`, service account
-`play-deploy@`, API ativada).
+| etapa | o que resolve |
+|---|---|
+| diagnóstico da Play API | falha em 5s com a causa escrita, antes do build |
+| `versionCode` | perguntado ao Google (maior já enviado + 1) |
+| Bubblewrap `update` + `build` | AAB assinado com a upload key fixa |
+| `jarsigner -verify` | recusa bundle sem assinatura aqui, não no Google |
+| upload | faixa e status escolhidos no dispatch |
+
+Cinco bugs custaram sete rodadas. Todos travados por teste em
+`worker/test/publish-play.test.mjs` — o detalhe de cada um está no
+`DECISOES.md`.
 
 > ⚠️ Não procure **"Acesso à API"** no Play Console. Essa tela deixou de ser
 > o caminho — o Google removeu a exigência de vincular projeto do Cloud. Vá
 > por **Usuários e permissões** e convide o e-mail da service account como
 > convidaria uma pessoa. Foi o que custou uma hora em 16/06.
 
-### Outras pendências do Bruno
+> ⚠️ Permissão marcada no Play Console **leva horas pra valer na API**. Um
+> 403 logo depois de marcar não é erro de configuração — é propagação.
+> Esperar e disparar de novo resolve. Isso quase virou tarefa do Bruno.
+
+## Bloqueado, e em quem
+
+### Pendências do Bruno
 
 - **Print do contraste de "PROTEÇÃO MUSCULAR"** — é o único bug de tela que
   sobrou. O do peso foi achado sem print, lendo o código; este é contraste

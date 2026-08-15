@@ -34,6 +34,29 @@ Processo inventado por agente é revogável por agente, na hora, sem cerimônia.
 
 **Entregue software, não relatório.** A PR é o relatório.
 
+### Vá até o fim — não pare em rodada que não precisa dele
+
+> *"Vamos até o final. Automação resiliente. Não precisa parar em rodadas sem
+> ações minhas."* — Bruno, 15/08/2026
+
+Quando um pipeline falha e o conserto está **na sua mão**, conserte e dispare
+de novo. Não volte pro Bruno entre uma rodada e outra. Ele não é etapa de
+build.
+
+Só interrompa quando a rodada bater numa das quatro coisas que são dele — e
+aí traga **a causa com nome**, não um chute entre três possibilidades.
+
+**Corolário: se você não sabe qual das causas é, o trabalho é construir o
+diagnóstico, não perguntar.** Erro que chega ilegível (página de HTML, código
+sem mensagem, "falhou") é bug de instrumentação seu. Instale o tradutor uma
+vez e ele responde para sempre — chutar custa uma rodada por chute, e às
+vezes uma tarefa dele por chute.
+
+Exemplo real: o 403 do Google nas rodadas 4 e 5 do `publish-play.yml` parecia
+falta de permissão e teria virado pedido de print do Play Console. Uma etapa
+que chamava a API na mão devolveu HTTP 200 — a permissão só estava
+propagando. Zero tarefa pro Bruno; a resposta certa era esperar e seguir.
+
 ### As quatro coisas que continuam dele
 
 Não por burocracia — porque errar nelas não se desfaz:

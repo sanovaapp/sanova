@@ -153,6 +153,42 @@ humano.
   seguidas por erro de parse causado por markdown dentro de `run: |`. Lógica
   vive em `.github/scripts/*.mjs`; prompt longo vive em `.md`.
 
+## 6b. Os cinco bugs do pipeline da Play — 15/08/2026
+
+Sete rodadas até o primeiro AAB entrar no Play Console. Estão aqui porque
+quatro dos cinco são **falhas silenciosas**: o pipeline ficava verde, ou
+falhava com o erro longe da causa. Todos travados por teste em
+`worker/test/publish-play.test.mjs`.
+
+1. **`bubblewrap update` faltando.** A etapa se chamava "init + build" e não
+   rodava nenhum dos dois — escrevia o manifesto e chamava `build` sem projeto
+   Android nenhum pra construir.
+
+2. **`tee` engolindo o código de saída.** Em `cmd | tee log`, o `set -e` olha
+   o código do *tee*. O Bubblewrap falhava, o tee dava certo, e a etapa ficava
+   **verde em 12 segundos sem produzir AAB**. `set -eo pipefail` conserta.
+   Esse é o bug que escondeu os outros.
+
+3. **Alias da chave cravado como `android`.** A keystore de junho veio do
+   PWABuilder e usa `my-key-alias`. A leitura da SHA-256 devolvia vazio em
+   silêncio.
+
+4. **`minSdkVersion 19`.** A `androidbrowserhelper:2.6.2` — que é o que faz o
+   TWA existir — exige 21. Não compila abaixo disso.
+
+5. **O AAB escolhido era o errado.** O Bubblewrap gera dois: o cru do Gradle
+   em `app/build/outputs/bundle/release/` e o assinado em
+   `app-release-bundle.aab`. A escolha era `find | head -1`, e travessia de
+   diretório **não tem ordem garantida** — o mesmo workflow podia passar num
+   dia e falhar no outro sem nada mudar.
+
+**A lição que vale além da Play:** erro que chega ilegível — página de HTML,
+código sem mensagem, "falhou" — é bug de instrumentação, não mistério. O 403
+do Google parecia falta de permissão e ia virar pedido de print pro Bruno.
+Uma etapa de 40 linhas que chamava a API na mão devolveu HTTP 200: a permissão
+só estava propagando. **Construir o diagnóstico custou uma rodada; chutar
+custaria três e uma tarefa dele por chute.**
+
 ## 7. Como pensar antes de decidir — os 5 chapéus
 
 Nenhuma mudança é só técnica. Antes de cravar, passe pelos cinco, nesta
