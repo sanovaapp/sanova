@@ -117,6 +117,38 @@ antes. É a tarefa mais lenta da fila inteira e a única que não tem atalho.
 Vale qualquer pessoa com conta Google: colegas, familiares, equipe. Não
 precisa ser paciente — precisa aceitar o convite e manter o app instalado.
 
+> ⚠️ **Mexer na lista de testadores exige revisão do Google.** Descoberto no
+> ensaio de 15/08: cadastrar o e-mail e salvar **não basta**. A vinculação
+> fica em *"Mudanças que ainda não foram enviadas para revisão"*, precisa ser
+> enviada em **Visão geral da publicação**, e só vale quando a análise termina
+> (*"até 7 dias, mas podem demorar mais"*).
+>
+> Até lá, `play.google.com/apps/testing/br.app.sanova` responde
+> **"Aplicativo não disponível"** — que parece erro de configuração e não é.
+>
+> **Consequência prática: adicione todos de uma vez.** Cada leva custa um
+> ciclo de revisão inteiro.
+
+**Sequência verificada na tela, com os nomes reais dos menus:**
+
+1. `Testar e lançar` → `Teste` → `Teste fechado` → **`Gerenciar faixa`**
+2. Aba `Testadores` → `Criar lista de e-mails` → nome `Testadores Sanova`
+3. Colar **todos** os e-mails → `Salvar alterações`
+4. Marcar a lista na faixa → `Salvar` (o botão da faixa, outro botão)
+5. `Visão geral da publicação` → `Enviar 1 mudança para revisão`
+6. **Esperar "Alterações em análise" sumir**
+7. Só então abrir o link de participação e conferir
+
+**Prazo real, somando tudo:** até 7 dias de revisão **+** 14 dias de teste.
+Planeje três semanas, não duas.
+
+> 💡 **Se alguém desistir no meio, migrar para Grupo do Google.** Trocar
+> membro de um grupo é instantâneo e não passa pelo Play Console — a API
+> (`edits.testers`, campo `googleGroups[]`) vincula o grupo à faixa uma vez e
+> nunca mais. Lista de e-mails é mais simples de começar e mais cara de
+> manter; a escolha inicial pela lista assumiu que editá-la era instantâneo,
+> e não é.
+
 ### 2.2 — Os 14 dias
 
 - [ ] **Ninguém** — é espera. O robô acompanha e avisa quando fechar.
