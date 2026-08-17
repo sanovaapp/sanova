@@ -86,13 +86,42 @@ cravado.*
 
 ### Produto
 
-- [ ] **Ligar a Fase 2 (alertas ao profissional)**
-      POR QUE: o código está pronto e o schema aplicado, mas a interface está
-      desligada atrás de uma chave (`FASE2_ALERTAS_ATIVA = false`). Trabalho
-      feito e parado não vale nada.
-      PRONTO QUANDO: a chave está ligada e o profissional vê os alertas.
-      DECISÃO: liga tudo, ou só os 5 alertas vermelhos primeiro? Os vermelhos
-      são os que protegem; os amarelos são os que incomodam. Chamada do Bruno.
+- [x] ~~**Ligar a Fase 2 (alertas ao profissional)**~~ — já está ligada.
+      `pro.html` tem `FASE2_ALERTAS_ATIVA = true` desde 07/08. Este item
+      ficou pra trás e virou contradição de documento (auditoria Manus,
+      observação 15).
+
+### Da auditoria do Manus (15/08) — aceitos e na fila
+
+- [ ] **Allowlist de campos no espelho** (achado 8)
+      POR QUE: `/api/spectator-state` devolve o `app_state` cru e o frontend
+      decide o que esconder. Qualquer campo sensível novo no `S` vaza
+      automaticamente pro espelho. O worker tem que filtrar; o frontend
+      esconde por cima.
+      PRONTO QUANDO: o worker devolve só a lista nomeada de campos e o
+      espelho continua funcionando igual.
+      CUIDADO: allowlist errada quebra o espelho em silêncio — mapear antes
+      todos os campos que o `pro.html` lê.
+
+- [ ] **Teste unitário do detectarAlertas** (observação 11)
+      POR QUE: heurística por substring em campo livre ('peso' casa com
+      texto que não é exercício). Alerta clínico sem teste é o pior lugar
+      pra descobrir regressão.
+      PRONTO QUANDO: existe `worker/test/alerts.test.mjs` cobrindo cada
+      alerta com caso positivo, negativo e falso-positivo conhecido.
+
+- [ ] **Varredura de innerHTML no index.html** (observação 13)
+      POR QUE: 255 ocorrências; nome de paciente e sintoma renderizados sem
+      escape sistemático. Um nome com `<img onerror>` é vetor XSS.
+      PRONTO QUANDO: todo dado digitado pelo usuário passa por escape antes
+      de `innerHTML`, com teste que trava as rotas de entrada principais.
+
+- [ ] **JWT opcional nos endpoints de IA** (achado 2)
+      POR QUE: `/api/analyze-*` são públicos; CORS não barra script. Com JWT
+      opcional, quem está logado ganha rate limit por usuário; quem não está
+      cai no limite por IP. Não quebra app antigo.
+      DEPENDE: primeiro provar que o rate limit dispara (sonda `rl_probe`
+      no `/api/health`, v1.31.1).
 
 ---
 

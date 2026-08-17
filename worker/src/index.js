@@ -76,7 +76,22 @@ export default {
     // ─── Routes ─────────────────────────────────────────────
     try {
       if (url.pathname === '/api/health' && request.method === 'GET') {
-        return jsonResponse({ ok: true, version: '1.31.0' }, 200, origin, env);
+        // Sonda do rate limit (auditoria Manus 15/08: 25 requests em
+        // /api/analyze-text sem nenhum 429). Testar de fora e inconclusivo —
+        // proxies rotacionam IP, e a chave do limitador e o IP. Esta sonda
+        // consome o binding AQUI DENTRO, com chave fixa: chamar /api/health
+        // 25x seguidas tem que devolver rl_probe:false nas ultimas chamadas.
+        // Se nunca devolver, o binding nao esta contando e o freio nao existe.
+        let rl = 'sem-binding';
+        if (env.RL_IA && typeof env.RL_IA.limit === 'function') {
+          try {
+            const r = await env.RL_IA.limit({ key: 'health-probe' });
+            rl = r?.success !== false;
+          } catch (e) {
+            rl = 'erro';
+          }
+        }
+        return jsonResponse({ ok: true, version: '1.31.1', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -172,12 +187,9 @@ export default {
         return await handleDebugGemini(env);
       }
 
-      // v1.1.1: helper pra criar Test User no MP sandbox (Bruno usa pra logar
-      // no checkout em vez da conta real dele). Sem CORS check.
-      // Acesso: GET /api/mp-create-test-user (1 chamada gera 1 conta)
-      if (url.pathname === '/api/mp-create-test-user' && request.method === 'GET') {
-        return await handleMpCreateTestUser(env);
-      }
+      // v1.31.1: /api/mp-create-test-user REMOVIDO. Era "endpoint temporario,
+      // remover quando sandbox testing terminar" — terminou, e ele seguia
+      // publico devolvendo credencial de test user. Auditoria Manus 15/08.
 
       // v1.2.0: debug do estado admin (tabela existe? bruno e admin?)
       // Acessar via GET /api/debug-admin no browser. Sem dados sensiveis.
@@ -309,7 +321,7 @@ export default {
 
       // v1.14.0: reconcilia subscriptions buscando payments por preapproval_id
       // (em vez de external_reference, que MP nao copia do plano pro payment).
-      // Resolve o caso real da esposa do Bruno (Claudia Cogo) em produção.
+      // Resolve o caso real de reconciliacao pendente em producao (jun/2026).
       if (url.pathname === '/api/admin-reconcile-via-preapproval-id' && request.method === 'GET') {
         return await handleAdminReconcileViaPreapprovalId(env);
       }
@@ -320,21 +332,15 @@ export default {
         return await handleAdminListRecentPayments(env);
       }
 
-      // v1.16.0: pega o payment ID 162849895214 (esposa do Bruno) com TODOS
-      // os campos. Vou caçar campo que liga ao preapproval/subscription.
-      if (url.pathname === '/api/admin-debug-cogo-payment' && request.method === 'GET') {
-        return await handleAdminDebugCogoPayment(env);
-      }
+      // v1.31.1: admin-debug-cogo-payment e admin-debug-cogo-real REMOVIDOS.
+      // Eram sondas one-shot da reconciliacao MP de junho (caso resolvido na
+      // v1.19.0) e carregavam identificadores pessoais em codigo publico.
+      // Auditoria Manus 15/08. Historico do git preserva se precisar voltar.
 
       // v1.17.0: reconcilia varrendo payments recentes e usando
       // point_of_interaction.transaction_data.subscription_id (ID REAL).
       if (url.pathname === '/api/admin-reconcile-via-payments' && request.method === 'GET') {
         return await handleAdminReconcileViaPayments(env);
-      }
-
-      // v1.18.0: pega preapproval REAL ce7d87ef (Claudia) com tudo.
-      if (url.pathname === '/api/admin-debug-cogo-real' && request.method === 'GET') {
-        return await handleAdminDebugCogoReal(env);
       }
 
       // v1.19.0: reconcilia LINKANDO preapproval inicial (com external_reference)
@@ -942,28 +948,6 @@ async function handleAdminReconcileFinal(env) {
   }
 }
 
-// ─── /api/admin-debug-cogo-real (v1.18.0) ────────────────────
-async function handleAdminDebugCogoReal(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) {
-    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  }
-  try {
-    const r = await fetch('https://api.mercadopago.com/preapproval/ce7d87ef74ea415ea081d5d56387b8a4', {
-      headers: { 'Authorization': 'Bearer ' + token },
-    });
-    const txt = await r.text();
-    let raw;
-    try { raw = JSON.parse(txt); } catch { raw = txt; }
-    return new Response(JSON.stringify({ ok: r.ok, http: r.status, raw }, null, 2),
-      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  }
-}
-
 // ─── /api/admin-reconcile-via-payments (v1.17.0) ─────────────
 // Verdadeiro fix definitivo: varre payments recentes da conta MP,
 // extrai subscription_id REAL (point_of_interaction.transaction_data.
@@ -1038,30 +1022,6 @@ async function handleAdminReconcileViaPayments(env) {
       { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: String(err.message || err), parcial: log }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  }
-}
-
-// ─── /api/admin-debug-cogo-payment (v1.16.0) ─────────────────
-// Pega payment 162849895214 (esposa do Bruno) com TODOS os campos.
-// Hardcoded — usado pra encontrar campo que liga payment a preapproval.
-async function handleAdminDebugCogoPayment(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) {
-    return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  }
-  try {
-    const r = await fetch('https://api.mercadopago.com/v1/payments/162849895214', {
-      headers: { 'Authorization': 'Bearer ' + token },
-    });
-    const txt = await r.text();
-    let raw;
-    try { raw = JSON.parse(txt); } catch { raw = txt; }
-    return new Response(JSON.stringify({ ok: r.ok, http: r.status, raw }, null, 2),
-      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
-  } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   }
 }
@@ -1340,7 +1300,7 @@ async function handleMpWebhook(request, env) {
   try {
     // ── PREAPPROVAL (status da assinatura mudou) ──
     // v1.22.0: só ativa se charged_quantity > 0 (cobrança real).
-    // Cogo case: preapproval inicial fica pending mas paciente paga via
+    // Caso de jun/2026: preapproval inicial fica pending mas paciente paga via
     // preapproval REAL diferente (criada pelo plano). Só ativamos quando
     // confirmamos cobrança efetiva.
     if (type === 'preapproval' || type === 'subscription_preapproval') {
@@ -1449,39 +1409,6 @@ async function _resolveUserId(pa, env) {
     return await findUserByEmail(pa.payer_email, env);
   }
   return null;
-}
-
-// ─── /api/mp-create-test-user (v1.1.1) ───────────────────────
-// Cria um Test User do MP sandbox e retorna credenciais cruas
-// pra Bruno copiar. Sem CORS, sem auth — endpoint temporario,
-// remover quando sandbox testing terminar.
-async function handleMpCreateTestUser(env) {
-  try {
-    const user = await createTestUser(env);
-    // Retorna formato amigavel pra Bruno copiar do browser
-    return new Response(
-      JSON.stringify(
-        {
-          ok: true,
-          email: user.email,
-          password: user.password,
-          nickname: user.nickname,
-          id: user.id,
-          site_status: user.site_status,
-          como_usar:
-            'Em uma aba anonima, va no checkout do app Sanova e faca login no MP com esse email/password. Depois preencha cartao de teste 5031 4332 1540 6351 nome APRO.',
-        },
-        null,
-        2
-      ),
-      { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ ok: false, error: String(err.message || err) }, null, 2),
-      { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-    );
-  }
 }
 
 // ─── /api/debug-admin (v1.2.0) ───────────────────────────────
