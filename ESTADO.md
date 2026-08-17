@@ -83,16 +83,26 @@ produção* está desabilitado, e os dois requisitos abertos são
 **O relógio dos 14 dias não começou** — ele só começa quando as 12 pessoas
 aceitarem. É a tarefa mais lenta da fila e a única sem atalho.
 
-**A faixa está armada, com uma correção.** Eu disse que a v3.10.63 (109)
-estava instalável — o painel mostra **"Em análise"**. O que está disponível
-para testadores hoje é a versão `1 (1.0.0.0)`, lançada em 14/08 18:20. Basta:
-o requisito *"Publique uma versão de teste fechado"* aparece **concluído**, e
-a 109 entra sozinha quando a revisão sair.
+**Cadeia validada de ponta a ponta em 15/08.** As duas revisões do Google
+terminaram; a faixa "Teste fechado - Alpha" está **Ativo**; a v3.10.63 (109)
+está **"Versão disponível para testadores selecionados"** (check verde). O
+Bruno abriu o link de participação, clicou "Become a tester" e recebeu o selo
+**"Você é um testador."** — o fluxo inteiro, do build ao aceite, está provado.
 
-**Link de participação** (só funciona para quem estiver na lista de e-mails):
-`https://play.google.com/apps/testing/br.app.sanova`
+**Testadores hoje: 1** (o próprio Bruno, conta pessoal). Faltam **11** para os
+12 que o Google exige (mirar em ~14 para folga contra desistência).
 
-Não falta mais nada do lado técnico. Falta gente.
+**Link de participação:** `https://play.google.com/apps/testing/br.app.sanova`
+Só funciona para conta que esteja na lista. O link de download que o Google
+oferece após o aceite é a **ficha pública normal**
+(`play.google.com/store/apps/details?id=br.app.sanova`) — quem decide qual
+versão chega é o vínculo da conta ao programa, não a URL. Por isso: o testador
+tem que abrir a Play Store **logado na conta convidada**.
+
+> ⚠️ O único elo ainda não exercido é **instalar no celular** — nenhum agente
+> faz isso (Chrome de desktop não instala app Android). É passo do Bruno.
+
+Não falta mais nada do lado técnico. Falta gente aceitar.
 
 > ⛔ Este arquivo e outros três diziam que **conta de organização é isenta**
 > desses 14 dias. Estava errado — ver `DECISOES.md`, seção 6c.
