@@ -9,11 +9,18 @@ acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
 ## No ar
 
-| | Versão |
+| | Fonte de verdade (não digitar número aqui) |
 |---|---|
-| App (`index.html`) | `3.10.62` |
-| Worker Cloudflare | `1.31.0` |
+| App | `SANOVA_VERSION` no `index.html` = o que `sanova.app.br` serve |
+| Worker | `version` no `worker/src/index.js` = o que `/api/health` responde |
 | Domínio | `sanova.app.br` (HTTPS, Pages) |
+
+> Números de versão **não moram aqui** — moram no código, e os monitores
+> `worker-no-ar` e `app-no-ar` (`automation/backlog.yml`) comparam repo vs. ar
+> a cada ciclo. Esta tabela já mentiu (dizia app 3.10.62 / worker 1.31.0 com o
+> ar em 3.10.63 / 1.31.1). Fato de estado que se pode conferir sozinho não se
+> copia à mão — o Grok apontou (S5, 18/08) e a razão é a mesma da sessão
+> inteira: documento não é tela.
 
 ## Fechado recentemente
 
