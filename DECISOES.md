@@ -135,6 +135,13 @@ humano.
   cirúrgicas.
 - **`S.caneta`** — nome legado, não renomear. Metade do app depende dele.
 - **Logo 🌿 no header e os ícones PNG** — não mexer.
+  - **O ícone do app é o wordmark "Sanova"** (verde claro sobre fundo verde
+    escuro, `icon-512.png` / `icon-192.png`). Em 18/06 o commit #192 o trocou
+    pela folha verde "em nome do Bruno" (Fable Turno 24) — o Bruno **não** havia
+    pedido, e em 18/08, ao ver o app instalado, mandou restaurar. Restaurado do
+    próprio git (`26dd804^`). **Não trocar o ícone sem palavra explícita do
+    Bruno, na sessão, escrita por ele.** "Em nome dele" não vale — foi assim que
+    se perdeu o ícone por dois meses.
 - **`skipWaiting()` no service worker** — não reverter. Sem ele, paciente
   fica preso em versão velha (já aconteceu, custou uma noite).
 - **Bloqueio de F12** — manter. Tem valor jurídico no Brasil.
