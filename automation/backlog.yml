@@ -39,12 +39,13 @@ tasks:
   - id: worker-no-ar
     title: Worker Cloudflare respondendo na versao esperada
     type: worker_version
-    status: failed
+    status: pending
     repeat: true
-    params:
-      expected: "1.31.0"
-    last_run: 2026-08-17T15:36:43.752Z
-    last_result: "no ar: 1.31.1 · esperado: 1.31.0"
+    # Sem `expected`: a referencia e o version do worker/src/index.js do repo.
+    # Cravar o numero aqui deixou este monitor vermelho com alarme falso (pedia
+    # 1.31.0 com o ar ja em 1.31.1). Mesmo motivo do app-no-ar logo abaixo.
+    last_run: null
+    last_result: null
 
   - id: app-no-ar
     title: App servido pelo Pages na versao esperada

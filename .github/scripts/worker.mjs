@@ -23,6 +23,7 @@ const API = 'https://api.github.com';
 const BACKLOG = 'automation/backlog.yml';
 const MAX_POR_CICLO = 6;
 const RE_VERSAO = /var SANOVA_VERSION\s*=\s*'([^']+)'/;
+const RE_WORKER_VER = /version:\s*'([0-9]+\.[0-9]+\.[0-9]+)'/;
 const TOKEN = process.env.GITHUB_TOKEN;
 const DRY_RUN = process.env.DRY_RUN === '1';
 
@@ -73,12 +74,23 @@ const executores = {
     return { ok: true, detalhe: `HTTP ${r.status}` };
   },
 
+  // Sem `expected`, a referencia e o proprio worker/src/index.js do repo — o
+  // mesmo padrao auto-referente do app_version. Cravar a versao a mao aqui
+  // deixou o monitor `worker-no-ar` vermelho com alarme falso (pedia 1.31.0
+  // quando o ar ja estava em 1.31.1). A pergunta util e sempre a mesma:
+  // "o que esta no ar bate com o que a gente mandou?"
   async worker_version({ expected }) {
+    const esperado = expected || (() => {
+      const m = readFileSync('worker/src/index.js', 'utf8').match(RE_WORKER_VER);
+      return m ? m[1] : null;
+    })();
+    if (!esperado) return { ok: false, detalhe: "version sumiu do worker/src/index.js do repo" };
+
     const r = await fetch(WORKER_HEALTH);
     if (!r.ok) return { ok: false, detalhe: `health HTTP ${r.status}` };
     const d = await r.json().catch(() => ({}));
-    if (d.version !== expected) {
-      return { ok: false, detalhe: `no ar: ${d.version || '?'} · esperado: ${expected}` };
+    if (d.version !== esperado) {
+      return { ok: false, detalhe: `no ar: ${d.version || '?'} · no repo: ${esperado}` };
     }
     return { ok: true, detalhe: `v${d.version}` };
   },
