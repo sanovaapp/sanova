@@ -6460,7 +6460,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.64';
+var SANOVA_VERSION = '3.10.65';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -23202,6 +23202,7 @@ window.addEventListener('beforeunload',function(){
         paciente: data.paciente,
         pro: data.pro,
         vinculo: data.vinculo,
+        sincronizado_em: data.sincronizado_em || null,
       };
       window.S = data.paciente_state;
       // marca body em modo espelho
@@ -23223,24 +23224,50 @@ window.addEventListener('beforeunload',function(){
     }
   }
 
+  /* v3.10.65: o espelho mostra o dado do SERVIDOR. Registro feito offline e
+     ainda nao sincronizado NAO esta aqui. Sem o carimbo de sincronizacao, o
+     profissional nao distingue "sem sintomas esta semana" de "sem
+     sincronizacao esta semana" — e tomar o silencio da sync por silencio
+     clinico e o erro que a fronteira existe pra evitar. Por isso o banner
+     carrega a idade do dado, e acima de 24h vira aviso ambar explicito. */
+  function _idadeSincronizacao(iso){
+    if(!iso) return { txt: 'sincronização desconhecida', velho: true };
+    var ms = Date.now() - new Date(iso).getTime();
+    if(isNaN(ms) || ms < 0) return { txt: 'sincronização desconhecida', velho: true };
+    var min = Math.floor(ms/60000);
+    if(min < 2)  return { txt: 'sincronizado agora há pouco', velho: false };
+    if(min < 60) return { txt: 'sincronizado há ' + min + ' min', velho: false };
+    var h = Math.floor(min/60);
+    if(h < 24)  return { txt: 'sincronizado há ' + h + ' h', velho: false };
+    var d = Math.floor(h/24);
+    return { txt: 'sincronizado há ' + d + (d === 1 ? ' dia' : ' dias'), velho: true };
+  }
+
   function _renderSpectatorBanner(){
     if(document.getElementById('spectatorBanner')) return;
     var ctx = window._spectatorCtx || {};
     var nome = (ctx.paciente && ctx.paciente.nome) || (ctx.paciente && ctx.paciente.email) || 'paciente';
+    var sync = _idadeSincronizacao(ctx.sincronizado_em);
+    var syncCor = sync.velho ? '#fbbf24' : 'rgba(187,247,208,.75)';
+    var syncLinha =
+      '<span style="display:block;font-size:11px;font-weight:500;color:' + syncCor + ';margin-top:2px">' +
+        (sync.velho ? '⚠️ ' : '') + sync.txt +
+        (sync.velho ? ' · pode haver registros ainda não sincronizados' : '') +
+      '</span>';
     var b = document.createElement('div');
     b.id = 'spectatorBanner';
-    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:linear-gradient(180deg,#0a3a20 0%,#041b0d 100%);color:#bbf7d0;font-family:system-ui,-apple-system,sans-serif;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.18);border-bottom:1px solid rgba(187,247,208,.22)';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:linear-gradient(180deg,#0a3a20 0%,#041b0d 100%);color:#bbf7d0;font-family:system-ui,-apple-system,sans-serif;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.18);border-bottom:1px solid rgba(187,247,208,.22)';
     b.innerHTML =
-      '<div style="display:flex;align-items:center;gap:8px;min-width:0">' +
-        '<span style="font-size:16px">🩺</span>' +
-        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Visualizando <strong style="color:#fff">' + (nome.replace(/[<>]/g,'')) + '</strong> · somente leitura</span>' +
+      '<div style="min-width:0">' +
+        '<span style="display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="font-size:16px">🩺</span><span>Visualizando <strong style="color:#fff">' + (nome.replace(/[<>]/g,'')) + '</strong> · somente leitura</span></span>' +
+        syncLinha +
       '</div>' +
       '<a href="/pro.html" style="background:#86efac;color:#041b0d;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">← Voltar</a>';
     document.body.appendChild(b);
-    // empurra app abaixo do banner
+    // empurra app abaixo do banner (duas linhas agora)
     try{
       var mainHdr = document.getElementById('mainHdr');
-      if(mainHdr) mainHdr.style.paddingTop = '52px';
+      if(mainHdr) mainHdr.style.paddingTop = '66px';
       document.body.style.paddingTop = '0';
     }catch(e){}
   }

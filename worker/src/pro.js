@@ -600,6 +600,13 @@ export async function handleSpectatorState(request, env, origin) {
       consentido_em: link.consented_at,
       consent_version: link.consent_version,
     },
+    // Quando a paciente sincronizou pela ultima vez. O espelho mostra isso no
+    // banner porque o dado que o pro ve e o do SERVIDOR: registro feito
+    // offline ainda-nao-sincronizado NAO aparece aqui. Sem o carimbo, o
+    // medico nao distingue "sem sintomas" de "sem sincronizacao" — e tomar o
+    // silencio da sync por silencio clinico e exatamente o erro que a
+    // fronteira ("ausencia de alerta != ausencia de risco") existe pra evitar.
+    sincronizado_em: row.updated_at || null,
     // app_state cru — frontend renderiza tudo + esconde controles de registro
     paciente_state: row.state,
   }, 200, origin, env);
