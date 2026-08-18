@@ -91,6 +91,37 @@ cravado.*
       ficou pra trás e virou contradição de documento (auditoria Manus,
       observação 15).
 
+### Da sessão de cache/sincronização (18/08) — o que ficou pra fila
+
+*Contexto: pergunta do Bruno sobre risco de cache/localStorage desatualizado.
+Os itens 1 (trava de versão em par) e 2 (carimbo de sync no espelho) foram
+feitos na hora. Estes são os que ficaram:*
+
+- [ ] **Indicador de "não sincronizado" pro paciente**
+      POR QUE: hoje o paciente não sabe se o último registro já subiu pra
+      nuvem. Se o celular ficar dias offline, ele acha que o médico está
+      vendo — e não está.
+      PRONTO QUANDO: um selo discreto aparece quando há dado local mais novo
+      que a última sync bem-sucedida, e some quando sincroniza.
+
+- [ ] **Fusão por união dos registros de série temporal**
+      POR QUE: o conflito entre dois aparelhos hoje é resolvido por carimbo
+      do estado INTEIRO — o mais novo vence e um registro feito no aparelho
+      "perdedor" some. União campo a campo (pesos, doses, sintomas,
+      refeições por timestamp) elimina a perda.
+      CUIDADO: mexe no coração da sync (v3.10.14). Só com teste cobrindo os
+      cenários de conflito ANTES da mudança.
+
+- [ ] **Carimbo de versão no dado local + migração explícita**
+      POR QUE: mudança de formato do `S` lida por versão antiga produz
+      número torto em silêncio. Já existe backup pré-sobrescrita; falta
+      `S._schema` e um degrau de migração por versão.
+
+- [ ] **Carimbo de sync na lista de pacientes do pro.html**
+      POR QUE: o banner do espelho já mostra a idade do dado (v3.10.65), mas
+      a lista de pacientes no painel ainda não — o pro pode escolher quem
+      olhar baseado em lista silenciosamente desatualizada.
+
 ### Da auditoria do Manus (15/08) — aceitos e na fila
 
 - [ ] **Allowlist de campos no espelho** (achado 8)
