@@ -10,6 +10,33 @@
 const MP_API = 'https://api.mercadopago.com';
 
 /**
+ * Escolhe o ACCESS_TOKEN do Mercado Pago pelo MODO explicito.
+ *
+ * PADRAO E SANDBOX. Producao so quando env.MP_MODE === 'prod' — e ai o token
+ * de producao TEM que existir; se faltar, lanca em vez de cair pro sandbox.
+ * Por que assim: antes o codigo lia `MP_ACCESS_TOKEN_SANDBOX || ...`, o que
+ * significava "sandbox pra sempre" ate alguem lembrar de apagar o secret — e
+ * o `MP_ACCESS_TOKEN_PROD` ficava orfao, lido por ninguem. Num sistema que
+ * cobra dinheiro, o default seguro e NAO cobrar de verdade; virar producao
+ * tem que ser um ato deliberado (setar MP_MODE=prod), nunca um acidente de
+ * precedencia de variavel.
+ *
+ * Dia de comercializar: (1) cravar MP_ACCESS_TOKEN_PROD, (2) setar
+ * MP_MODE=prod. Ver LANCAMENTO.md.
+ */
+export function mpToken(env){
+  if (env.MP_MODE === 'prod') {
+    if (!env.MP_ACCESS_TOKEN_PROD) {
+      throw new Error('MP_MODE=prod mas MP_ACCESS_TOKEN_PROD ausente — recusando cobrar sem token de producao');
+    }
+    return env.MP_ACCESS_TOKEN_PROD;
+  }
+  const t = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  if (!t) throw new Error('MP_ACCESS_TOKEN_SANDBOX ausente no Worker');
+  return t;
+}
+
+/**
  * Cria preapproval (assinatura recorrente) no Mercado Pago.
  *
  * @param {object} params
@@ -20,8 +47,7 @@ const MP_API = 'https://api.mercadopago.com';
  * @returns {Promise<{init_point: string, id: string, status: string}>}
  */
 export async function createPreapproval({ userId, payerEmail, backUrl, plano }, env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+  const token = mpToken(env);
 
   // v1.8.0: mensal R$19,90/mes vs anual R$199 a cada 12 meses
   const planoNormalizado = (plano === 'anual') ? 'anual' : 'mensal';
@@ -62,8 +88,7 @@ export async function createPreapproval({ userId, payerEmail, backUrl, plano }, 
  * Busca o estado atual de uma preapproval no MP.
  */
 export async function getPreapproval(preapprovalId, env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+  const token = mpToken(env);
 
   const resp = await fetch(MP_API + '/preapproval/' + preapprovalId, {
     headers: { 'Authorization': 'Bearer ' + token },
@@ -84,8 +109,7 @@ export async function getPreapproval(preapprovalId, env) {
  * Docs: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/accounts
  */
 export async function createTestUser(env, siteId = 'MLB') {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+  const token = mpToken(env);
 
   // v1.2.1: adicionado description + idempotency key — MP atualizou validacao
   // e estava retornando "invalid site_id" sem esses campos.
@@ -116,8 +140,7 @@ export async function createTestUser(env, siteId = 'MLB') {
  * Busca um pagamento avulso no MP (usado quando webhook traz type=payment).
  */
 export async function getPayment(paymentId, env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+  const token = mpToken(env);
 
   const resp = await fetch(MP_API + '/v1/payments/' + paymentId, {
     headers: { 'Authorization': 'Bearer ' + token },
@@ -195,8 +218,7 @@ export async function verifyWebhookSignature(request, body, env) {
  * Doc: https://www.mercadopago.com.br/developers/pt/reference/subscriptions/_preapproval_plan/post
  */
 export async function createPreapprovalPlanMP({ tipo, backUrl }, env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN ausente no Worker');
+  const token = mpToken(env);
 
   const planoNormalizado = (tipo === 'anual') ? 'anual' : 'mensal';
   const auto_recurring = planoNormalizado === 'anual'

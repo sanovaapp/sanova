@@ -43,6 +43,7 @@ jobs:
           secrets: |
             GEMINI_API_KEY
             MP_ACCESS_TOKEN_SANDBOX
+            MP_ACCESS_TOKEN_PROD
             MP_WEBHOOK_SECRET
             SUPABASE_SERVICE_ROLE_KEY
             ADMIN_OVERRIDE_TOKEN
@@ -50,6 +51,12 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MP_ACCESS_TOKEN_SANDBOX: ${{ secrets.MP_ACCESS_TOKEN_SANDBOX }}
+          # v1.31.3: token de producao disponivel no Worker, mas so USADO
+          # quando MP_MODE=prod. Enquanto MP_MODE nao for setado, o padrao e
+          # sandbox — dinheiro real nao passa por acidente. Dia de comercializar:
+          # setar a variavel de repo MP_MODE=prod (ver LANCAMENTO.md).
+          MP_ACCESS_TOKEN_PROD: ${{ secrets.MP_ACCESS_TOKEN_PROD }}
+          MP_MODE: ${{ vars.MP_MODE }}
           MP_WEBHOOK_SECRET: ${{ secrets.MP_WEBHOOK_SECRET }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # v1.24.0: GitHub Actions usa esse token no header X-Admin-Token
