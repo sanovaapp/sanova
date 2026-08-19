@@ -180,6 +180,36 @@ O botão está **cinza** hoje. Ele acende sozinho quando 2.1 e 2.2 fecharem.
 
 ---
 
+## Etapa 3.5 — Ligar o dinheiro (comercialização) 💰
+
+> ⚠️ **Hoje o pagamento roda em SANDBOX — dinheiro real NÃO passa.** É de
+> propósito: durante teste e piloto, ninguém deve ser cobrado. Descoberto na
+> verificação de 19/08 e transformado em interruptor explícito (worker 1.31.3).
+
+**Preço já está no código:** R$ 19,90/mês ou R$ 199/ano (`worker/src/mp.js`).
+
+**O interruptor para começar a cobrar de verdade — dois passos, deliberados:**
+
+1. **Bruno** — cravar o secret `MP_ACCESS_TOKEN_PROD` com o token de produção
+   do Mercado Pago (o de junho pode estar expirado; a auditoria pediu rotação).
+   Painel MP → Suas integrações → credenciais de **produção** (`APP_USR-...`).
+2. **Bruno** — criar a **variável de repositório** `MP_MODE` = `prod`
+   (GitHub → Settings → Secrets and variables → Actions → **Variables**).
+   Enquanto ela não existir ou for diferente de `prod`, o worker usa sandbox.
+
+Depois disso, o próximo deploy do worker passa a cobrar de verdade. O código
+recusa ligar produção sem o token (falha alta em vez de cobrança fantasma —
+`worker/test/mp-mode.test.mjs`).
+
+**Antes de virar a chave, o que NÃO é código e é do Bruno:**
+- CNPJ ativo + emissão de nota fiscal sobre assinatura recorrente
+- Modelo definido: quem paga (paciente direto vs. via médico), se há teste
+  grátis, o que trava atrás do paywall
+- Webhook de produção testado com uma cobrança real de baixo valor (ex.: você
+  mesmo assina, confirma que o Supabase marca `active`, depois cancela)
+
+---
+
 ## Etapa 4 — Enquanto isso, em paralelo
 
 *Nada aqui depende do Google. É a fila do robô, em
