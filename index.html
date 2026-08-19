@@ -1120,7 +1120,7 @@ button:active,.btn:active,.ci-card:active,.fase-opt:active,.ana-opt:active,.ana-
 .calc-fi select option{background:#082218;color:#fff}
 .calc-fi select:focus,.calc-fi input:focus{border-color:var(--g400);background:rgba(255,255,255,.12)}
 .calc-result{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px;margin-top:14px;text-align:center;position:relative}
-.calc-big{font-family:var(--fd);font-size:56px;color:#fff;font-weight:500;line-height:1;letter-spacing:-.035em}
+.calc-big{font-family:var(--fd);font-size:84px;color:#fff;font-weight:500;line-height:1;letter-spacing:-.035em}
 .calc-big-lbl{font-size:12px;color:var(--g300);margin-top:6px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;line-height:1.4;padding:0 8px;text-align:center}
 .calc-row{display:flex;justify-content:center;gap:28px;margin-top:18px;flex-wrap:wrap}
 .calc-item-val{font-family:var(--fd);font-size:20px;font-weight:500;color:#fff;letter-spacing:-.015em}
@@ -1580,7 +1580,7 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
   .help-fab{bottom:calc(80px + var(--safe-bottom));left:12px;width:44px;height:44px;font-size:18px}
   .calc-form{grid-template-columns:1fr}
   .calc-fi{grid-column:1/-1}
-  .calc-big{font-size:48px}
+  .calc-big{font-size:68px}
   .prog-weight{font-size:34px}
   .hdr-in{height:60px;padding:0 14px}
   .hdr button{min-height:34px;padding:6px 12px;font-size:11px}
@@ -5392,10 +5392,6 @@ try{
     <div class="calc-tag" id="calcMainTag">💉 APLICAR DOSE</div>
     <div class="calc-title" id="calcMainTitle">Registre sua aplicação</div>
 
-    <!-- v3.4.3: badge de data retroativa — restaura registro de dose em outro dia -->
-    <div id="calcDataRegWrap" style="display:none;margin:6px 0 14px;text-align:center">
-      <button id="dataReg-dose" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação">📅 Hoje ▼</button>
-    </div>
     <div style="margin-bottom:14px;padding:8px 12px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.2);border-radius:10px;font-size:11px;color:rgba(253,230,138,.7);line-height:1.5">
       ⚕️ <strong style="color:rgba(232,200,120,.8)">Aviso clínico:</strong> Sempre siga a prescrição do seu médico. O Sanova não substitui orientação médica.
     </div>
@@ -5424,6 +5420,10 @@ try{
         ✅ Selecione a dose no dial da caneta conforme a prescrição.<br>
         ✅ Aplique subcutaneamente, segure 6 segundos antes de retirar.<br>
         ✅ Não é necessário seringa de insulina para caneta industrial.
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 14px;margin-bottom:12px">
+        <span style="font-size:12.5px;color:rgba(255,255,255,.75);font-weight:700">🗓 Data da aplicação</span>
+        <button id="dataReg-dose2" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação">📅 Hoje ▼</button>
       </div>
       <button onclick="registrarAplicacaoHoje()" style="width:100%;padding:16px;border-radius:12px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
         ✅ Apliquei agora — registrar dose
@@ -5565,6 +5565,13 @@ try{
           </label>
         </div>
 
+        <!-- v3.10.68 (Onda 1 UX): a data vive AQUI, no registro — nao no
+             conversor. Era a confusao apontada pelo Bruno e pelas auditorias:
+             "por que a data de hoje na dose de insulina?" -->
+        <div id="calcDataRegWrap" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 14px;margin-bottom:12px">
+          <span style="font-size:12.5px;color:rgba(255,255,255,.75);font-weight:700">🗓 Data da aplicação</span>
+          <button id="dataReg-dose" onclick="_abrirSeletorData('dose')" class="data-reg-badge" aria-label="Mudar data da aplicação">📅 Hoje ▼</button>
+        </div>
         <button id="btnAplicar" onclick="registrarAplicacaoFrasco()" disabled style="width:100%;padding:16px;border-radius:12px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-family:var(--ss);font-size:14px;font-weight:800;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s;margin-bottom:8px">
           ✅ Apliquei agora — registrar dose
         </button>
@@ -6469,7 +6476,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.67';
+var SANOVA_VERSION = '3.10.68';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11138,21 +11145,19 @@ function renderCalc(){
   var tipo = S.caneta && S.caneta.tipo;
   var elSem = el('calcSemConfig'), elCan = el('calcCaneta'), elFra = el('calcFrasco');
   var elTag = el('calcMainTag'), elTitle = el('calcMainTitle');
-  var elDataReg = el('calcDataRegWrap');
   if(!elSem || !elCan || !elFra) return;
 
   if(!tipo || !S.caneta.farmaco){
     if(elTag)   elTag.textContent   = '💉 APLICAR DOSE';
     if(elTitle) elTitle.textContent = 'Registre sua aplicação';
-    if(elDataReg) elDataReg.style.display = 'none';
     elSem.style.display = 'block';
     elCan.style.display = 'none';
     elFra.style.display = 'none';
     return;
   }
 
-  // v3.4.3: mostra badge de data retroativa quando tipo+fármaco configurados
-  if(elDataReg) elDataReg.style.display = 'block';
+  // v3.10.68: a badge de data vive junto do REGISTRO (dentro de cada fluxo);
+  // aqui so se atualiza o rotulo dela.
   if(typeof _renderBadgeData === 'function') _renderBadgeData('dose');
 
   // v3.10.0: 3 tipos NAO-frasco-manipulado renderizam o card 'calcCaneta'
@@ -11185,7 +11190,7 @@ function renderCalc(){
 
   // tipo === 'frasco_manipulado' (ou legado 'frasco')
   if(elTag)   elTag.textContent   = '🧪 CÁLCULO DE DOSE';
-  if(elTitle) elTitle.textContent = 'Converta aqui sua dose da medicação em unidades de insulina antes de aplicar';
+  if(elTitle) elTitle.textContent = 'Sua dose, em unidades da seringa';
   elSem.style.display = 'none';
   elCan.style.display = 'none';
   elFra.style.display = 'block';
@@ -11349,17 +11354,24 @@ function calcDil(){
     +'<div class="calc-det-item"><div class="calc-item-val">'+rd(conc,2)+' mg/mL</div><div class="calc-item-lbl">Concentração</div></div>'
     +'<div class="calc-det-item"><div class="calc-item-val">'+rd(volAspirar,3)+' mL</div><div class="calc-item-lbl">Volume</div></div>'
     +'</div>';
-  if(Math.abs(uni-uniR)>0) html+='<div style="margin-top:10px;font-size:12px;color:#a5b4fc;text-align:center">Arredondamento sugerido: <strong>'+uniR+' UI</strong></div>';
+  // v3.10.68 (Onda 1 UX): "Arredondamento sugerido" REMOVIDO. Dois numeros na
+  // tela de uma injecao e risco de dose — o paciente aspira 15 achando que o
+  // 17 era detalhe. UM numero, sempre. Decisao anunciada ao Bruno em 19/08.
   html+=avisoSer+'</div>'
-    +'<div class="calc-warn" style="margin-top:10px">⚠️ Unidades = (dose ÷ concentração) × 100 &nbsp;|&nbsp; Sempre confirme com seu médico antes da aplicação.</div>';
+    +'<div class="calc-warn" style="margin-top:10px">⚕️ Sempre confirme com seu médico antes da aplicação.</div>';
 
-  // v3.7.1: bloco educativo "Como chegamos em X UI?" — sempre visível.
-  // Explica passo-a-passo pra paciente leigo entender a conversão mg → UI.
+  // v3.10.68 (Onda 1 UX): "Como chegamos" vira acordeao FECHADO. A conta
+  // completa continua a um toque — mas nao compete mais com o numero da dose.
+  // (Era "sempre visivel" desde a v3.7.1; a revisao ao vivo mediu 11k px de
+  // tela e o proprio dono do app se perdeu.)
   var doseTxt = String(dose).replace('.',',');
   var concTxt = (Math.round(conc*100)/100).toString().replace('.',',');
   var volTxt = rd(volAspirar,3).toString().replace('.',',');
-  html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:12px">'
-    + '<div style="font-size:12px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px">🧠 Como chegamos em '+uni+' UI?</div>'
+  html += '<button onclick="var b=document.getElementById(\'calcComoBody\');var a=document.getElementById(\'calcComoArr\');var o=b.style.display===\'none\';b.style.display=o?\'block\':\'none\';if(a)a.style.transform=o?\'rotate(180deg)\':\'\';" style="width:100%;margin-top:14px;padding:13px 16px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:var(--ss)">'
+    + '<span style="font-size:12px;font-weight:800;color:#86efac;letter-spacing:.04em;text-transform:uppercase">🧠 Como chegamos em '+uni+' UI?</span>'
+    + '<span id="calcComoArr" style="color:#86efac;transition:transform .25s">▾</span>'
+    + '</button>'
+    + '<div id="calcComoBody" style="display:none;margin-top:8px;padding:14px 16px;background:rgba(187,247,208,.05);border:1px solid rgba(187,247,208,.18);border-radius:12px">'
     + '<div style="font-size:13px;color:rgba(255,255,255,.88);line-height:1.65">'
     +   '<div><strong style="color:#fff">Sua dose:</strong> '+doseTxt+' mg</div>'
     +   '<div><strong style="color:#fff">Frasco:</strong> '+concTxt+' mg/mL <span style="color:rgba(255,255,255,.55)">(a cada 1 mL tem '+concTxt+' mg da medicação)</span></div>'
@@ -13476,13 +13488,16 @@ function _formatarDataReg(data){
 
 // Renderiza o badge na tela (busca elemento por convenção: 'dataReg-{tela}')
 function _renderBadgeData(tela){
-  var badge = el('dataReg-'+tela);
-  if(!badge) return;
   var data = _getDataReg(tela);
   var retroativo = !_ehHoje(data);
   var txt = _formatarDataReg(data);
-  badge.innerHTML = (retroativo ? '⚠️ ' : '📅 ') + txt + ' ▼';
-  badge.className = retroativo ? 'data-reg-badge retroativo' : 'data-reg-badge';
+  // v3.10.68: a badge de dose existe em DOIS fluxos (frasco e caneta
+  // industrial) — atualiza as duas copias que existirem.
+  [el('dataReg-'+tela), tela==='dose' ? el('dataReg-dose2') : null].forEach(function(badge){
+    if(!badge) return;
+    badge.innerHTML = (retroativo ? '⚠️ ' : '📅 ') + txt + ' ▼';
+    badge.className = retroativo ? 'data-reg-badge retroativo' : 'data-reg-badge';
+  });
 }
 
 // Abre seletor de data (lista dos últimos N dias)
