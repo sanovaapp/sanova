@@ -3827,6 +3827,15 @@ try{
           <div class="mais-lbl">Backup</div>
           <div class="mais-sub">Salvar seus dados</div>
         </button>
+        <!-- v3.10.67: atalho direto de logout. O botao canonico segue em
+             Minha conta; este e o caminho que a intuicao procura ("Mais ->
+             Sair"). O proprio Bruno nao achou o de dentro (revisao 18/08) —
+             se o dono nao acha, paciente novo tambem nao. -->
+        <button class="mais-btn" onclick="fecharMais();sanovaSair()" aria-label="Sair desta conta" style="grid-column:1/-1;border-color:rgba(243,168,138,.28)">
+          <span class="mais-ic" aria-hidden="true">🚪</span>
+          <div class="mais-lbl">Sair desta conta</div>
+          <div class="mais-sub">Encerra a sessão neste aparelho</div>
+        </button>
       </div>
     </div>
 
@@ -6460,7 +6469,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.66';
+var SANOVA_VERSION = '3.10.67';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
