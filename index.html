@@ -5298,7 +5298,7 @@ try{
           <div id="cVolPreview" style="display:none;margin-top:10px;padding:9px 12px;background:rgba(74,222,128,.10);border:1px solid rgba(134,239,172,.30);border-radius:8px;font-size:12.5px;color:#bbf7d0;font-weight:600;text-align:center"></div>
         </div>
 
-        <div class="fi"><label>Frequência</label><select id="cFreq"><option value="semanal">Semanal</option><option value="diaria">Diária</option></select></div>
+        <div class="fi"><label>Frequência</label><select id="cFreq"><option value="semanal">Semanal</option><option value="quinzenal">Quinzenal</option><option value="diaria">Diária</option></select></div>
         <div class="fi" id="diaSemW">
           <label>Dia da aplicação</label>
           <select id="cDia">
@@ -6460,7 +6460,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.65';
+var SANOVA_VERSION = '3.10.66';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -10389,8 +10389,8 @@ function proxDose(){
   // Antes retornava ingenuamente "ultima+1" mesmo se essa data já estivesse no passado.
   if(!S.caneta.farmaco||!S.caneta.ultima) return null;
   var ul=new Date(S.caneta.ultima+'T12:00:00'),pr=new Date(ul);
-  if(S.caneta.freq==='semanal'){
-    pr.setDate(pr.getDate()+7);
+  if(S.caneta.freq!=='diaria'){
+    pr.setDate(pr.getDate()+diasDoCiclo(S.caneta.freq));
   } else {
     pr.setDate(pr.getDate()+1);
     var hojeNoon = new Date(); hojeNoon.setHours(12,0,0,0);
@@ -10841,6 +10841,14 @@ function renderAplicacaoCheckin(){
   } else if(freq === 'diaria'){
     mostrarCard = true;
     contexto = (diasDesde !== null && diasDesde > 1) ? 'atrasada_diaria' : 'pendente_diaria';
+  } else if(freq === 'quinzenal'){
+    // Quinzenal: dia-da-semana repete na semana errada — usa dias desde a dose.
+    var atrasadaQ = (diasDesde !== null && diasDesde > 14);
+    if(diasDesde !== null && (diasDesde >= 14 || atrasadaQ)){
+      mostrarCard = true; contexto = atrasadaQ ? 'atrasada_semanal' : 'dia_esperado';
+    } else if(diasDesde === 13){
+      mostrarCard = true; contexto = 'proxima';
+    }
   } else {
     // Semanal: aparece no dia esperado e ±1 dia, ou se atrasada
     var hojeDt = new Date();
@@ -13280,6 +13288,26 @@ var FARMACOS_INFO = {
   }
 };
 
+/* v3.10.66: ciclo em dias a partir da frequencia que o MEDICO prescreveu.
+   'quinzenal' existe porque ha esquemas prescritos assim (metade da exposicao
+   media do semanal, vales mais fundos). O app EXIBE o esquema escolhido; nao
+   recomenda esquema — isso e do prescritor. Conferido na farmacometria
+   publicada: t1/2 nao muda com peso nem idade, entao a curva percentual vale
+   pra todos; so a exposicao absoluta (mg/L) varia (~1%/kg), e o app nao a
+   mostra. */
+function diasDoCiclo(freq){ return freq==='quinzenal' ? 14 : (freq==='diaria' ? 1 : 7); }
+function pkPeriodoHoras(p, freq){ return freq==='quinzenal' ? 336 : p.period; }
+/* Copia de PK_PARAMS com o periodo do esquema real do paciente. */
+function pkParamsEfetivos(farm){
+  var p = PK_PARAMS[farm]; if(!p) return p;
+  var freq = (window.S && S.caneta && S.caneta.freq) || 'semanal';
+  var per = pkPeriodoHoras(p, freq);
+  if(per === p.period) return p;
+  var c = {}; for(var k in p) c[k] = p[k];
+  c.period = per;
+  return c;
+}
+
 /* Mapeia marca comercial → princípio ativo */
 function principioAtivo(farmaco){
   if(!farmaco) return null;
@@ -13683,7 +13711,7 @@ function renderGaugeSaciedade(){
   if(pkAcc)pkAcc.style.display='none';
   if(semMedEl)semMedEl.style.display='none';
 
-  var p=PK_PARAMS[farm];
+  var p=pkParamsEfetivos(farm);
   // v3.1.30 FIX 1: usar ultimaISO (com hora) se disponível, igual ao Hero
   // Antes: gauge usava só "ultima+T12:00:00", causando inconsistência com Hero
   var lastDt = S.caneta.ultimaISO ? new Date(S.caneta.ultimaISO) : new Date(ultima+'T12:00:00');
@@ -15212,7 +15240,7 @@ function buildPKChart(){
     return;
   }
   if(card) card.style.display='block';
-  var p=PK_PARAMS[farm],period=p.period;
+  var p=pkParamsEfetivos(farm),period=p.period;
   var step=farm==='Liraglutida'?1:4; // 1h for daily, 4h for weekly
   var pts=[],tArr=[];
   for(var t=0;t<=period;t+=step){pts.push(pkLevel(t,p));tArr.push(t);}
@@ -15620,7 +15648,7 @@ function render(){
     var _chD=el('chDrug');if(_chD)_chD.textContent=S.caneta.farmaco;
     var _chDs=el('chDose');if(_chDs)_chDs.textContent=S.caneta.dose?'Dose atual: '+fmtDoseMg(S.caneta.dose):'Configure a dose abaixo';
     var crow=el('chRow');if(crow){crow.innerHTML='';
-    [{l:'Frequência',v:S.caneta.freq==='semanal'?'Semanal':'Diária'},{l:'Última aplicação',v:S.caneta.ultima?dataBR(S.caneta.ultima):'—'},{l:'Próxima',v:pd?pd.diff<=0?'Hoje':dataBR(pd.date):'—'}].forEach(function(k){var d=document.createElement('div');d.className='ch-kpi';d.innerHTML='<div class="ch-kl">'+k.l+'</div><div class="ch-kv">'+k.v+'</div>';crow.appendChild(d);});}
+    [{l:'Frequência',v:S.caneta.freq==='semanal'?'Semanal':S.caneta.freq==='quinzenal'?'Quinzenal':'Diária'},{l:'Última aplicação',v:S.caneta.ultima?dataBR(S.caneta.ultima):'—'},{l:'Próxima',v:pd?pd.diff<=0?'Hoje':dataBR(pd.date):'—'}].forEach(function(k){var d=document.createElement('div');d.className='ch-kpi';d.innerHTML='<div class="ch-kl">'+k.l+'</div><div class="ch-kv">'+k.v+'</div>';crow.appendChild(d);});}
     var doses2=DOSES[S.caneta.farmaco];
     if(doses2){
     el('escCard').style.display='block';
@@ -16274,7 +16302,7 @@ function renderProxDose(){
   var ultima=S.caneta.ultima;
   if(!f||!ultima){card.style.display='none';return;}
   var freq=S.caneta.freq||'semanal';
-  var diasCiclo=freq==='diaria'?1:7;
+  var diasCiclo=diasDoCiclo(freq);
   var dtUlt=new Date(ultima+'T12:00:00');
   var dtProx=new Date(dtUlt.getTime()+diasCiclo*24*3600*1000);
   var agora=new Date();
@@ -16329,7 +16357,7 @@ function renderCanaetaPainel(){
   if(!f){wrap.style.display='none';return;}
   wrap.style.display='block';
   var _cpf=el('caPainelFarm');if(_cpf)_cpf.textContent=f;
-  var _cpd=el('caPainelDose');if(_cpd)_cpd.textContent=dose?'Dose atual: '+dose+' mg'+(S.caneta.freq==='diaria'?' · Diário':' · Semanal'):'Dose não configurada';
+  var _cpd=el('caPainelDose');if(_cpd)_cpd.textContent=dose?'Dose atual: '+dose+' mg'+(S.caneta.freq==='diaria'?' · Diário':S.caneta.freq==='quinzenal'?' · Quinzenal':' · Semanal'):'Dose não configurada';
   if(!ultima){
     var _cpt=el('caPainelProxTag');if(_cpt)_cpt.textContent='';
     var _cpv=el('caPainelProxVal');if(_cpv)_cpv.textContent='Registre a última dose';
@@ -16338,7 +16366,7 @@ function renderCanaetaPainel(){
     return;
   }
   var freq=S.caneta.freq||'semanal';
-  var diasCiclo=freq==='diaria'?1:7;
+  var diasCiclo=diasDoCiclo(freq);
   var dtUlt=new Date(ultima+'T12:00:00');
   var dtProx=new Date(dtUlt.getTime()+diasCiclo*24*3600*1000);
   var agora=new Date();
@@ -16390,7 +16418,7 @@ function abrirResumo(){
   if(S.caneta.farmaco){
     medHtml+='<b>Fármaco:</b> '+S.caneta.farmaco+'<br>';
     medHtml+='<b>Dose atual:</b> '+(S.caneta.dose||'—')+' mg<br>';
-    medHtml+='<b>Frequência:</b> '+(S.caneta.freq==='semanal'?'Semanal':'Diária')+'<br>';
+    medHtml+='<b>Frequência:</b> '+(S.caneta.freq==='semanal'?'Semanal':S.caneta.freq==='quinzenal'?'Quinzenal':'Diária')+'<br>';
     medHtml+='<b>Início:</b> '+(S.caneta.inicio?dataBR(S.caneta.inicio):'—')+'<br>';
     medHtml+='<b>Última dose:</b> '+(S.caneta.ultima?dataBR(S.caneta.ultima):'—')+'<br>';
     if(pd) medHtml+='<b>Próxima dose:</b> '+dataBR(pd.date)+'<br>';
@@ -17515,8 +17543,8 @@ function calcEstoquePrevisao(){
   var freq = S.caneta.freq || 'semanal';
   var doses = Math.floor(S.caneta.estoqueAtual / dose);
   if(doses < 0) doses = 0;
-  var intervaloDias = (freq === 'diaria') ? 1 : 7;
-  var semanas = (freq === 'diaria') ? (doses / 7) : doses;
+  var intervaloDias = diasDoCiclo(freq);
+  var semanas = (freq === 'diaria') ? (doses / 7) : (doses * intervaloDias / 7);
   var dataFim = null;
   if(doses > 0){
     var d = new Date();
@@ -18790,7 +18818,7 @@ function agendarLembretesLocais(){
   // Calcular próximas 5 datas de aplicação
   var hojeData = new Date();
   var ultDate = new Date(S.caneta.ultima + 'T12:00:00');
-  var passo = freq === 'semanal' ? 7 : 1;
+  var passo = diasDoCiclo(freq);
   var datasAlvo = [];
   var prox = new Date(ultDate);
   prox.setDate(prox.getDate() + passo);
@@ -18838,8 +18866,8 @@ function gerarICSLembretes(){
   var partes = horario.split(':');
   var h = parseInt(partes[0], 10) || 8;
   var m = parseInt(partes[1], 10) || 0;
-  var passo = freq === 'semanal' ? 7 : 1;
-  var nDoses = freq === 'semanal' ? 12 : 30; // 3 meses ou 30 dias
+  var passo = diasDoCiclo(freq);
+  var nDoses = freq === 'diaria' ? 30 : (freq === 'quinzenal' ? 6 : 12); // ~3 meses
 
   var ultDate = new Date(S.caneta.ultima + 'T12:00:00');
   var prox = new Date(ultDate);
@@ -20285,7 +20313,7 @@ function renderHero(){
     dn.textContent = f + doseTxt;
   }
   if(ds){
-    var subTxt=S.caneta.freq==='semanal'?'Aplicação semanal':'Aplicação diária';
+    var subTxt=S.caneta.freq==='semanal'?'Aplicação semanal':S.caneta.freq==='quinzenal'?'Aplicação quinzenal':'Aplicação diária';
     if(semanasTrat) subTxt+=' · Semana '+semanasTrat;
     // v3.9.16: UI da seringa SO pra frasco manipulado (quem usa seringa de insulina)
     var ui = (typeof calcUIFromCaneta === 'function') ? calcUIFromCaneta() : null;
@@ -20371,6 +20399,18 @@ function renderHero(){
     var info = (typeof getFarmacoInfo === 'function') ? getFarmacoInfo(f) : null;
     if(info){
       var html_entenda = info.textoEducativo;
+      /* v3.10.66: esquema quinzenal — numeros honestos calculados do proprio
+         t1/2 (decaimento pos-pico + acumulo em regime; mesmo modelo do app).
+         Media ~50% do semanal e vales fundos: informacao, nao recomendacao. */
+      if((S.caneta.freq||'semanal')==='quinzenal' && p && p.thalf){
+        var keQ = Math.log(2)/p.thalf;
+        var meioQ = Math.round(100*Math.exp(-keQ*(168-p.tmax)));
+        var valeQ = Math.round(100*Math.exp(-keQ*(336-p.tmax))/(1-Math.exp(-keQ*336)));
+        html_entenda += '<br><br><strong style="color:#e8c878">📐 Seu esquema é quinzenal.</strong> '+
+          'A cada 14 dias, a nova dose chega antes de a anterior zerar, e o nível se estabiliza — porém num patamar <strong>menor e mais oscilante</strong> que o semanal: em média cerca de <strong>metade</strong> da exposição, com ~'+meioQ+'% no meio do ciclo e vale de ~'+valeQ+'% às vésperas da próxima dose.<br><br>'+
+          'Nos últimos 3-4 dias do ciclo é <strong>esperado</strong> sentir mais fome — é a matemática do esquema, não falha do tratamento.<br><br>'+
+          '<strong style="color:#e8c878">⚠️ Este esquema foi definido pelo seu médico.</strong> Não antecipe dose nem mude o intervalo por conta própria — converse com quem prescreveu.';
+      }
       html_entenda += '<div style="background:rgba(232,200,120,.1);border:1px solid rgba(232,200,120,.25);border-radius:8px;padding:8px 10px;font-size:11px;color:rgba(254,243,199,.9);margin-top:10px">';
       html_entenda += '⚠️ <strong>'+info.avisoChave+'</strong>';
       html_entenda += '</div>';
@@ -20472,7 +20512,7 @@ function renderHero(){
   if(canetaFotoWrap) canetaFotoWrap.style.display='none';
 
   if(farm&&ultima&&window.PK_PARAMS&&PK_PARAMS[farm]){
-    var p=PK_PARAMS[farm];
+    var p=pkParamsEfetivos(farm);
     var step=farm==='Liraglutida'?1:4;
     var pts=[];
     for(var t=0;t<=p.period;t+=step) pts.push(pkLevel(t,p));
