@@ -5219,6 +5219,14 @@ try{
         <button onclick="reajustarTratamento()" style="flex-shrink:0;padding:7px 14px;border-radius:99px;border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.08);color:#4ade80;font-family:var(--ss);font-size:11px;font-weight:700;cursor:pointer">✏️ Ajustar</button>
       </div>
       <div class="ch-row" id="chRow"></div>
+
+      <!-- v3.10.69 (Onda 2 UX): a acao primaria da aba mora no card de
+           status — nao 6 telas de rolagem abaixo. O botao leva direto ao
+           bloco de registro/calculo. -->
+      <div id="medStatusAcao" style="display:none;margin-top:14px">
+        <button onclick="var c=document.querySelector('.calc-hero');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})" style="width:100%;padding:15px;border-radius:12px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:14.5px;font-weight:800;cursor:pointer">💉 Registrar aplicação</button>
+        <div id="medEstoqueLinha" style="display:none;margin-top:10px;font-size:12.5px;color:rgba(255,255,255,.75);text-align:center;font-weight:600"></div>
+      </div>
     </div>
 
     <!-- FORMULÁRIO DE CONFIGURAÇÃO (colapsável) -->
@@ -6476,7 +6484,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.68';
+var SANOVA_VERSION = '3.10.69';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11432,17 +11440,21 @@ function _htmlComoAplicar(){
   var loc = getLocalInjecao();
   var idxAtual = _LOCAIS_INJECAO.indexOf(loc);
   var outros = _LOCAIS_INJECAO.filter(function(l,i){return i!==idxAtual;});
+  // v3.10.69 (Onda 2 UX): o LOCAL DE HOJE fica em destaque; o rodizio
+  // completo (que ocupava meia tela) vai pra tras de um toque. A orientacao
+  // da bula nao sumiu — colapsou.
+  var idAcc = 'rodizioBody_' + Math.random().toString(36).slice(2,7);
   return '<div style="font-size:10.5px;font-weight:800;color:#86efac;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">📍 Local de hoje</div>' +
     '<strong style="color:#fff;font-size:15px">'+loc.local+'</strong>' +
     '<div style="font-size:12.5px;color:rgba(255,255,255,.78);margin-top:3px;line-height:1.5">'+loc.desc+'</div>' +
-    '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">' +
-      '<div style="font-size:10.5px;font-weight:700;color:rgba(187,247,208,.7);margin-bottom:6px;letter-spacing:.04em">⟳ Próximas aplicações em rodízio</div>' +
+    '<button onclick="var b=document.getElementById(\''+idAcc+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'" style="margin-top:10px;background:none;border:none;padding:0;font-family:var(--ss);font-size:11.5px;font-weight:700;color:rgba(187,247,208,.7);cursor:pointer">⟳ Ver rodízio completo ▾</button>' +
+    '<div id="'+idAcc+'" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">' +
       outros.map(function(l){
         return '<div style="font-size:12px;color:rgba(255,255,255,.62);margin-bottom:5px;line-height:1.5">' +
           '<strong style="color:rgba(255,255,255,.88)">'+l.local+'</strong> — '+l.desc + '</div>';
       }).join('') +
-    '</div>' +
-    '<div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>';
+      '<div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.55);font-style:italic">⟳ Alterne o local a cada aplicação (orientação da bula).</div>' +
+    '</div>';
 }
 
 /* ══ COMO ESTOU ══ */
@@ -15533,6 +15545,17 @@ function render(){
         // Também esconder o formulário de configuração se já tem dados
         var formEl = el('tratFormWrap');
         if(formEl && S.caneta.dose) formEl.style.display = 'none';
+        // v3.10.69 (Onda 2 UX): CTA primario + estoque compacto no status
+        var acao = el('medStatusAcao');
+        if(acao) acao.style.display = S.caneta.dose ? 'block' : 'none';
+        var estq = el('medEstoqueLinha');
+        if(estq && typeof _calcDosesRestantes === 'function'){
+          var dr = _calcDosesRestantes();
+          if(dr && dr.doses >= 0){
+            estq.style.display = 'block';
+            estq.textContent = '📦 ~' + dr.doses + (dr.doses === 1 ? ' dose' : ' doses') + ' em estoque';
+          } else { estq.style.display = 'none'; }
+        }
       } else {
         _chD.textContent = 'Nenhum fármaco configurado';
         if(_chDs) _chDs.textContent = 'Configure abaixo';
