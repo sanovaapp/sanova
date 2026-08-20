@@ -4745,7 +4745,7 @@ try{
 
   <div class="card">
     <div class="ct">Como você está hoje?</div>
-    <div class="cs">Saciedade, comida e álcool — cada eixo conta uma história.</div>
+    <div class="cs">Toque no que descreve seu dia.</div>
     <div class="sac-grid">
       <div class="sac-card sac-1" id="ciS1" onclick="setSac('saciado')">
         <div class="sac-dot"></div>
@@ -4772,27 +4772,35 @@ try{
         <div class="sac-sub">Saciedade extrema</div>
       </div>
 
-      <!-- v3.1.59 — Pensei muito em comida (food noise): toggle independente, escala 0-3 ao expandir.
-           NÃO é alternativa às saciedades — é eixo paralelo. Marcador positivo da janela.
-           v3.1.60: termo trocado de "Ruído da comida" → "Pensei muito em comida" (paciente leigo). -->
-      <!-- v3.9.36: emoji 🔇 (mudo) era contraintuitivo — sugeria silenciar,
-           mas paciente vinha registrar que PENSOU MUITO. Trocado por 💭. -->
+    </div>
+
+    <!-- v3.10.71 (Onda 5 UX): os eixos paralelos (food noise + alcool) saem do
+         caminho feliz e colapsam. DECISAO CLINICA REGISTRADA: as 4 opcoes de
+         SACIEDADE ficam todas no caminho feliz — o wireframe do Grok pedia 3,
+         mas "Nao consigo comer" e a ponta de seguranca do eixo (saciedade
+         extrema pode preceder sintoma que importa) e nao se esconde.
+         O wrap abre sozinho quando ja ha registro do dia (restaurarEixosDia). -->
+    <button id="ciOpcionalBtn" onclick="var w=el('ciOpcionalWrap');var a=el('ciOpcionalArr');var o=w.style.display==='none';w.style.display=o?'block':'none';if(a)a.style.transform=o?'rotate(180deg)':''" style="width:100%;margin-top:12px;padding:12px 14px;background:rgba(0,0,0,.03);border:1px solid rgba(0,0,0,.08);border-radius:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:var(--ss)">
+      <span style="font-size:12.5px;font-weight:700;color:#5a4a3a">💭🍷 Opcional: pensamentos sobre comida · álcool</span>
+      <span id="ciOpcionalArr" style="transition:transform .25s;color:#5a4a3a">▾</span>
+    </button>
+    <div id="ciOpcionalWrap" style="display:none;margin-top:10px">
+      <div class="sac-grid">
+      <!-- v3.1.59 — food noise: eixo paralelo, marcador positivo da janela. -->
       <div class="sac-card sac-fn" id="ciSFN" onclick="toggleFoodNoiseCard()">
         <div class="sac-dot"></div>
         <div class="sac-icon">💭</div>
         <div class="sac-lbl">Pensei muito em comida</div>
         <div class="sac-sub">Mente ocupada com comer</div>
       </div>
-
-      <!-- v3.1.59 — Álcool hoje: toggle independente, contador de doses ao expandir.
-           Marcador da janela terapêutica + dado pra gráfico de redução. -->
+      <!-- v3.1.59 — alcool: eixo paralelo, dado pro grafico de reducao. -->
       <div class="sac-card sac-al" id="ciSAL" onclick="toggleAlcoolCard()">
         <div class="sac-dot"></div>
         <div class="sac-icon">🍷</div>
         <div class="sac-lbl">Álcool hoje</div>
         <div class="sac-sub">Bebeu hoje?</div>
       </div>
-    </div>
+      </div>
 
     <!-- v3.1.59 — Expansão Food Noise: aparece quando paciente toca card 🔇 -->
     <div id="foodNoiseExpand" style="display:none;margin-top:12px;padding:14px;background:rgba(168,139,250,.08);border:1px solid rgba(168,139,250,.25);border-radius:14px">
@@ -4844,6 +4852,7 @@ try{
       <button class="exp-btn" onclick="toggleExp('expAlcoolGLP1',this)">Por que registrar álcool? <span class="exp-arr">▾</span></button>
       <div class="exp-box" id="expAlcoolGLP1"><strong>GLP-1 e álcool — efeito comprovado.</strong> A medicação age no <strong>sistema dopaminérgico de recompensa</strong>, o mesmo circuito ativado por álcool, doces e outros vícios. Por isso muitos pacientes naturalmente <strong>bebem menos sem se esforçar</strong>.<br><br><strong>📚 O que a literatura mostra:</strong> JAMA Psychiatry 2025 — semaglutida em dose baixa reduziu consumo, pico alcoólico no hálito e desejo semanal por álcool em adultos com transtorno por uso de álcool. Lancet eClinicalMedicine 2025 confirma o efeito. <strong>10+ ensaios clínicos formais em curso</strong>.<br><br><strong>🌿 Por que registrar:</strong> a curva de redução do seu consumo durante a janela terapêutica é um <strong>marcador clínico real</strong> de que a medicação está agindo — não só na fome, mas em todos os circuitos de recompensa. Você vê o efeito com seus próprios olhos.<br><br><strong>⚠️ Cuidados práticos:</strong> álcool piora náusea, retém líquido (trava balança), causa hipoglicemia em diabéticos, e bebidas gaseificadas pioram desconforto abdominal.<br><br><em>Veja o card "Estou bebendo menos álcool" na Biblioteca → Janela Terapêutica.</em></div>
     </div>
+    </div><!-- /ciOpcionalWrap -->
 
     <div class="sac-act" id="ciActSaciado">
       <div class="sac-act-tag">FAIXA IDEAL</div>
@@ -6490,7 +6499,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.70';
+var SANOVA_VERSION = '3.10.71';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -12864,6 +12873,9 @@ function restaurarCardsJanelaTerapeutica(){
   if(typeof dh.foodNoiseHoje === 'number'){
     var cardFN = el('ciSFN');
     var expFN = el('foodNoiseExpand');
+    // v3.10.71: se ja registrou hoje, o colapso "Opcional" abre sozinho —
+    // o paciente nunca perde de vista uma marcacao propria.
+    var wrapO1 = el('ciOpcionalWrap'); if(wrapO1) wrapO1.style.display = 'block';
     if(cardFN) cardFN.classList.add('active');
     if(expFN) expFN.style.display = 'block';
     var optFN = document.querySelector('.fn-opt[data-fn="'+dh.foodNoiseHoje+'"]');
@@ -12875,6 +12887,7 @@ function restaurarCardsJanelaTerapeutica(){
   if(dh.alcoolHoje && temDoses > 0){
     var cardAL = el('ciSAL');
     var expAL = el('alcoolExpand');
+    var wrapO2 = el('ciOpcionalWrap'); if(wrapO2) wrapO2.style.display = 'block';
     if(cardAL) cardAL.classList.add('active');
     if(expAL) expAL.style.display = 'block';
     if(typeof renderAlcoolTipos === 'function') renderAlcoolTipos();
