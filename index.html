@@ -6491,7 +6491,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.72';
+var SANOVA_VERSION = '3.10.73';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11211,10 +11211,16 @@ function renderCalc(){
   elFra.style.display = 'block';
   // v3.7.0: popula inputs inline + view compacta com valores atuais de S.caneta
   var iMg = el('calcMg'), iMl = el('calcMl'), iDose = el('calcDose'), iVol = el('calcVolumeFrasco');
-  if(iMg && !iMg.value && S.caneta.concRotuloMg) iMg.value = String(S.caneta.concRotuloMg).replace('.',',');
-  if(iMl && !iMl.value && S.caneta.concRotuloMl) iMl.value = String(S.caneta.concRotuloMl).replace('.',',');
-  if(iDose && !iDose.value && S.caneta.dose) iDose.value = String(S.caneta.dose).replace('.',',');
-  if(iVol && !iVol.value && S.caneta.volumeFrasco) iVol.value = String(S.caneta.volumeFrasco).replace('.',',');
+  // v3.10.73 (fix SIM5): os inputs SEMPRE refletem S.caneta — nao so quando
+  // vazios. Antes, reajustar o frasco no formulario (ex.: farmacia nova,
+  // 30mg/mL) deixava o input velho (15) na calculadora; ao digitar a dose, o
+  // auto-save gravava 15 DE VOLTA por cima do reajuste. Nao era so "nao
+  // salva": a conta de UI saia com concentracao errada — risco de dose.
+  // Achado nas 5 simulacoes pedidas pelo Bruno em 20/08.
+  if(iMg && S.caneta.concRotuloMg) iMg.value = String(S.caneta.concRotuloMg).replace('.',',');
+  if(iMl && S.caneta.concRotuloMl) iMl.value = String(S.caneta.concRotuloMl).replace('.',',');
+  if(iDose && S.caneta.dose) iDose.value = String(S.caneta.dose).replace('.',',');
+  if(iVol && S.caneta.volumeFrasco) iVol.value = String(S.caneta.volumeFrasco).replace('.',',');
   if(typeof atualizarFrascoCompactoView === 'function') atualizarFrascoCompactoView();
   if(typeof calcDil === 'function') calcDil();
 }
@@ -11326,9 +11332,14 @@ function calcDil(){
   var dose     = nv(_norm(iDose.value));
 
   // Auto-save em S.caneta a cada digit (paciente nao precisa ir em outro form)
-  if(mgFrasco > 0) S.caneta.concRotuloMg = mgFrasco;
-  if(mlFrasco > 0) S.caneta.concRotuloMl = mlFrasco;
-  if(dose > 0)     S.caneta.dose = dose;
+  // v3.10.73 (fix SIM3): persiste TAMBEM no caminho parcial. Antes, digitar a
+  // concentracao sem a dose mutava S.caneta em memoria e retornava antes do
+  // salvar() la do fim — recarregou, perdeu tudo.
+  var _mudouCaneta = false;
+  if(mgFrasco > 0 && S.caneta.concRotuloMg !== mgFrasco){ S.caneta.concRotuloMg = mgFrasco; _mudouCaneta = true; }
+  if(mlFrasco > 0 && S.caneta.concRotuloMl !== mlFrasco){ S.caneta.concRotuloMl = mlFrasco; _mudouCaneta = true; }
+  if(dose > 0 && S.caneta.dose !== dose){ S.caneta.dose = dose; _mudouCaneta = true; }
+  if(_mudouCaneta && typeof salvar === 'function') salvar();
 
   // Cálculo de concentração em tempo real
   var concEl = el('calcConcResult');
@@ -17808,7 +17819,21 @@ function salvarCaneta(){
   }
   if(S.caneta.ultima) S.caneta.ultimaISO=new Date(S.caneta.ultima+'T12:00:00').toISOString();
   salvar();
-  render();
+  // v3.10.73: sincroniza os inputs da calculadora AQUI, inline — nao depende
+  // do render() nem do setTimeout abaixo. As 5 simulacoes de 20/08 mostraram
+  // que qualquer excecao no render() abortava a sincronizacao e o input velho
+  // revertia o reajuste do frasco via auto-save (risco de dose).
+  try{
+    if(isFrascoManipulado(S.caneta.tipo)){
+      var _iMg=el('calcMg'), _iMl=el('calcMl'), _iDs=el('calcDose'), _iVl=el('calcVolumeFrasco');
+      if(_iMg) _iMg.value = S.caneta.concRotuloMg ? String(S.caneta.concRotuloMg).replace('.',',') : '';
+      if(_iMl) _iMl.value = S.caneta.concRotuloMl ? String(S.caneta.concRotuloMl).replace('.',',') : '';
+      if(_iDs) _iDs.value = S.caneta.dose ? String(S.caneta.dose).replace('.',',') : '';
+      if(_iVl) _iVl.value = S.caneta.volumeFrasco ? String(S.caneta.volumeFrasco).replace('.',',') : '';
+    }
+  }catch(e){}
+  // render() blindado: um soluço de grafico nao pode abortar o resto do save
+  try{ render(); }catch(e){ console.warn('[salvarCaneta] render falhou, seguindo:', e); }
   setTimeout(function(){
     if(typeof renderHero==='function') renderHero();
     if(typeof buildPKChart==='function') buildPKChart();
