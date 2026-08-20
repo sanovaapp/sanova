@@ -6491,7 +6491,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.73';
+var SANOVA_VERSION = '3.10.74';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -10969,6 +10969,26 @@ function renderAplicacaoCheckin(){
 function registrarAplicacaoHoje(){
   if(!S.caneta || !S.caneta.farmaco){
     alert('Configure seu fármaco primeiro em "Minha caneta".');
+    return;
+  }
+  // v3.10.74 (achado do Bruno em teste, 20/08): paciente de FRASCO MANIPULADO
+  // nunca registra por atalho. O botao do hero do Painel, os cards de
+  // lembrete e a agenda chamavam esta funcao e registravam SEM passar pelo
+  // checklist de confirmacao (farmaco confere / dose confere / aspirar por
+  // UI) — que e o respaldo clinico do registro. Atalho agora LEVA ao fluxo
+  // com checklist em vez de registrar. Caneta industrial/KwikPen/Lilly
+  // seguem registrando direto: nao ha seringa nem conta, o risco que o
+  // checklist cobre nao existe nesses tipos.
+  if(typeof isFrascoManipulado==='function' && isFrascoManipulado(S.caneta.tipo)){
+    try{ go('caneta'); }catch(e){}
+    setTimeout(function(){
+      try{ if(typeof renderCalc==='function') renderCalc(); }catch(e){}
+      try{ if(typeof calcDil==='function') calcDil(); }catch(e){}
+      var fc=el('frascoConfirmWrap');
+      if(fc && fc.style.display!=='none'){ try{ fc.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+      else { var ch=document.querySelector('.calc-hero'); if(ch){ try{ ch.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} } }
+      if(typeof toast==='function') toast('⚠️ Confirme os 3 itens de segurança antes de registrar.', 3400);
+    }, 250);
     return;
   }
   // v3.1.76: usar data selecionada (default = hoje)
@@ -21378,6 +21398,15 @@ function verificarCheckboxes(){
 // v3.4.3: respeita _getDataReg('dose') pra registrar dose em outro dia (retroativa)
 function registrarAplicacaoFrasco(){
   if(!S.caneta || !S.caneta.farmaco){toast('Configure sua medicação primeiro.',3000);return;}
+  // v3.10.74: defesa em profundidade — mesmo que o botao chegue habilitado
+  // por qualquer caminho, o REGISTRO exige os 3 checks marcados. O checklist
+  // e o respaldo do ato clinico; nenhum estado de UI pode contorna-lo.
+  var _chkOk = ['chk1','chk2','chk3'].every(function(id){ var c=el(id); return c && c.checked; });
+  if(!_chkOk){
+    if(typeof toast==='function') toast('⚠️ Confirme os 3 itens de segurança antes de registrar.', 3200);
+    if(typeof verificarCheckboxes==='function') verificarCheckboxes();
+    return;
+  }
   var dose = parseFloat(String(S.caneta.dose||'').replace(',','.'));
   if(!dose||dose<=0){toast('Defina a dose prescrita no cadastro.',3000);return;}
 
