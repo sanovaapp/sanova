@@ -4064,7 +4064,13 @@ try{
     </div>
 
     <!-- Saciedade + curva (accordion) -->
-    <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:12px">
+    <!-- v3.10.70 (Onda 4 UX): o grid acima ja mostra POTENCIA ATUAL em numero.
+         O gauge + curva sao detalhe — colapsam num toque. Nada sumiu. -->
+    <button onclick="var b=el('heroSacWrap');var a=el('heroSacWrapArr');var o=b.style.display==='none';b.style.display=o?'block':'none';if(a)a.style.transform=o?'rotate(180deg)':'';if(o&&typeof buildPKChart==='function')setTimeout(buildPKChart,80)" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:rgba(187,247,208,.6);font-family:var(--ss);font-size:11px;font-weight:700;padding:8px 0 0;letter-spacing:.3px;border-top:1px solid rgba(255,255,255,.06);margin-top:4px">
+      <span>💊 Saciedade e curva da semana</span>
+      <span id="heroSacWrapArr" style="transition:transform .3s;font-size:13px">▾</span>
+    </button>
+    <div id="heroSacWrap" style="display:none;padding-top:12px">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
         <!-- Gauge saciedade (canvas existente) -->
         <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
@@ -6484,7 +6490,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.69';
+var SANOVA_VERSION = '3.10.70';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -20381,8 +20387,16 @@ function renderHero(){
       } else if(prev.semanas <= 2){
         cor = '#fcd34d'; bg = 'rgba(232,200,120,.10)'; borda = 'rgba(232,200,120,.30)'; alerta = '⚠️ Comprar em breve';
       } else {
-        cor = '#bbf7d0'; bg = 'rgba(74,222,128,.08)'; borda = 'rgba(74,222,128,.22)'; alerta = '';
+        // v3.10.70 (Onda 4 UX): estoque tranquilo NAO aparece no Painel — o
+        // fato mora no status da aba Medicacao (Onda 2). Aqui so entra
+        // quando vira aviso de compra, que e sinal de seguranca.
+        // (flag local, NUNCA return: esta funcao continua renderizando o
+        // "Entenda a potencia" e o resto do hero depois deste bloco)
+        var _estoqueCalmo = true;
+        estEl.style.display = 'none';
+        estEl.innerHTML = '';
       }
+      if(typeof _estoqueCalmo === 'undefined'){
       // v3.4.0: mostra restante em FRASCOS/CANETAS (não mg crus — mais intuitivo)
       var qtdStr, unidLabel;
       var mgUnid = (typeof _mgPorUnidade === 'function') ? _mgPorUnidade() : 0;
@@ -20414,6 +20428,7 @@ function renderHero(){
             '<button onclick="reporEstoque()" style="flex-shrink:0;padding:4px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.22);color:#fff;font-family:var(--ss);font-size:10.5px;font-weight:700;cursor:pointer">+ Repor</button>'+
           '</div>'+
         '</div>';
+      }
     } else if(S.caneta.estoqueAtual === 0 || (S.caneta.estoqueAtual !== null && S.caneta.estoqueAtual !== undefined && prev && prev.doses === 0)){
       // Estoque acabou
       estEl.style.display = 'block';
@@ -23767,7 +23782,11 @@ window.addEventListener('beforeunload',function(){
 
   function renderBanner(estado){
     var existente = document.getElementById('sanova-banner-trial');
-    var deveMostrar = estado.status === 'trial' && estado.diasRestantes > 0;
+    // v3.10.70 (Onda 4 UX): com 300+ dias de trial restantes o banner e so
+    // ruido ocupando 56px fixos de toda tela. Ele volta sozinho quando a
+    // conversa de assinar fica proxima de ser real. Decisao anunciada ao
+    // Bruno em 19/08 (regra de ouro — revogavel).
+    var deveMostrar = estado.status === 'trial' && estado.diasRestantes > 0 && estado.diasRestantes <= 300;
     if(!deveMostrar){
       if(existente) existente.remove();
       return;
