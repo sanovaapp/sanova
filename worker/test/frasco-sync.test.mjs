@@ -53,3 +53,19 @@ test('salvarCaneta sincroniza a calculadora inline e nao depende do render()', (
   assert.match(trecho, /try\{ render\(\); \}catch\(e\)/,
     'o render() do salvarCaneta perdeu a blindagem — excecao ali volta a abortar o pos-save');
 });
+
+test('nenhum atalho registra frasco manipulado sem o checklist (achado do Bruno, 20/08)', () => {
+  // O botao "Registrar dose" do hero do Painel, os cards de lembrete e a
+  // agenda chamam registrarAplicacaoHoje() — que registrava SEM os 3 checks
+  // de confirmacao (o respaldo clinico do ato). Agora: frasco manipulado e
+  // desviado pro fluxo com checklist; e o proprio registrarAplicacaoFrasco
+  // recusa registrar sem os 3 marcados (defesa em profundidade).
+  const hoje_ = INDEX.slice(INDEX.indexOf('function registrarAplicacaoHoje'), INDEX.indexOf('function registrarAplicacaoHoje') + 2500);
+  assert.match(hoje_, /isFrascoManipulado\(S\.caneta\.tipo\)/,
+    'o desvio de frasco manipulado sumiu do registrarAplicacaoHoje');
+  assert.match(hoje_, /Confirme os 3 itens de segurança/,
+    'o aviso de checklist sumiu do atalho');
+  const frasco_ = INDEX.slice(INDEX.indexOf('function registrarAplicacaoFrasco'), INDEX.indexOf('function registrarAplicacaoFrasco') + 1500);
+  assert.match(frasco_, /\['chk1','chk2','chk3'\]\.every/,
+    'a defesa em profundidade do registrarAplicacaoFrasco sumiu — botao habilitado por engano volta a registrar sem confirmacao');
+});
