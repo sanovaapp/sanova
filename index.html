@@ -3772,28 +3772,9 @@ try{
           <div class="mais-sub">Progressão e desbloqueios</div>
         </button>
       </div>
-    </div>
-
-    <div class="mais-section">
-      <div class="mais-section-tag">Aprender</div>
-      <div class="mais-grid">
-        <button class="mais-btn" onclick="fecharMais();go('manual')" aria-label="Manual de aplicação">
-          <span class="mais-ic" aria-hidden="true">📖</span>
-          <div class="mais-lbl">Aplicação</div>
-          <div class="mais-sub">Passo a passo</div>
-        </button>
-        <button class="mais-btn" onclick="fecharMais();go('educacao')" aria-label="Biblioteca educacional">
-          <span class="mais-ic" aria-hidden="true">🌿</span>
-          <div class="mais-lbl">Biblioteca</div>
-          <div class="mais-sub">Ciência simples</div>
-        </button>
-      </div>
-    </div>
-
-    <!-- v3.6.4: Seção Relatórios — PDF pro médico (feature paga) -->
-    <div class="mais-section">
-      <div class="mais-section-tag">Relatórios</div>
-      <div class="mais-grid">
+      <!-- v3.10.72 (Onda 7 UX): PDF pro medico mora em Acompanhar — era um
+           grupo inteiro ("Relatorios") pra um botao so. -->
+      <div class="mais-grid" style="margin-top:10px">
         <button class="mais-btn" id="btnPdfRelatorio" onclick="gerarPDFRelatorio()" aria-label="Relatório PDF pro médico" style="grid-column:1/-1">
           <span class="mais-ic" aria-hidden="true">📄</span>
           <div class="mais-lbl">PDF pro médico</div>
@@ -3862,8 +3843,19 @@ try{
 
     <!-- v3.1.27: Seção Legal — proteção LGPD + Termos -->
     <div class="mais-section">
-      <div class="mais-section-tag">Legal e Privacidade</div>
+      <div class="mais-section-tag">Aprender · Legal</div>
       <div class="mais-grid">
+        <!-- v3.10.72 (Onda 7 UX): Aprender fundiu aqui — 6 grupos viraram 4 -->
+        <button class="mais-btn" onclick="fecharMais();go('manual')" aria-label="Manual de aplicação">
+          <span class="mais-ic" aria-hidden="true">📖</span>
+          <div class="mais-lbl">Aplicação</div>
+          <div class="mais-sub">Passo a passo</div>
+        </button>
+        <button class="mais-btn" onclick="fecharMais();go('educacao')" aria-label="Biblioteca educacional">
+          <span class="mais-ic" aria-hidden="true">🌿</span>
+          <div class="mais-lbl">Biblioteca</div>
+          <div class="mais-sub">Ciência simples</div>
+        </button>
         <button class="mais-btn" onclick="fecharMais();abrirPoliticaPrivacidade()" aria-label="Política de Privacidade">
           <span class="mais-ic" aria-hidden="true">🔒</span>
           <div class="mais-lbl">Privacidade</div>
@@ -6499,7 +6491,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.71';
+var SANOVA_VERSION = '3.10.72';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -21065,10 +21057,14 @@ function buscarSintomaRapido(termo){
   var c = CONDUTAS_SAUDE[chave];
   var html = '<div class="conduta-titulo">'+c.titulo+'</div>';
   html += '<div class="conduta-intro">'+c.intro+'</div>';
+  // v3.10.72 (Onda 6 UX): o LIMIAR vem ANTES da lista de manejo. O paciente
+  // que abriu "nausea" precisa saber primeiro quando isso deixa de ser
+  // manejavel em casa — depois, como manejar. Texto identico, ordem invertida
+  // (disposicao muda, conteudo clinico nao).
+  html += '<div class="conduta-alerta"><strong>⚠️ Quando procurar ajuda:</strong> '+c.alerta+'</div>';
   html += '<ul class="conduta-itens">';
   c.itens.forEach(function(it){ html += '<li>'+it+'</li>'; });
   html += '</ul>';
-  html += '<div class="conduta-alerta"><strong>⚠️ Quando procurar ajuda:</strong> '+c.alerta+'</div>';
   conteudo.innerHTML = html;
   resp.style.display = 'block';
   // Scroll automático suave para a resposta
