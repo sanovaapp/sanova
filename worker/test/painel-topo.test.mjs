@@ -28,23 +28,28 @@ test('renderHero chama renderPainelTop (blindado) — sem o hook o topo congela'
     'o hook do renderPainelTop sumiu do renderHero — os numeros do topo nunca mais atualizam');
 });
 
-test('Onda 4c: o Painel tem as 3 abas do preview e o hero da medicacao nao volta', () => {
-  // v3.10.77 — Bruno: "quero igual [ao preview 4]". O hero da medicacao saiu
-  // do Painel (o conteudo mora na aba Medicacao); heroAtivo fica no DOM so
-  // como moradia oculta de elementos legados.
-  for (const id of ['pAguaWrap', 'pProtWrap', 'pRefWrap']) {
-    assert.match(INDEX, new RegExp('id="' + id + '"'), 'aba oculta do Painel sumiu: ' + id);
+test('Onda 6 (formula ideal aprovada): Painel sem accordion, Saude e a casa do conteudo', () => {
+  // v3.10.79 — regra dos vencedores (Whoop/Oura/Noom): NENHUM accordion na
+  // home. Painel = aneis do dia + card de potencia (o diferencial) + licao +
+  // portas de 1 linha. Analises/biblioteca moram na aba Saude.
+  for (const id of ['aneisDia', 'potCard', 'licaoCard', 'progPorta']) {
+    assert.match(INDEX, new RegExp('id="' + id + '"'), 'componente do Painel novo sumiu: ' + id);
   }
-  assert.ok(!INDEX.includes('medDetalheToggle'),
-    'o accordion de medicacao voltou ao Painel — preview 4 nao tem esse bloco');
+  assert.ok(!INDEX.includes('pAguaWrap') && !INDEX.includes('medDetalheToggle'),
+    'accordion voltou a home do Painel — a formula aprovada e zero accordion');
   const hero = INDEX.indexOf('id="heroAtivo"');
-  const trecho = INDEX.slice(hero, hero + 120);
-  assert.match(trecho, /display:none/, 'heroAtivo visivel de novo no Painel');
-  // dentro das abas: pilares na Protecao, registro na Refeicao
-  assert.ok(INDEX.indexOf('id="quatroGauges"') > INDEX.indexOf('id="pProtWrap"'),
-    'quatroGauges fora da aba Protecao muscular');
-  assert.ok(INDEX.indexOf('id="cardRegistroRefeicao"') > INDEX.indexOf('id="pRefWrap"'),
-    'cardRegistroRefeicao fora da aba Registrar refeicao');
+  assert.match(INDEX.slice(hero, hero + 120), /display:none/, 'heroAtivo visivel de novo no Painel');
+  // o conteudo mudou de casa, nao sumiu: pilares/analise/leia/metab na Saude
+  const saude = INDEX.indexOf('id="sec-saude"');
+  const fimSaude = INDEX.indexOf('id="sec-jornadaAcomp"');
+  for (const id of ['id="quatroGauges"', 'id="pilaresAnaliseCard"', 'id="leiaTodoDiaBody"',
+                    'id="metabBody"', 'id="progAccBody"']) {
+    const pos = INDEX.indexOf(id);
+    assert.ok(pos > saude && pos < fimSaude, id + ' fora da aba Saude — conteudo perdeu a casa');
+  }
+  // registro de refeicao continua na home, direto (unico gravador acessivel)
+  assert.ok(INDEX.indexOf('id="cardRegistroRefeicao"') < INDEX.indexOf('id="sec-checkin"'),
+    'cardRegistroRefeicao saiu da home');
 });
 
 test('o peso do topo reusa a regra do inicio declarado (bug dos 20vs21kg)', () => {
