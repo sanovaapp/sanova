@@ -227,6 +227,22 @@ A ida não foi perdida: havia uma divergência real, só que outra. Os dois tipo
 constavam como coleta **obrigatória**, e o app permite desligar. Mas ter
 achado por acaso não desfaz ter afirmado por dedução.
 
+## 6d. Proteína voltou ao check-in — sem segundo gravador (21/08/2026)
+
+Na v3.1.65 o card de proteína saiu do check-in e ficou decidido: **refeição
+se registra num lugar só** (pratoConfirmar, via IA). Em 21/08 o Bruno mandou
+o inverso na superfície — *"logo de cara [no check-in] será o registro de
+proteína"* — e as duas coisas convivem: o check-in abre com o card
+"Proteína primeiro" (total do dia + meta + barra), mas os 3 botões dele
+(foto/voz/texto) só ATALHAM para o gravador único de sempre. Nenhum caminho
+novo de escrita nasceu. Se um dia alguém propuser input manual de gramas ali,
+lembrar por que a v3.1.65 matou o segundo gravador: dois caminhos de escrita
+divergem histórico e total.
+
+No mesmo pacote, o card contextual de medicação saiu do check-in — o mesmo
+fato já mora no Painel (KPI próxima dose) e na aba Medicação (pill de
+status). Redundância confirmada pelo Bruno: "não há necessidade".
+
 ## 7. Como pensar antes de decidir — os 5 chapéus
 
 Nenhuma mudança é só técnica. Antes de cravar, passe pelos cinco, nesta

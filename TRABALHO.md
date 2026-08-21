@@ -36,6 +36,21 @@ Regras que valem pra toda tarefa desta lista:
 
 ## Fila
 
+### ⭐ Onda Bruno 21/08 — "qualidade e objetividade" (diretriz viva)
+
+> *"Será uma grande [mudança] em várias frentes. Meu afastamento do app
+> ajudou nisso. Será mais direto e intuitivo, dando um verdadeiro sentido ao
+> app. Não quantidade mas qualidade e objetividade."* — Bruno, 21/08/2026
+
+Bruno vai ditando as frentes uma a uma. Regra: implementar no ritmo dele,
+sem esperar aprovação entre frentes ("vc faz as mudanças no seu tempo").
+
+- [x] Frente 1 — Check-in abre com **registro de proteína** (card Proteína
+      primeiro, via único gravador de refeição); card contextual de
+      medicação REMOVIDO do check-in (redundância). v3.10.78, PR #297.
+- [ ] Frentes seguintes: aguardando o Bruno ditar.
+
+
 ### Segurança e LGPD — o que protege paciente vem primeiro
 
 *As duas primeiras saíram no worker v1.30.0.*
