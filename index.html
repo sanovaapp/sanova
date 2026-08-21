@@ -3941,6 +3941,32 @@ try{
   <!-- v3.1.58: saldoCard movido pra entre Pilares e Calorias do dia (mais abaixo).
        Bruno cravou que estava incomodando ficar em cima do Hero da medicação. -->
 
+  <!-- ══ v3.10.75 (Onda 4b UX): TOPO DO PAINEL — layout do preview 4 aprovado.
+       Peso-heroi escuro + 2 KPIs (proxima dose · proteina) + CTA de check-in.
+       Cada numero reusa a MESMA fonte dos blocos antigos (renderHeroPeso,
+       proxDose, calcMetrics) — nenhum calculo paralelo novo. -->
+  <div id="painelTop">
+    <button id="pHeroPesoCard" onclick="liberarMemoria();go('saude')" aria-label="Ver progresso do peso" style="display:none;width:100%;text-align:left;cursor:pointer;background:var(--hero-dark);border:1px solid rgba(187,247,208,.2);border-radius:20px;padding:18px 20px;margin-bottom:10px;box-shadow:0 8px 32px rgba(4,27,13,.28);font-family:var(--ss);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 85% 0%,rgba(74,222,128,.1),transparent 55%);pointer-events:none"></div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:#86efac;margin-bottom:6px;position:relative">Seu peso</div>
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;position:relative">
+        <div id="pHeroPeso" style="font-family:var(--fd);font-size:42px;font-weight:600;color:#fff;line-height:1;letter-spacing:-.5px">—</div>
+        <div id="pHeroPesoDelta" style="font-size:13.5px;font-weight:800;color:#4ade80">—</div>
+      </div>
+    </button>
+    <div id="pTilesWrap" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <button id="pTileDose" onclick="liberarMemoria();go('caneta')" aria-label="Abrir medicação" style="background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 10px;text-align:center;cursor:pointer;font-family:var(--ss);box-shadow:var(--sh)">
+        <div id="pTileDoseVal" style="font-family:var(--fd);font-size:22px;font-weight:600;color:var(--ink);line-height:1.1">—</div>
+        <div id="pTileDoseLbl" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:5px">Próxima dose</div>
+      </button>
+      <button id="pTileProt" onclick="rolarParaRegistroRefeicao()" aria-label="Registrar proteína" style="background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 10px;text-align:center;cursor:pointer;font-family:var(--ss);box-shadow:var(--sh)">
+        <div id="pTileProtVal" style="font-family:var(--fd);font-size:22px;font-weight:600;color:var(--ink);line-height:1.1">—</div>
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:5px">Proteína hoje 🛡️</div>
+      </button>
+    </div>
+    <button id="pCtaCheckin" onclick="liberarMemoria();go('checkin')" style="display:none;width:100%;padding:15px 16px;border-radius:14px;border:none;background:linear-gradient(135deg,#4ade80,#22c55e);color:#052e16;font-family:var(--ss);font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(34,197,94,.28);margin-bottom:12px">✓ Fazer o check-in de hoje</button>
+  </div>
+
   <!-- v3.8.7: Card de objetivo no topo do Painel — sempre visível. -->
   <div id="cardObjetivoPainel" style="margin-bottom:10px;padding:11px 14px;background:linear-gradient(135deg,rgba(15,79,36,.85),rgba(10,58,32,.85));border:1px solid rgba(187,247,208,.22);border-radius:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
@@ -3971,6 +3997,14 @@ try{
     </button>
   </div>
 
+  <!-- v3.10.75 (Onda 4b UX): o hero da medicacao vira detalhe — o KPI
+       "Proxima dose" do topo ja responde a pergunta do dia a dia.
+       Colapsa, nunca some: um toque reabre tudo, graficos inclusos. -->
+  <button id="medDetalheToggle" onclick="toggleMedDetalhe()" style="display:none;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px;cursor:pointer;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span style="font-size:13.5px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px"><span style="font-size:16px">💉</span><span id="medDetalheTitulo">Medicação — detalhes</span></span>
+    <span id="medDetalheArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="medDetalheWrap" style="display:none">
   <!-- Estado ativo (medicação configurada) -->
   <div id="heroAtivo" style="display:none;background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border-radius:20px;padding:16px;margin-bottom:12px;border:1px solid rgba(187,247,208,.2);box-shadow:0 8px 32px rgba(0,0,0,.4);position:relative;overflow:hidden">
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 85% 0%,rgba(74,222,128,.1),transparent 55%);pointer-events:none"></div>
@@ -4111,6 +4145,7 @@ try{
       </div>
     </div>
   </div>
+  </div><!-- /medDetalheWrap (v3.10.75 Onda 4b) -->
   <!-- ══ FIM CARD HERÓI ══ -->
 
   <!-- ══ 1. LEIA TODO DIA ══ -->
@@ -6491,7 +6526,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.74';
+var SANOVA_VERSION = '3.10.75';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -20375,23 +20410,126 @@ function _desenharGraficoHistorico(apps){
   }
 }
 
+/* ══ v3.10.75 (Onda 4b UX) — TOPO DO PAINEL no layout do preview 4 ══
+   Peso-heroi + proxima dose + proteina + CTA de check-in. Le S diretamente e
+   reusa os MESMOS calculos dos blocos que ja existiam (renderHeroPeso,
+   proxDose, calcMetrics) — uma fonte de verdade por numero. */
+function toggleMedDetalhe(){
+  var w=el('medDetalheWrap'),a=el('medDetalheArr');if(!w)return;
+  var abrir=(w.style.display==='none');
+  w.style.display=abrir?'block':'none';
+  if(a)a.style.transform=abrir?'rotate(180deg)':'';
+}
+function renderPainelTop(){
+  if(!el('painelTop')) return;
+
+  // Peso-heroi: ultimo peso registrado + delta desde o inicio. Regra do
+  // renderHeroPeso mantida: o inicio e o peso DECLARADO no perfil
+  // (weightStartKg); o primeiro registro e so fallback.
+  var card=el('pHeroPesoCard');
+  var weights=(S.weights&&S.weights.length)?S.weights.slice():[];
+  weights.sort(function(a,b){return a.date<b.date?-1:1;});
+  if(card){
+    if(weights.length){
+      var atual=weights[weights.length-1].weight;
+      var pEl=el('pHeroPeso');
+      if(pEl) pEl.innerHTML=atual.toFixed(1).replace('.',',')+' <span style="font-size:19px;font-weight:500;color:rgba(187,247,208,.8)">kg</span>';
+      var inicial=(S.profile&&typeof S.profile.weightStartKg==='number')?S.profile.weightStartKg:weights[0].weight;
+      var dEl=el('pHeroPesoDelta');
+      if(dEl){
+        var delta=atual-inicial;
+        if(Math.abs(delta)<0.05){ dEl.style.color='rgba(187,247,208,.7)'; dEl.textContent='início do acompanhamento'; }
+        else if(delta<0){ dEl.style.color='#4ade80'; dEl.textContent='↓ '+Math.abs(delta).toFixed(1).replace('.',',')+' kg desde o início'; }
+        else { dEl.style.color='#fcd34d'; dEl.textContent='↑ '+delta.toFixed(1).replace('.',',')+' kg desde o início'; }
+      }
+      card.style.display='block';
+    } else {
+      card.style.display='none';
+    }
+  }
+
+  // KPI 1 — proxima dose (mesmo proxDose() do resto do app)
+  var temDose=!!(S.caneta&&S.caneta.farmaco&&S.caneta.ultima);
+  var tDose=el('pTileDose');
+  if(tDose){
+    var px=temDose&&(typeof proxDose==='function')?proxDose():null;
+    if(px){
+      var v=el('pTileDoseVal'), l=el('pTileDoseLbl');
+      if(v&&l){
+        if(px.diff>1){ v.textContent=px.diff+'d ✓'; v.style.color='var(--ink)'; l.textContent='Próxima dose · em dia'; }
+        else if(px.diff===1){ v.textContent='Amanhã'; v.style.color='var(--ink)'; l.textContent='Próxima dose'; }
+        else if(px.diff===0){ v.textContent='Hoje 💉'; v.style.color='var(--warn)'; l.textContent='Dia de aplicar'; }
+        else { v.textContent=Math.abs(px.diff)+'d'; v.style.color='var(--red)'; l.textContent='Dose atrasada'; }
+      }
+      tDose.style.display='block';
+    } else { tDose.style.display='none'; temDose=false; }
+  }
+
+  // KPI 2 — proteina de hoje (mesmas fontes do renderMetaDia: S.daily + M.pm)
+  var M=(typeof calcMetrics==='function')?calcMetrics():null;
+  var temProt=!!(M&&M.pm);
+  var tProt=el('pTileProt');
+  if(tProt){
+    if(temProt){
+      var dHj=hoje();
+      var dh=(S.daily||[]).find(function(x){return x.date===dHj;})||{};
+      var ph=Math.round(dh.proteinG||0), pm=Math.round(M.pm);
+      var vP=el('pTileProtVal');
+      if(vP) vP.innerHTML=ph+'<span style="font-size:14px;font-weight:500;color:var(--muted)">/'+pm+'g</span>';
+      tProt.style.display='block';
+    } else { tProt.style.display='none'; }
+  }
+  var tiles=el('pTilesWrap');
+  if(tiles){
+    if(temDose||temProt){ tiles.style.display='grid'; tiles.style.gridTemplateColumns=(temDose&&temProt)?'1fr 1fr':'1fr'; }
+    else { tiles.style.display='none'; }
+  }
+
+  // CTA — a acao do dia. Feito = confirmacao calma, nao botao gritando.
+  var cta=el('pCtaCheckin');
+  if(cta){
+    var dj=hoje();
+    var dhj=(S.daily||[]).find(function(x){return x.date===dj;})||{};
+    var feito=!!dhj.saciedade;
+    cta.style.display='block';
+    if(feito){
+      cta.textContent='Check-in de hoje feito ✓';
+      cta.style.background='var(--surface)'; cta.style.color='var(--g600)';
+      cta.style.border='1.5px solid var(--g200)'; cta.style.boxShadow='none';
+    } else {
+      cta.textContent='✓ Fazer o check-in de hoje';
+      cta.style.background='linear-gradient(135deg,#4ade80,#22c55e)'; cta.style.color='#052e16';
+      cta.style.border='none'; cta.style.boxShadow='0 4px 14px rgba(34,197,94,.28)';
+    }
+  }
+}
+
 function renderHero(){
   // v3.9.22: contexto temporal vem junto pra confirmar "hoje" antes dos numeros
   try{ renderPainelHojeBar(); }catch(e){}
+  try{ renderPainelTop(); }catch(e){ console.warn('[Sanova/painelTop]', e); }
   atualizarBotaoDoseHero();
   var f=S.caneta&&S.caneta.farmaco;
   var heroV=el('heroVazio');
   var heroA=el('heroAtivo');
   if(!heroV||!heroA) return;
 
+  var medTg=el('medDetalheToggle'), medWp=el('medDetalheWrap');
   if(!f){
     heroV.style.display='block';
     heroA.style.display='none';
+    if(medTg) medTg.style.display='none';
+    if(medWp) medWp.style.display='none';
     return;
   }
 
   heroV.style.display='none';
   heroA.style.display='block';
+  // v3.10.75 (Onda 4b): o toggle aparece; o wrap fica como o paciente deixou
+  // (render() roda toda hora — fechar aqui brigaria com o toque dele).
+  if(medTg) medTg.style.display='flex';
+  var medTt=el('medDetalheTitulo');
+  if(medTt) medTt.textContent=f+' — detalhes';
 
   // Semanas de tratamento
   var semanasTrat=null;
