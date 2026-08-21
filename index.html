@@ -3054,11 +3054,14 @@ button:focus-visible,[role="button"]:focus-visible{box-shadow:var(--ring)}
 .pilar-duo,
 .pilar-trio{
   display:grid;
-  grid-template-columns:1fr 1fr 1fr;
+  /* v3.10.79: minmax(0,1fr) — o min-content dos filhos estourava a moldura
+     (393px em 350px) e cortava o 3o cartao. Achado do Bruno, 21/08. */
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:8px;
   margin-bottom:10px;
 }
 .pilar-mini{
+  min-width:0;
   background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.06);
   border-radius:14px;
@@ -3938,7 +3941,7 @@ try{
        Cada numero reusa a MESMA fonte dos blocos antigos (renderHeroPeso,
        proxDose, calcMetrics) — nenhum calculo paralelo novo. -->
   <div id="painelTop">
-    <button id="pHeroPesoCard" onclick="liberarMemoria();go('saude')" aria-label="Ver progresso do peso" style="display:none;width:100%;text-align:left;cursor:pointer;background:var(--hero-dark);border:1px solid rgba(187,247,208,.2);border-radius:20px;padding:18px 20px;margin-bottom:10px;box-shadow:0 8px 32px rgba(4,27,13,.28);font-family:var(--ss);position:relative;overflow:hidden">
+    <button id="pHeroPesoCard" onclick="abrirProgressoPeso()" aria-label="Ver progresso do peso" style="display:none;width:100%;text-align:left;cursor:pointer;background:var(--hero-dark);border:1px solid rgba(187,247,208,.2);border-radius:20px;padding:18px 20px;margin-bottom:10px;box-shadow:0 8px 32px rgba(4,27,13,.28);font-family:var(--ss);position:relative;overflow:hidden">
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 85% 0%,rgba(74,222,128,.1),transparent 55%);pointer-events:none"></div>
       <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:#86efac;margin-bottom:6px;position:relative">Seu peso</div>
       <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;position:relative">
@@ -4052,388 +4055,98 @@ try{
   </div>
   <!-- ══ FIM CARD HERÓI ══ -->
 
-  <!-- ══ v3.10.77 (Onda 4c UX): as 3 abas ocultas do preview 4. Todo o
-       conteudo que parava aberto no Painel mora aqui dentro — com graficos
-       e funcionalidades. Nada foi apagado. ══ -->
-  <button onclick="_toggleAcc('pAguaWrap','pAguaArr',_reRenderAcc)" style="width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
-    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">💧 Água e calorias</span>
-    <span id="pAguaArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  <!-- ══ v3.10.79 (Onda 6 — formula ideal aprovada): ZERO accordion na home.
+       Regra dos vencedores (Whoop/Oura/Noom/Shotsy): cartao-resumo com 1
+       numero + 1 frase; o toque abre o detalhe em outra tela. ══ -->
+
+  <!-- Aneis do dia: proteina · agua · kcal · treino. Toque = registrar. -->
+  <div id="aneisDia" style="background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:13px 10px 11px;margin-bottom:10px;box-shadow:var(--sh)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 4px;margin-bottom:10px">
+      <span style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Seu dia até agora</span>
+      <span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--g500)">toque para registrar</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+      <button onclick="rolarParaRegistroRefeicao()" aria-label="Registrar proteína" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--ss);min-width:0;text-align:center">
+        <div id="anelProtRing" style="width:54px;height:54px;border-radius:50%;margin:0 auto 5px;background:conic-gradient(#1a9e4f 0 0%,#e4e0d3 0);display:flex;align-items:center;justify-content:center"><div style="width:44px;height:44px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px">🥩</div></div>
+        <div id="anelProtVal" style="font-size:11.5px;font-weight:800;color:var(--ink)">—</div>
+        <div style="font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Proteína</div>
+      </button>
+      <button onclick="metaAddAgua(250)" aria-label="Adicionar um copo de água" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--ss);min-width:0;text-align:center">
+        <div id="anelAguaRing" style="width:54px;height:54px;border-radius:50%;margin:0 auto 5px;background:conic-gradient(#2f9bd8 0 0%,#e4e0d3 0);display:flex;align-items:center;justify-content:center"><div style="width:44px;height:44px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px">💧</div></div>
+        <div id="anelAguaVal" style="font-size:11.5px;font-weight:800;color:var(--ink)">—</div>
+        <div style="font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Água +250</div>
+      </button>
+      <button onclick="rolarParaRegistroRefeicao()" aria-label="Registrar refeição" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--ss);min-width:0;text-align:center">
+        <div id="anelKcalRing" style="width:54px;height:54px;border-radius:50%;margin:0 auto 5px;background:conic-gradient(#d8952f 0 0%,#e4e0d3 0);display:flex;align-items:center;justify-content:center"><div style="width:44px;height:44px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px">🔥</div></div>
+        <div id="anelKcalVal" style="font-size:11.5px;font-weight:800;color:var(--ink)">—</div>
+        <div style="font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Kcal</div>
+      </button>
+      <button onclick="liberarMemoria();go('exercicio')" aria-label="Registrar treino" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--ss);min-width:0;text-align:center">
+        <div id="anelTreinoRing" style="width:54px;height:54px;border-radius:50%;margin:0 auto 5px;background:conic-gradient(#8a6ad8 0 0%,#e4e0d3 0);display:flex;align-items:center;justify-content:center"><div style="width:44px;height:44px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px">💪</div></div>
+        <div id="anelTreinoVal" style="font-size:11.5px;font-weight:800;color:var(--ink)">—</div>
+        <div style="font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Treino</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Potencia da medicacao — o diferencial, em cartao-resumo com mini-curva -->
+  <button id="potCard" onclick="abrirPotenciaMed()" aria-label="Ver potência e saciedade completas" style="display:none;width:100%;text-align:left;cursor:pointer;background:var(--hero-dark);border:1px solid rgba(187,247,208,.25);border-radius:16px;padding:14px 16px;margin-bottom:10px;font-family:var(--ss);align-items:center;gap:12px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:9.5px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:#86efac;margin-bottom:4px">💊 Potência da medicação</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span id="potCardPct" style="font-family:var(--fd);font-size:29px;font-weight:600;color:#fff;line-height:1">—</span>
+        <span id="potCardFase" style="font-size:12px;font-weight:800;color:#4ade80">—</span>
+      </div>
+      <div id="potCardSub" style="font-size:10.5px;color:rgba(187,247,208,.75);margin-top:3px">—</div>
+    </div>
+    <div style="flex-shrink:0;text-align:center">
+      <svg width="92" height="44" viewBox="0 0 96 46" aria-hidden="true">
+        <rect x="0" y="10" width="96" height="18" rx="4" fill="rgba(74,222,128,.10)"/>
+        <path d="M2 40 C 14 8, 24 4, 34 12 S 58 34, 72 38 S 88 41, 94 42" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"/>
+        <circle id="potCardDot" cx="46" cy="24" r="4" fill="#4ade80" stroke="#fff" stroke-width="2"/>
+        <line x1="88" y1="4" x2="88" y2="44" stroke="#e8c878" stroke-width="1.5" stroke-dasharray="3 3"/>
+      </svg>
+      <div style="font-size:8px;font-weight:700;color:rgba(187,247,208,.6);letter-spacing:.4px">VOCÊ ESTÁ AQUI · <span style="color:#e8c878">PRÓX. DOSE</span></div>
+    </div>
+    <div style="color:#86efac;font-size:15px;font-weight:700;flex-shrink:0">›</div>
   </button>
-  <div id="pAguaWrap" style="display:none">
-  <div id="saldoCard" style="display:none;margin-bottom:10px"></div>  <div style="border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid var(--cream3)">
-    <button onclick="toggleAcc('metabBody','metabArr')" style="width:100%;padding:14px 16px;background:var(--cream1);border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:18px">⚡</span>
-        <div style="text-align:left">
-          <div style="font-size:13px;font-weight:700;color:var(--ink)">Metabolismo e metas</div>
-          <div style="font-size:11px;color:var(--ink3)">TMB · Calorias · Proteína · Água</div>
-        </div>
-      </div>
-      <span id="metabArr" style="font-size:16px;color:var(--ink3);transition:transform .3s">▾</span>
-    </button>
-    <div id="metabBody" style="display:none;padding:14px 16px;background:var(--cream1);border-top:1px solid var(--cream3)">
-      <div class="kg">
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">😴 Metabolismo em repouso <span class="tip" onclick="mostrarDica('TMB')">ⓘ</span></div><div class="kv" id="kTMB">—</div><div class="kh">kcal/dia</div>
-          <button class="exp-btn" onclick="toggleExp('eTMB',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="eTMB"><strong>Taxa Metabólica Basal (TMB).</strong> A energia que seu corpo gasta só para existir — respirar, bombear sangue, manter temperatura, alimentar células. Mesmo dormindo o dia inteiro, você queima essa quantidade.<br><br><strong>📚 Exemplo:</strong> Mulher de 35 anos, 70 kg, 1,65m → TMB ≈ <strong>1.395 kcal/dia</strong>. Isso é o piso — comer menos por muito tempo é arriscado.<br><br><em>Fórmula: Mifflin-St Jeor (a mais validada cientificamente)</em></div>
-        </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🏃 Energia no dia <span class="tip" onclick="mostrarDica('GET')">ⓘ</span></div><div class="kv" id="kGET">—</div><div class="kh">kcal/dia</div>
-          <button class="exp-btn" onclick="toggleExp('eGET',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="eGET"><strong>Gasto Energético Total (GET).</strong> Quantas calorias você queima por dia somando tudo: TMB + atividade física + digestão.<br><br><strong>📚 Exemplo:</strong> Maria, TMB 1.395, atividade moderada (3-5 dias/semana de exercício):<br>GET = 1.395 × 1,55 = <strong>~2.162 kcal/dia</strong><br><br>Ou seja, ela queima ~2.162 kcal num dia normal. Para emagrecer, precisa comer menos que isso.</div>
-        </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🎯 Meta de calorias <span class="tip" onclick="mostrarDica('meta')">ⓘ</span></div><div class="kv" id="kMeta">—</div><div class="kh" id="kDefH">—</div>
-          <button class="exp-btn" onclick="toggleExp('eMeta',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="eMeta"><strong>Meta calórica diária.</strong> GET menos 500 kcal — déficit moderado e sustentável.<br><br><strong>📚 A regra dos 7.000:</strong> 1 kg de gordura armazena ~7.000 kcal. Se Maria gasta 2.162 kcal e come 1.660, déficit de 502 kcal/dia × 7 = <strong>~3.500 kcal/semana = 0,5 kg de gordura</strong>.<br><br>Em 10 semanas: ~5 kg de gordura. Sustentável, sem perder músculo.</div>
-        </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">📉 Perda esperada <span class="tip" onclick="mostrarDica('perda')">ⓘ</span></div><div class="kv" id="kPEst">—</div><div class="kh">kg/semana</div>
-          <button class="exp-btn" onclick="toggleExp('ePerda',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="ePerda"><strong>Perda esperada teórica</strong> calculada a partir do seu déficit.<br><br><strong>📚 Por que o real pode variar:</strong><br>• Ciclo menstrual (mulheres oscilam até 2 kg pela retenção)<br>• Sal e álcool (retém água)<br>• Glicogênio muscular (após musculação)<br>• Estresse/cortisol (segura líquido)<br>• Sono insuficiente (reduz queima)<br><br>Por isso a <strong>média 7 dias</strong> é mais confiável que o peso de hoje.</div>
-        </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🎯 Meta de água <span class="tip" onclick="mostrarDica('agua')">ⓘ</span></div><div class="kv" id="kAgua">—</div><div class="kh">ml/dia</div>
-          <button class="exp-btn" onclick="toggleExp('eAgua',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="eAgua"><strong>Hidratação em GLP-1.</strong> A medicação reduz a sede junto com a fome — você desidrata sem perceber.<br><br><strong>📚 Por que importa:</strong> desidratação é a causa #1 de constipação em pacientes GLP-1, além de tontura, queda de pressão e mau hálito.<br><br><strong>Cálculo:</strong> 35 ml × peso + ajuste por atividade (Sedentário +0, Leve +200, Moderada +400, Alta +700). Pessoa de 70 kg moderada ≈ 2.850 ml/dia. Distribua: 1 copo a cada 1-2 horas, sem esperar sede.</div>
-        </div>
-        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🥩 Meta mínima proteína <span class="tip" onclick="mostrarDica('proteina')">ⓘ</span></div><div class="kv" id="kPMin">—</div><div class="kh" id="kPMinUnidade">—</div>
-          <button class="exp-btn" onclick="toggleExp('ePMin',this)">O que é? <span class="exp-arr">▾</span></button>
-          <div class="exp-box" id="ePMin"><strong>Proteína = nutriente, NÃO o peso do alimento.</strong> "100g de proteína" não é "100g de bife".<br><br><strong>📚 Equivalências reais:</strong><br>• Bife magro 100g = ~26g de proteína<br>• Frango grelhado 100g = ~31g<br>• Ovo inteiro = ~6g por unidade<br>• Iogurte grego 100g = ~10g<br>• Whey scoop 30g = ~24g<br><br>Para bater 100g de proteína no dia, você precisa de ~320g de frango OU combinação (2 ovos + 200g frango + 1 iogurte + 1 whey ≈ 108g).</div>
-        </div>
-        <div class="kb"><div class="kl">Proteína ideal</div><div class="kv" id="kPIdeal">—</div><div class="kh">1,8–2,2g/kg</div></div>
-      </div>
-    </div>
-  </div>  <div id="dietAccCard" style="display:none;border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid var(--cream3)">
-    <button onclick="toggleAcc('dietAccBody','dietAccArr')" style="width:100%;padding:14px 16px;background:var(--cream1);border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:18px">🥗</span>
-        <div style="text-align:left">
-          <div style="font-size:13px;font-weight:700;color:var(--ink)">Sugestão alimentar</div>
-          <div style="font-size:11px;color:var(--ink3)">Refeições para hoje</div>
-        </div>
-      </div>
-      <span id="dietAccArr" style="font-size:16px;color:var(--ink3);transition:transform .3s">▾</span>
-    </button>
-    <div id="dietAccBody" style="display:none;padding:14px 16px;background:var(--cream1);border-top:1px solid var(--cream3)">
-      <div id="dietCard" style="border:none;padding:0;background:none">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="dietSub">—</div>
-        <div id="dietMeals"></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--g200);line-height:1.5">⚠️ Sugestão educativa. Priorize sempre <strong>proteína primeiro</strong> em cada refeição.</div>
-      </div>
-    </div>
-  </div>  <div id="cardJanelaStats" style="display:none;margin-bottom:10px"></div>  </div><!-- /pAguaWrap -->
 
-  <button onclick="_toggleAcc('pProtWrap','pProtArr',_reRenderAcc)" style="width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
-    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">🛡️ Proteção muscular — detalhe</span>
-    <span id="pProtArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  <!-- Licao do dia: 1 por dia; o acervo mora na Saude -->
+  <button id="licaoCard" onclick="abrirLicaoDia()" style="width:100%;text-align:left;cursor:pointer;background:var(--hero-dark);border:1px solid rgba(187,247,208,.22);border-radius:15px;padding:13px 14px;margin-bottom:10px;font-family:var(--ss);display:flex;gap:11px;align-items:center">
+    <div style="font-size:21px" id="licaoIcone">📖</div>
+    <div style="flex:1;min-width:0">
+      <div id="licaoTitulo" style="font-size:12.5px;font-weight:800;color:#fff;line-height:1.3">Lição de hoje</div>
+      <div style="font-size:10.5px;color:rgba(187,247,208,.7);margin-top:2px">2 min de leitura · 1 por dia</div>
+    </div>
+    <div style="border:1px solid rgba(187,247,208,.35);border-radius:99px;padding:6px 11px;color:#bbf7d0;font-size:11px;font-weight:800;flex-shrink:0">Ler ›</div>
   </button>
-  <div id="pProtWrap" style="display:none">
-  <div style="border-radius:16px;overflow:hidden;margin-bottom:12px;border:2px solid rgba(74,222,128,.35);box-shadow:0 4px 20px rgba(74,222,128,.1)">
-    <button onclick="toggleLeiaTodoDia()" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(5,46,22,.98),rgba(22,101,52,.95));border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:22px">📖</span>
-        <div style="text-align:left">
-          <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.2px">Leia todo dia</div>
-          <div style="font-size:11px;color:var(--g300);font-style:italic;margin-top:1px">Entenda como emagrecer e não murchar</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 10px">
-        <span id="leiaTodoDiaArr" style="font-size:14px;color:var(--g300);transition:transform .3s;transform:rotate(0deg)">▾</span>
-        <span id="leiaTodoDiaLabel" style="font-size:9px;font-weight:800;color:var(--g400);letter-spacing:.5px;text-transform:uppercase">Abrir</span>
-      </div>
-    </button>
-    <div id="leiaTodoDiaBody" style="display:none;padding:18px;background:linear-gradient(135deg,rgba(5,46,22,.99),rgba(22,101,52,.96));border-top:1px solid rgba(74,222,128,.15);font-size:13px;line-height:1.9;color:rgba(255,255,255,.9)">
-      Proteína, água e exercício resistido são os três pilares que protegem seu músculo durante o emagrecimento.<br><br>
-      Sem eles, o corpo perde <strong>30 a 40% de músculo</strong> junto com a gordura. Isso tem nome: <strong>sarcopenia</strong> — perda progressiva de massa muscular que deixa você mais fraco, mais lento, mais velho por dentro. A balança cai, mas o corpo murcha.<br><br>
 
-      <div style="background:rgba(74,222,128,.12);border:1.5px solid rgba(74,222,128,.35);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:15px;font-weight:800;color:#4ade80;margin-bottom:8px;letter-spacing:.2px">🥩 Proteína todo dia</div>
-        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">Constrói e protege músculo. Sem ela, o corpo <strong>devora o próprio músculo</strong> para obter energia. Com GLP-1 você come menos — por isso cada grama de proteína importa mais do que nunca.</div>
-      </div>
-
-      <div style="background:rgba(110,231,183,.1);border:1.5px solid rgba(110,231,183,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:8px;letter-spacing:.2px">💧 Água todo dia</div>
-        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">Os GLP-1 suprimem não só a fome, mas também a <strong>sede</strong>. Você pode estar desidratado sem sentir. Sem água, os rins não eliminam toxinas, o metabolismo trava, as náuseas pioram. <strong>Beba mesmo sem sentir sede.</strong></div>
-      </div>
-
-      <div style="background:rgba(232,200,120,.1);border:1.5px solid rgba(232,200,120,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-        <div style="font-size:15px;font-weight:800;color:#e8c878;margin-bottom:8px;letter-spacing:.2px">💪 Exercício resistido</div>
-        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">O único estímulo que preserva músculo durante o emagrecimento. Sem ele, mesmo comendo proteína, o músculo enfraquece. <strong>Musculação, funcional, pilates com resistência.</strong> Mínimo 2x/semana.</div>
-      </div>
-
-      🧠 <strong>Reeducação alimentar</strong> — o GLP-1 silencia a compulsão. Use essa janela para criar novos hábitos. O remédio um dia para — os hábitos ficam para sempre.<br><br>
-      <strong style="color:var(--g300)">A medicação faz o trabalho pesado. Você faz a diferença.</strong>
+  <!-- Porta: Progresso de peso (o relatorio completo mora na Saude) -->
+  <button id="progPorta" onclick="abrirProgressoPeso()" style="width:100%;text-align:left;cursor:pointer;background:linear-gradient(135deg,rgba(15,79,36,.9),rgba(10,58,32,.9));border:1px solid rgba(187,247,208,.25);border-radius:15px;padding:14px 15px;margin-bottom:10px;font-family:var(--ss);display:flex;align-items:center;gap:10px">
+    <div style="font-size:18px">⚖️</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:800;color:#fff">Progresso de peso</div>
+      <div id="progPortaSub" style="font-size:10.5px;color:#86efac;margin-top:1px">Jornada · histórico · ritmo</div>
     </div>
-  </div>  <div id="quatroGauges" class="pilares-card">
-    <div class="pilares-tag">PILARES DE HOJE</div>
-    <div class="pilares-frase" id="pilaresFrase">—</div>
+    <div style="color:#86efac;font-size:15px;font-weight:700">›</div>
+  </button>
 
-    <!-- v3.1.33: atalho rápido pra área de registro de refeição (ação 3-4× ao dia) -->
-    <button onclick="rolarParaRegistroRefeicao()" aria-label="Rolar até registrar refeição" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:6px 0 12px;padding:9px 12px;border-radius:10px;border:1px dashed rgba(232,200,120,.35);background:rgba(232,200,120,.06);color:rgba(232,200,120,.95);font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer;transition:background .15s" ontouchstart="this.style.background='rgba(232,200,120,.14)'" ontouchend="this.style.background='rgba(232,200,120,.06)'">
-      <span style="font-size:14px">📝</span>
-      <span>Registrar refeição agora</span>
-      <span style="font-size:11px;opacity:.65;margin-left:2px">↓</span>
-    </button>
 
-    <!-- HERO: Proteína em destaque (a métrica clínica mais importante em GLP-1) -->
-    <div class="pilar-hero">
-      <button onclick="liberarMemoria();go('prato')" class="pilar-hero-btn" aria-label="Registrar proteína">
-        <div class="pilar-hero-ring">
-          <svg id="pilarProtSVG" class="pilar-svg" viewBox="0 0 100 100" aria-hidden="true">
-            <circle class="pilar-track" cx="50" cy="50" r="42"></circle>
-            <circle class="pilar-prog pilar-prog-prot" cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="263.89"></circle>
-          </svg>
-          <div class="pilar-hero-center">
-            <div class="pilar-hero-pct" id="pilarProtPct">—</div>
-            <div class="pilar-hero-unit">de proteína</div>
-          </div>
-        </div>
-        <div class="pilar-hero-info">
-          <div class="pilar-hero-ttl">🥩 Proteína <span onclick="event.stopPropagation();abrirInfoProteina()" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(187,247,208,.15);border:1px solid rgba(187,247,208,.3);font-size:10px;color:#bbf7d0;margin-left:4px;cursor:pointer;font-weight:700;font-family:serif">ⓘ</span></div>
-          <div class="pilar-hero-val" id="pilarProtVal">—</div>
-          <div class="pilar-hero-msg" id="pilarProtMsg">Preserva massa magra durante o tratamento</div>
-          <div class="pilar-hero-cta">Toque para registrar →</div>
-        </div>
-      </button>
-    </div>
 
-    <!-- LADO A LADO: Água + Calorias + Proteção muscular (leitura combinada) -->
-    <div class="pilar-trio">
-      <!-- Água -->
-      <div class="pilar-mini" style="position:relative">
-        <button onclick="toggleAguaRapido()" class="pilar-mini-btn" aria-label="Adicionar água">
-          <div class="pilar-mini-ring">
-            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
-              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
-              <circle class="pilar-prog pilar-prog-agua" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08"></circle>
-            </svg>
-            <div class="pilar-mini-pct" id="pilarAguaPct">—</div>
-          </div>
-          <div class="pilar-mini-info">
-            <div class="pilar-mini-ttl">💧 Água</div>
-            <div class="pilar-mini-val" id="pilarAguaVal">—</div>
-          </div>
-        </button>
-        <div id="aguaRapidoPanel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#102018;border:1px solid rgba(110,231,183,.3);border-radius:12px;padding:10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)">
-          <div style="font-size:10px;color:rgba(255,255,255,.5);text-align:center;margin-bottom:6px">Adicionar</div>
-          <div style="display:flex;flex-direction:column;gap:5px">
-            <button onclick="metaAddAgua(250);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+250ml</button>
-            <button onclick="metaAddAgua(500);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+500ml</button>
-            <button onclick="metaAddAgua(1000);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+1 litro</button>
-          </div>
-        </div>
-      </div>
-      <!-- Calorias -->
-      <div class="pilar-mini">
-        <button onclick="liberarMemoria();go('prato')" class="pilar-mini-btn" aria-label="Registrar refeição">
-          <div class="pilar-mini-ring">
-            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
-              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
-              <circle class="pilar-prog pilar-prog-kcal" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08"></circle>
-            </svg>
-            <div class="pilar-mini-pct" id="pilarKcalPct">—</div>
-          </div>
-          <div class="pilar-mini-info">
-            <div class="pilar-mini-ttl">🔥 Calorias</div>
-            <div class="pilar-mini-val" id="pilarKcalVal">—</div>
-          </div>
-        </button>
-      </div>
-      <!-- v3.10.20: Proteção muscular (combinação proteína × calorias) -->
-      <div class="pilar-mini" id="pilarProtMuscMini">
-        <button onclick="abrirInfoProtecaoMuscular()" class="pilar-mini-btn" aria-label="Entender proteção muscular">
-          <div class="pilar-mini-ring">
-            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
-              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
-              <circle id="pilarProtMuscRing" class="pilar-prog" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08" stroke="#86efac"></circle>
-            </svg>
-            <div class="pilar-mini-pct" id="pilarProtMuscIcon" style="font-size:16px">—</div>
-          </div>
-          <div class="pilar-mini-info">
-            <div class="pilar-mini-ttl">🛡️ Músculo</div>
-            <div class="pilar-mini-val" id="pilarProtMuscVal">—</div>
-          </div>
-        </button>
-      </div>
-    </div>
 
-    <!-- EXERCÍCIO: pontos da semana (semanal, formato diferente) -->
-    <div class="pilar-exerc">
-      <button onclick="liberarMemoria();go('exercicio')" class="pilar-exerc-btn" aria-label="Registrar exercício">
-        <div class="pilar-exerc-row">
-          <div class="pilar-exerc-info">
-            <div class="pilar-exerc-ttl">💪 Exercício resistido</div>
-            <div class="pilar-exerc-sub" id="pilarExercSub">—</div>
-          </div>
-          <div class="pilar-exerc-dots" id="pilarExercDots"></div>
-        </div>
-      </button>
-    </div>
 
-    <!-- v3.10.19: PROTEÇÃO MUSCULAR HOJE — indicador combinado calorias × proteína.
-         Cor + mensagem dinâmicas em renderProtecaoMuscular(). Esconde antes
-         das 19h se ainda não chegou em 70% das calorias (evita falso alerta
-         no almoço). -->
-    <div id="cardProtecaoMuscular" style="display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1.5px solid transparent;font-family:var(--ss,system-ui);color:#0d1a10">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div id="protMuscIcon" style="font-size:22px">🛡️</div>
-        <div id="protMuscTitulo" style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">PROTEÇÃO MUSCULAR HOJE</div>
-      </div>
-      <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:#0d1a10"></div>
-      <!-- v3.10.53 (Fable T52 M2): share do status de protecao muscular -->
-      <div style="margin-top:10px;text-align:right">
-        <button type="button" onclick="abrirShareProtecaoModal()" style="background:transparent;border:none;font-size:11.5px;color:#166534;font-weight:700;cursor:pointer;padding:4px 8px;text-decoration:underline">📤 Compartilhar</button>
-      </div>
-    </div>
-
-    <!-- Canvas legados mantidos invisíveis para não quebrar drawGauge antigo -->
-    <div style="display:none">
-      <canvas id="gaugeAgua" width="130" height="80"></canvas>
-      <div id="gaugeAguaVal"></div>
-      <canvas id="gaugeProt" width="130" height="80"></canvas>
-      <div id="gaugeProtVal"></div>
-      <canvas id="gaugeExerc" width="130" height="80"></canvas>
-      <div id="gaugeExercVal"></div>
-      <canvas id="gaugeKcal" width="130" height="80"></canvas>
-      <div id="gaugeKcalVal"></div>
-    </div>
-
-    <!-- Metas do dia integradas -->
-    <!-- v3.9.26: prefixo 'Suas metas:' deixa claro que sao METAS PERSONALIZADAS,
-         nao numeros universais. Marcia: 'parece propaganda, nao meta minha'. -->
-    <div id="resumoDiarioCard" style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-top:4px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(187,247,208,.55);margin-bottom:8px;text-align:center">Suas metas pra hoje</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div style="text-align:center">
-          <div id="resumoAguaVal" style="font-size:14px;font-weight:800;color:#6ee7b7;line-height:1.1">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">ml água/dia</div>
-        </div>
-        <div style="text-align:center;border-left:1px solid rgba(255,255,255,.07);border-right:1px solid rgba(255,255,255,.07)">
-          <div id="resumoProtVal" style="font-size:14px;font-weight:800;color:#4ade80;line-height:1.1">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">g proteína/dia</div>
-        </div>
-        <div style="text-align:center">
-          <div id="resumoKcalVal" style="font-size:14px;font-weight:800;color:#e8c878;line-height:1.1">—</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">kcal/dia</div>
-        </div>
-      </div>
-      <div id="resumoDiarioProgresso" style="font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;margin-bottom:10px"></div>
-      <button onclick="toggleEntendaMeta()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(74,222,128,.2);background:transparent;color:rgba(74,222,128,.65);font-family:var(--ss);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-        <span id="entendaMetaArr" style="transition:transform .3s">▾</span> Como calculei suas metas
-      </button>
-      <div id="entendaMetaBody" style="display:none;margin-top:10px;font-size:12px;line-height:1.8;color:rgba(255,255,255,.8)"></div>
-    </div>
-
-  </div>  <div id="pilaresAnaliseCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 16px;margin-bottom:10px;color:#fff">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-        <div style="font-size:18px">📊</div>
-        <div style="font-family:var(--fd,Georgia);font-weight:500;letter-spacing:-.01em;font-size:17px;color:#fff;line-height:1.1">
-          Análise dos pilares
-          <small id="pilaresPeriodoLabel" style="display:block;font-family:var(--ss,system-ui);font-size:10.5px;font-weight:600;color:rgba(187,247,208,.55);letter-spacing:.06em;text-transform:uppercase;margin-top:2px">📅 1 dia · hoje</small>
-        </div>
-      </div>
-    </div>
-    <!-- Tabs -->
-    <div style="display:flex;gap:5px;padding:3px;background:rgba(0,0,0,.18);border-radius:11px;margin-bottom:18px">
-      <button id="pTabHoje" onclick="setPilaresPeriodo('hoje')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:rgba(74,222,128,.18);color:#86efac;box-shadow:inset 0 0 0 1px rgba(74,222,128,.3);font-family:var(--ss,system-ui)">Hoje</button>
-      <button id="pTabSemana" onclick="setPilaresPeriodo('semana')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Semana</button>
-      <button id="pTab15" onclick="setPilaresPeriodo('15d')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">15 dias</button>
-      <button id="pTabMes" onclick="setPilaresPeriodo('mes')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Mês</button>
-    </div>
-
-    <!-- ══ CALORIAS (markup interno preservado pra _aplicarCalBarConfig).
-         v3.10.22: sem fundo próprio — usa o do wrapper escuro. ══ -->
-    <div id="calBarCard" style="margin-bottom:18px;background:transparent;border:0;padding:0">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
-        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🔥 Calorias</div>
-        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="calBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="calBarMeta">— kcal</span></small></div>
-      </div>
-      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
-        <div style="position:absolute;inset:0;display:flex">
-          <div id="calBarFaixa0" style="width:25%;background:rgba(243,168,138,.32)"></div>
-          <div id="calBarFaixa1" style="width:25%;background:rgba(74,222,128,.38)"></div>
-          <div id="calBarFaixa2" style="width:25%;background:rgba(232,200,120,.32)"></div>
-          <div id="calBarFaixa3" style="width:25%;background:rgba(243,168,138,.32)"></div>
-        </div>
-        <div style="position:absolute;inset:0;display:flex;align-items:center">
-          <div id="calBarLbl0" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.6);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Muito baixo</div>
-          <div id="calBarLbl1" style="width:25%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Emagrec.</div>
-          <div id="calBarLbl2" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manut.</div>
-          <div id="calBarLbl3" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Ganho</div>
-        </div>
-        <div id="calBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
-        <div id="calBarEscala0">0</div>
-        <div id="calBarEscala1">800</div>
-        <div id="calBarMetaLbl">1.800</div>
-        <div id="calBarMantLbl">2.200</div>
-        <div id="calBarEscala4">3.000</div>
-      </div>
-      <div id="calBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
-      <!-- Status badge mantido (oculto por padrão, JS antigo pode setar) -->
-      <div id="calBarStatus" style="display:none"></div>
-    </div>
-
-    <!-- ══ PROTEÍNA (markup interno preservado pra _aplicarProtBarConfig).
-         v3.10.22: sem fundo próprio. ══ -->
-    <div id="protBarCard" style="background:transparent;border:0;padding:0">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
-        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🥩 Proteína</div>
-        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="protBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="protBarMeta">— g</span></small></div>
-      </div>
-      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
-        <div style="position:absolute;inset:0;display:flex">
-          <div id="protBarFaixa0" style="width:33.33%;background:rgba(243,168,138,.32)"></div>
-          <div id="protBarFaixa1" style="width:33.33%;background:rgba(232,200,120,.32)"></div>
-          <div id="protBarFaixa2" style="width:33.34%;background:rgba(74,222,128,.38)"></div>
-        </div>
-        <div style="position:absolute;inset:0;display:flex;align-items:center">
-          <div id="protBarLbl0" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
-          <div id="protBarLbl1" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manutenção</div>
-          <div id="protBarLbl2" style="width:33.34%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
-        </div>
-        <div id="protBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
-        <div id="protBarEscala0">0</div>
-        <div id="protBarEscala1">—</div>
-        <div id="protBarEscala2">—</div>
-        <div id="protBarEscala3">—</div>
-      </div>
-      <div id="protBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
-      <div id="protBarStatus" style="display:none"></div>
-    </div>
-
-    <!-- ══ DIAGNÓSTICO de Proteção Muscular (atualiza junto com tabs) ══ -->
-    <div id="diagProtMusc" style="margin-top:20px;padding:14px;border-radius:13px;display:flex;align-items:center;gap:13px;background:rgba(232,200,120,.1);border:1.5px solid rgba(232,200,120,.45)">
-      <div id="diagProtMuscIcon" style="font-size:32px;line-height:1;flex-shrink:0">⚠️</div>
+  <div id="cardObjetivoPainel" style="margin-bottom:10px;padding:11px 14px;background:linear-gradient(135deg,rgba(15,79,36,.85),rgba(10,58,32,.85));border:1px solid rgba(187,247,208,.22);border-radius:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
       <div style="flex:1;min-width:0">
-        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:rgba(255,255,255,.55);margin-bottom:3px">Proteção muscular</div>
-        <div id="diagProtMuscTtl" style="font-family:var(--fd,Georgia);font-weight:500;font-size:17px;letter-spacing:-.005em;line-height:1.15;color:#fcd34d;margin-bottom:3px">Aguardando dados</div>
-        <div id="diagProtMuscSub" style="font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.4">Registre suas refeições pra ver a análise.</div>
+        <div style="font-size:9.5px;font-weight:800;color:rgba(187,247,208,.6);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px">🎯 Seu objetivo agora</div>
+        <div id="cardObjetivoLabel" style="font-size:14px;font-weight:800;color:#fff;line-height:1.2">—</div>
+        <div id="cardObjetivoMeta" style="font-size:11.5px;color:rgba(187,247,208,.75);margin-top:3px;line-height:1.4">—</div>
       </div>
+      <button onclick="abrirModalObjetivo()" aria-label="Mudar objetivo" style="padding:8px 13px;border-radius:8px;border:1px solid rgba(187,247,208,.3);background:rgba(187,247,208,.10);color:#bbf7d0;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Mudar</button>
     </div>
+  </div>
 
-    <!-- ══ Acordeão "Entender" ══ -->
-    <details style="margin-top:10px">
-      <summary style="list-style:none;cursor:pointer;font-size:11.5px;color:rgba(187,247,208,.65);text-align:center;padding:8px 0 4px">▸ O que significa "proteção muscular"</summary>
-      <div style="padding:10px 4px 0;font-size:12px;line-height:1.6;color:rgba(255,255,255,.78)">
-        É a <strong style="color:#fff">leitura combinada</strong> de proteína × calorias.
-        Em GLP-1, é fácil bater a meta de proteína mas comer pouco demais. Quando isso acontece,
-        o corpo entra em catabolismo: quebra músculo pra gerar glicose, <strong style="color:#fff">mesmo
-        com proteína em excesso</strong> na refeição.
-        <div style="margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.08);border-left:3px solid #e0b864;border-radius:7px;color:#fde68a;font-size:11.5px">
-          ⭐ <strong>Regra de ouro:</strong> mais proteína não compensa déficit calórico grande.
-        </div>
-      </div>
-    </details>
-  </div>  <div id="cardLeituraSemana" style="margin-bottom:12px"></div>  </div><!-- /pProtWrap -->
 
-  <button onclick="_toggleAcc('pRefWrap','pRefArr')" style="width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
-    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">📝 Registrar refeição</span>
-    <span id="pRefArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
-  </button>
-  <div id="pRefWrap" style="display:none">
   <input type="file" id="painelFotoRefeicaoInput" accept="image/*" capture="environment" style="display:none" onchange="painelAbrirRefeicaoFoto(this)">
   <div id="cardRegistroRefeicao" style="margin-bottom:12px;border-radius:16px;overflow:hidden;border:1.5px solid rgba(232,200,120,.3);background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);padding:16px 16px 12px;transition:box-shadow .4s ease, border-color .4s ease">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
@@ -4459,92 +4172,7 @@ try{
     </div>
     <!-- Histórico inline do dia -->
     <div id="painelHistRefeicoes"></div>
-  </div>  </div><!-- /pRefWrap -->
-
-  <div style="border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid rgba(74,222,128,.15)">
-    <button onclick="toggleProgAcc()" style="width:100%;padding:14px 16px;background:linear-gradient(135deg,rgba(5,46,22,.7),rgba(22,101,52,.5));border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:18px">⚖️</span>
-        <div style="text-align:left">
-          <div style="font-size:13px;font-weight:700;color:#fff">Progresso de peso</div>
-          <div style="font-size:11px;color:var(--g300)">Jornada · Histórico · Ritmo</div>
-        </div>
-      </div>
-      <span id="progAccArr" style="font-size:16px;color:var(--g300);transition:transform .3s">▾</span>
-    </button>
-    <div id="progAccBody" style="display:none;border-top:1px solid rgba(74,222,128,.1)">
-      <div class="prog-hero" id="progHero" style="border-radius:0;margin-bottom:0;box-shadow:none">
-        <div class="prog-tag" id="progTag">PESO &amp; PROGRESSO</div>
-        <div class="prog-top">
-          <div class="prog-ring-wrap">
-            <svg width="90" height="90" viewBox="0 0 90 90">
-              <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/>
-              <circle id="progRingFill" cx="45" cy="45" r="38" fill="none" stroke="url(#ringGrad)" stroke-width="7" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="239" style="transition:stroke-dashoffset .9s cubic-bezier(.34,1.56,.64,1)"/>
-              <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22c55e"/><stop offset="100%" stop-color="#4ade80"/></linearGradient></defs>
-            </svg>
-            <div class="prog-ring-center"><div class="prog-ring-pct" id="progRingPct">—</div><div class="prog-ring-lbl">da meta</div></div>
-          </div>
-          <div class="prog-info">
-            <div class="prog-weight" id="progWeight">— kg</div>
-            <div class="prog-delta" id="progDelta"></div>
-            <div class="prog-moti" id="progMoti"></div>
-            <div id="progUrineTag"></div>
-          </div>
-        </div>
-        <div class="prog-journey" id="progJourneyWrap">
-          <div class="prog-journey-lbl">SUA JORNADA</div>
-          <div class="prog-road"><div class="prog-road-fill" id="progRoadFill" style="width:0%"></div></div>
-          <div class="prog-dots">
-            <div class="prog-dot-wrap"><div class="prog-dot start"></div><div class="prog-dot-lbl">Início</div><div class="prog-dot-val" id="pdStart">—</div></div>
-            <div class="prog-dot-wrap" id="midMarkerWrap" style="display:none"><div class="prog-dot" id="midMarkerDot"></div><div class="prog-dot-lbl" id="midMarkerLbl">—</div><div class="prog-dot-val" id="midMarkerVal">—</div></div>
-            <div class="prog-dot-wrap"><div class="prog-dot current"></div><div class="prog-dot-lbl">Agora</div><div class="prog-dot-val" id="pdNow">—</div></div>
-            <div class="prog-dot-wrap"><div class="prog-dot goal"></div><div class="prog-dot-lbl">Meta</div><div class="prog-dot-val" id="pdGoal">—</div></div>
-          </div>
-        </div>
-        <div class="prog-kpis" id="progKpis">
-          <div class="prog-kpi highlight"><div class="prog-kpl">Perdido</div><div class="prog-kpv" id="pkPerd">—</div><div class="prog-kph">total</div></div>
-          <div class="prog-kpi"><div class="prog-kpl">Faltam</div><div class="prog-kpv" id="pkFaltam">—</div><div class="prog-kph">para meta</div></div>
-          <div class="prog-kpi"><div class="prog-kpl">Ritmo</div><div class="prog-kpv" id="pkRitmo">—</div><div class="prog-kph">kg/semana</div></div>
-        </div>
-        <!-- Conquista de peso — contextualizada aqui -->
-        <div id="msEl" style="display:none;cursor:pointer;margin-bottom:10px;padding:10px 14px;background:linear-gradient(135deg,#1e3a5f,#1e4d8c);border-radius:12px;border:1px solid rgba(187,247,208,.3);display:none;align-items:center;gap:12px" onclick="abrirConquista()">
-          <div style="font-size:24px" id="msIc">🏆</div>
-          <div><div style="font-size:13px;font-weight:700;color:#fff" id="msMsg">—</div><div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="msSub">—</div></div>
-        </div>
-        <div class="prog-no-goal" id="progNoGoal" style="display:none" onclick="go('perfil')">🎯 Defina seu peso meta no Perfil →</div>
-        <div id="progProj" style="display:none;font-size:12px;color:var(--g300);margin-bottom:10px;text-align:center"></div>
-        <canvas id="chartMain" height="0" style="display:none"></canvas>
-        <!-- Registrar peso integrado -->
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(74,222,128,.1)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px">⚖️ Registrar peso</div>
-            <!-- v3.1.76: badge de data — clique muda pra dia retroativo (até 14d) -->
-            <button id="dataReg-peso" onclick="_abrirSeletorData('peso')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <!-- v3.9.33: cor do input/botao trocada de roxo (rgba 147,51,234)
-                 pra verde (paleta Sanova). Coerencia visual. -->
-            <input type="number" id="pesoRapidoInput" placeholder="ex: 82.5" step="0.1" min="30" max="400"
-              style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(134,239,172,.3);background:rgba(74,222,128,.08);color:#fff;font-size:16px;font-weight:700;text-align:center;font-family:var(--ss);outline:none"
-              onfocus="this.style.borderColor='#86efac'" onblur="this.style.borderColor='rgba(134,239,172,.3)'">
-            <span style="font-size:12px;color:rgba(255,255,255,.4);flex-shrink:0">kg</span>
-            <button onclick="salvarPesoRapido();btnFeedback(this,'Salvo!')" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(74,222,128,.32);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Salvar</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
-  <div id="cardObjetivoPainel" style="margin-bottom:10px;padding:11px 14px;background:linear-gradient(135deg,rgba(15,79,36,.85),rgba(10,58,32,.85));border:1px solid rgba(187,247,208,.22);border-radius:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:9.5px;font-weight:800;color:rgba(187,247,208,.6);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px">🎯 Seu objetivo agora</div>
-        <div id="cardObjetivoLabel" style="font-size:14px;font-weight:800;color:#fff;line-height:1.2">—</div>
-        <div id="cardObjetivoMeta" style="font-size:11.5px;color:rgba(187,247,208,.75);margin-top:3px;line-height:1.4">—</div>
-      </div>
-      <button onclick="abrirModalObjetivo()" aria-label="Mudar objetivo" style="padding:8px 13px;border-radius:8px;border:1px solid rgba(187,247,208,.3);background:rgba(187,247,208,.10);color:#bbf7d0;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Mudar</button>
-    </div>
-  </div>
-
   <!-- ══ 1. LEIA TODO DIA ══ -->
   <!-- ══ 1b. RESUMO DIÁRIO ══ -->
   <!-- ══ PARABÉNS META ══ -->
@@ -6093,6 +5721,457 @@ try{
 
   <!-- v3.9.36: busca STICKY no topo (Marcia: 'rola, rola, rola'). Fica fixa
        enquanto paciente rola a lista de FAQ — chega na busca em 1 toque. -->
+  <!-- ══ v3.10.79 (Onda 6): a Saude e a casa das analises, da referencia e
+       da biblioteca. Tudo que saiu do Painel mora aqui — nada apagado.
+       Accordion aqui e uso correto (conteudo de consulta, NN/g). ══ -->
+  <div style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:2px 2px 8px">Análises</div>
+
+  <button onclick="_toggleAcc('saudeProtWrap','saudeProtArr',_reRenderAcc)" style="width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span style="text-align:left"><span style="font-size:13.5px;font-weight:800;color:var(--ink)">🛡️ Proteção muscular — análise completa</span><br><span style="font-size:10.5px;color:var(--muted);font-weight:600">Pilares do dia · veredito · leitura da semana</span></span>
+    <span id="saudeProtArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="saudeProtWrap" style="display:none">
+  <div id="quatroGauges" class="pilares-card">
+    <div class="pilares-tag">PILARES DE HOJE</div>
+    <div class="pilares-frase" id="pilaresFrase">—</div>
+
+    <!-- v3.1.33: atalho rápido pra área de registro de refeição (ação 3-4× ao dia) -->
+    <button onclick="rolarParaRegistroRefeicao()" aria-label="Rolar até registrar refeição" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:6px 0 12px;padding:9px 12px;border-radius:10px;border:1px dashed rgba(232,200,120,.35);background:rgba(232,200,120,.06);color:rgba(232,200,120,.95);font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer;transition:background .15s" ontouchstart="this.style.background='rgba(232,200,120,.14)'" ontouchend="this.style.background='rgba(232,200,120,.06)'">
+      <span style="font-size:14px">📝</span>
+      <span>Registrar refeição agora</span>
+      <span style="font-size:11px;opacity:.65;margin-left:2px">↓</span>
+    </button>
+
+    <!-- HERO: Proteína em destaque (a métrica clínica mais importante em GLP-1) -->
+    <div class="pilar-hero">
+      <button onclick="liberarMemoria();go('prato')" class="pilar-hero-btn" aria-label="Registrar proteína">
+        <div class="pilar-hero-ring">
+          <svg id="pilarProtSVG" class="pilar-svg" viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="pilar-track" cx="50" cy="50" r="42"></circle>
+            <circle class="pilar-prog pilar-prog-prot" cx="50" cy="50" r="42" stroke-dasharray="263.89" stroke-dashoffset="263.89"></circle>
+          </svg>
+          <div class="pilar-hero-center">
+            <div class="pilar-hero-pct" id="pilarProtPct">—</div>
+            <div class="pilar-hero-unit">de proteína</div>
+          </div>
+        </div>
+        <div class="pilar-hero-info">
+          <div class="pilar-hero-ttl">🥩 Proteína <span onclick="event.stopPropagation();abrirInfoProteina()" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(187,247,208,.15);border:1px solid rgba(187,247,208,.3);font-size:10px;color:#bbf7d0;margin-left:4px;cursor:pointer;font-weight:700;font-family:serif">ⓘ</span></div>
+          <div class="pilar-hero-val" id="pilarProtVal">—</div>
+          <div class="pilar-hero-msg" id="pilarProtMsg">Preserva massa magra durante o tratamento</div>
+          <div class="pilar-hero-cta">Toque para registrar →</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- LADO A LADO: Água + Calorias + Proteção muscular (leitura combinada) -->
+    <div class="pilar-trio">
+      <!-- Água -->
+      <div class="pilar-mini" style="position:relative">
+        <button onclick="toggleAguaRapido()" class="pilar-mini-btn" aria-label="Adicionar água">
+          <div class="pilar-mini-ring">
+            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
+              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
+              <circle class="pilar-prog pilar-prog-agua" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08"></circle>
+            </svg>
+            <div class="pilar-mini-pct" id="pilarAguaPct">—</div>
+          </div>
+          <div class="pilar-mini-info">
+            <div class="pilar-mini-ttl">💧 Água</div>
+            <div class="pilar-mini-val" id="pilarAguaVal">—</div>
+          </div>
+        </button>
+        <div id="aguaRapidoPanel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#102018;border:1px solid rgba(110,231,183,.3);border-radius:12px;padding:10px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+          <div style="font-size:10px;color:rgba(255,255,255,.5);text-align:center;margin-bottom:6px">Adicionar</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <button onclick="metaAddAgua(250);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+250ml</button>
+            <button onclick="metaAddAgua(500);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+500ml</button>
+            <button onclick="metaAddAgua(1000);btnFeedback(this,'Salvo!');toggleAguaRapido()" style="padding:7px 12px;border-radius:8px;border:none;background:rgba(110,231,183,.15);color:#6ee7b7;font-family:var(--ss);font-size:12px;font-weight:700;cursor:pointer">+1 litro</button>
+          </div>
+        </div>
+      </div>
+      <!-- Calorias -->
+      <div class="pilar-mini">
+        <button onclick="liberarMemoria();go('prato')" class="pilar-mini-btn" aria-label="Registrar refeição">
+          <div class="pilar-mini-ring">
+            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
+              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
+              <circle class="pilar-prog pilar-prog-kcal" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08"></circle>
+            </svg>
+            <div class="pilar-mini-pct" id="pilarKcalPct">—</div>
+          </div>
+          <div class="pilar-mini-info">
+            <div class="pilar-mini-ttl">🔥 Calorias</div>
+            <div class="pilar-mini-val" id="pilarKcalVal">—</div>
+          </div>
+        </button>
+      </div>
+      <!-- v3.10.20: Proteção muscular (combinação proteína × calorias) -->
+      <div class="pilar-mini" id="pilarProtMuscMini">
+        <button onclick="abrirInfoProtecaoMuscular()" class="pilar-mini-btn" aria-label="Entender proteção muscular">
+          <div class="pilar-mini-ring">
+            <svg class="pilar-svg-mini" viewBox="0 0 60 60" aria-hidden="true">
+              <circle class="pilar-track-mini" cx="30" cy="30" r="25"></circle>
+              <circle id="pilarProtMuscRing" class="pilar-prog" cx="30" cy="30" r="25" stroke-dasharray="157.08" stroke-dashoffset="157.08" stroke="#86efac"></circle>
+            </svg>
+            <div class="pilar-mini-pct" id="pilarProtMuscIcon" style="font-size:16px">—</div>
+          </div>
+          <div class="pilar-mini-info">
+            <div class="pilar-mini-ttl">🛡️ Músculo</div>
+            <div class="pilar-mini-val" id="pilarProtMuscVal">—</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- EXERCÍCIO: pontos da semana (semanal, formato diferente) -->
+    <div class="pilar-exerc">
+      <button onclick="liberarMemoria();go('exercicio')" class="pilar-exerc-btn" aria-label="Registrar exercício">
+        <div class="pilar-exerc-row">
+          <div class="pilar-exerc-info">
+            <div class="pilar-exerc-ttl">💪 Exercício resistido</div>
+            <div class="pilar-exerc-sub" id="pilarExercSub">—</div>
+          </div>
+          <div class="pilar-exerc-dots" id="pilarExercDots"></div>
+        </div>
+      </button>
+    </div>
+
+    <!-- v3.10.19: PROTEÇÃO MUSCULAR HOJE — indicador combinado calorias × proteína.
+         Cor + mensagem dinâmicas em renderProtecaoMuscular(). Esconde antes
+         das 19h se ainda não chegou em 70% das calorias (evita falso alerta
+         no almoço). -->
+    <div id="cardProtecaoMuscular" style="display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1.5px solid transparent;font-family:var(--ss,system-ui);color:#0d1a10">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div id="protMuscIcon" style="font-size:22px">🛡️</div>
+        <div id="protMuscTitulo" style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">PROTEÇÃO MUSCULAR HOJE</div>
+      </div>
+      <div id="protMuscMsg" style="font-size:13.5px;line-height:1.55;color:#0d1a10"></div>
+      <!-- v3.10.53 (Fable T52 M2): share do status de protecao muscular -->
+      <div style="margin-top:10px;text-align:right">
+        <button type="button" onclick="abrirShareProtecaoModal()" style="background:transparent;border:none;font-size:11.5px;color:#166534;font-weight:700;cursor:pointer;padding:4px 8px;text-decoration:underline">📤 Compartilhar</button>
+      </div>
+    </div>
+
+    <!-- Canvas legados mantidos invisíveis para não quebrar drawGauge antigo -->
+    <div style="display:none">
+      <canvas id="gaugeAgua" width="130" height="80"></canvas>
+      <div id="gaugeAguaVal"></div>
+      <canvas id="gaugeProt" width="130" height="80"></canvas>
+      <div id="gaugeProtVal"></div>
+      <canvas id="gaugeExerc" width="130" height="80"></canvas>
+      <div id="gaugeExercVal"></div>
+      <canvas id="gaugeKcal" width="130" height="80"></canvas>
+      <div id="gaugeKcalVal"></div>
+    </div>
+
+    <!-- Metas do dia integradas -->
+    <!-- v3.9.26: prefixo 'Suas metas:' deixa claro que sao METAS PERSONALIZADAS,
+         nao numeros universais. Marcia: 'parece propaganda, nao meta minha'. -->
+    <div id="resumoDiarioCard" style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-top:4px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(187,247,208,.55);margin-bottom:8px;text-align:center">Suas metas pra hoje</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="text-align:center">
+          <div id="resumoAguaVal" style="font-size:14px;font-weight:800;color:#6ee7b7;line-height:1.1">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">ml água/dia</div>
+        </div>
+        <div style="text-align:center;border-left:1px solid rgba(255,255,255,.07);border-right:1px solid rgba(255,255,255,.07)">
+          <div id="resumoProtVal" style="font-size:14px;font-weight:800;color:#4ade80;line-height:1.1">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">g proteína/dia</div>
+        </div>
+        <div style="text-align:center">
+          <div id="resumoKcalVal" style="font-size:14px;font-weight:800;color:#e8c878;line-height:1.1">—</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px;text-transform:uppercase;letter-spacing:.4px">kcal/dia</div>
+        </div>
+      </div>
+      <div id="resumoDiarioProgresso" style="font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;margin-bottom:10px"></div>
+      <button onclick="toggleEntendaMeta()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(74,222,128,.2);background:transparent;color:rgba(74,222,128,.65);font-family:var(--ss);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+        <span id="entendaMetaArr" style="transition:transform .3s">▾</span> Como calculei suas metas
+      </button>
+      <div id="entendaMetaBody" style="display:none;margin-top:10px;font-size:12px;line-height:1.8;color:rgba(255,255,255,.8)"></div>
+    </div>
+
+  </div>  <div id="pilaresAnaliseCard" style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 16px;margin-bottom:10px;color:#fff">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <div style="font-size:18px">📊</div>
+        <div style="font-family:var(--fd,Georgia);font-weight:500;letter-spacing:-.01em;font-size:17px;color:#fff;line-height:1.1">
+          Análise dos pilares
+          <small id="pilaresPeriodoLabel" style="display:block;font-family:var(--ss,system-ui);font-size:10.5px;font-weight:600;color:rgba(187,247,208,.55);letter-spacing:.06em;text-transform:uppercase;margin-top:2px">📅 1 dia · hoje</small>
+        </div>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:5px;padding:3px;background:rgba(0,0,0,.18);border-radius:11px;margin-bottom:18px">
+      <button id="pTabHoje" onclick="setPilaresPeriodo('hoje')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:rgba(74,222,128,.18);color:#86efac;box-shadow:inset 0 0 0 1px rgba(74,222,128,.3);font-family:var(--ss,system-ui)">Hoje</button>
+      <button id="pTabSemana" onclick="setPilaresPeriodo('semana')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Semana</button>
+      <button id="pTab15" onclick="setPilaresPeriodo('15d')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">15 dias</button>
+      <button id="pTabMes" onclick="setPilaresPeriodo('mes')" style="flex:1;padding:7px 0;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:0;background:transparent;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui)">Mês</button>
+    </div>
+
+    <!-- ══ CALORIAS (markup interno preservado pra _aplicarCalBarConfig).
+         v3.10.22: sem fundo próprio — usa o do wrapper escuro. ══ -->
+    <div id="calBarCard" style="margin-bottom:18px;background:transparent;border:0;padding:0">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🔥 Calorias</div>
+        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="calBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="calBarMeta">— kcal</span></small></div>
+      </div>
+      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
+        <div style="position:absolute;inset:0;display:flex">
+          <div id="calBarFaixa0" style="width:25%;background:rgba(243,168,138,.32)"></div>
+          <div id="calBarFaixa1" style="width:25%;background:rgba(74,222,128,.38)"></div>
+          <div id="calBarFaixa2" style="width:25%;background:rgba(232,200,120,.32)"></div>
+          <div id="calBarFaixa3" style="width:25%;background:rgba(243,168,138,.32)"></div>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center">
+          <div id="calBarLbl0" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.6);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Muito baixo</div>
+          <div id="calBarLbl1" style="width:25%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Emagrec.</div>
+          <div id="calBarLbl2" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manut.</div>
+          <div id="calBarLbl3" style="width:25%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.85);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Ganho</div>
+        </div>
+        <div id="calBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
+        <div id="calBarEscala0">0</div>
+        <div id="calBarEscala1">800</div>
+        <div id="calBarMetaLbl">1.800</div>
+        <div id="calBarMantLbl">2.200</div>
+        <div id="calBarEscala4">3.000</div>
+      </div>
+      <div id="calBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
+      <!-- Status badge mantido (oculto por padrão, JS antigo pode setar) -->
+      <div id="calBarStatus" style="display:none"></div>
+    </div>
+
+    <!-- ══ PROTEÍNA (markup interno preservado pra _aplicarProtBarConfig).
+         v3.10.22: sem fundo próprio. ══ -->
+    <div id="protBarCard" style="background:transparent;border:0;padding:0">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">🥩 Proteína</div>
+        <div style="font-family:var(--fd,Georgia);font-size:22px;font-weight:500;letter-spacing:-.01em;color:#fff;line-height:1"><span id="protBarConsumed">0</span><small style="font-size:11.5px;color:rgba(255,255,255,.55);font-family:var(--ss,system-ui);font-weight:400;margin-left:4px">/ <span id="protBarMeta">— g</span></small></div>
+      </div>
+      <div style="position:relative;height:26px;border-radius:7px;overflow:hidden;margin-bottom:5px">
+        <div style="position:absolute;inset:0;display:flex">
+          <div id="protBarFaixa0" style="width:33.33%;background:rgba(243,168,138,.32)"></div>
+          <div id="protBarFaixa1" style="width:33.33%;background:rgba(232,200,120,.32)"></div>
+          <div id="protBarFaixa2" style="width:33.34%;background:rgba(74,222,128,.38)"></div>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center">
+          <div id="protBarLbl0" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(220,150,130,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Sarcopenia</div>
+          <div id="protBarLbl1" style="width:33.33%;text-align:center;font-size:9.5px;font-weight:700;color:rgba(232,200,120,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Manutenção</div>
+          <div id="protBarLbl2" style="width:33.34%;text-align:center;font-size:9.5px;font-weight:800;color:rgba(74,222,128,.95);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">✅ Ganho</div>
+        </div>
+        <div id="protBarMarker" style="position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s ease;left:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.4);padding:0 1px;margin-bottom:7px">
+        <div id="protBarEscala0">0</div>
+        <div id="protBarEscala1">—</div>
+        <div id="protBarEscala2">—</div>
+        <div id="protBarEscala3">—</div>
+      </div>
+      <div id="protBarMsg" style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;font-style:italic"></div>
+      <div id="protBarStatus" style="display:none"></div>
+    </div>
+
+    <!-- ══ DIAGNÓSTICO de Proteção Muscular (atualiza junto com tabs) ══ -->
+    <div id="diagProtMusc" style="margin-top:20px;padding:14px;border-radius:13px;display:flex;align-items:center;gap:13px;background:rgba(232,200,120,.1);border:1.5px solid rgba(232,200,120,.45)">
+      <div id="diagProtMuscIcon" style="font-size:32px;line-height:1;flex-shrink:0">⚠️</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:rgba(255,255,255,.55);margin-bottom:3px">Proteção muscular</div>
+        <div id="diagProtMuscTtl" style="font-family:var(--fd,Georgia);font-weight:500;font-size:17px;letter-spacing:-.005em;line-height:1.15;color:#fcd34d;margin-bottom:3px">Aguardando dados</div>
+        <div id="diagProtMuscSub" style="font-size:11.5px;color:rgba(255,255,255,.72);line-height:1.4">Registre suas refeições pra ver a análise.</div>
+      </div>
+    </div>
+
+    <!-- ══ Acordeão "Entender" ══ -->
+    <details style="margin-top:10px">
+      <summary style="list-style:none;cursor:pointer;font-size:11.5px;color:rgba(187,247,208,.65);text-align:center;padding:8px 0 4px">▸ O que significa "proteção muscular"</summary>
+      <div style="padding:10px 4px 0;font-size:12px;line-height:1.6;color:rgba(255,255,255,.78)">
+        É a <strong style="color:#fff">leitura combinada</strong> de proteína × calorias.
+        Em GLP-1, é fácil bater a meta de proteína mas comer pouco demais. Quando isso acontece,
+        o corpo entra em catabolismo: quebra músculo pra gerar glicose, <strong style="color:#fff">mesmo
+        com proteína em excesso</strong> na refeição.
+        <div style="margin-top:10px;padding:9px 12px;background:rgba(232,200,120,.08);border-left:3px solid #e0b864;border-radius:7px;color:#fde68a;font-size:11.5px">
+          ⭐ <strong>Regra de ouro:</strong> mais proteína não compensa déficit calórico grande.
+        </div>
+      </div>
+    </details>
+  </div>  <div id="cardLeituraSemana" style="margin-bottom:12px"></div>  </div><!-- /saudeProtWrap -->
+
+  <div style="border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid rgba(74,222,128,.15)">
+    <button onclick="toggleProgAcc()" style="width:100%;padding:14px 16px;background:linear-gradient(135deg,rgba(5,46,22,.7),rgba(22,101,52,.5));border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">⚖️</span>
+        <div style="text-align:left">
+          <div style="font-size:13px;font-weight:700;color:#fff">Progresso de peso</div>
+          <div style="font-size:11px;color:var(--g300)">Jornada · Histórico · Ritmo</div>
+        </div>
+      </div>
+      <span id="progAccArr" style="font-size:16px;color:var(--g300);transition:transform .3s">▾</span>
+    </button>
+    <div id="progAccBody" style="display:none;border-top:1px solid rgba(74,222,128,.1)">
+      <div class="prog-hero" id="progHero" style="border-radius:0;margin-bottom:0;box-shadow:none">
+        <div class="prog-tag" id="progTag">PESO &amp; PROGRESSO</div>
+        <div class="prog-top">
+          <div class="prog-ring-wrap">
+            <svg width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/>
+              <circle id="progRingFill" cx="45" cy="45" r="38" fill="none" stroke="url(#ringGrad)" stroke-width="7" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="239" style="transition:stroke-dashoffset .9s cubic-bezier(.34,1.56,.64,1)"/>
+              <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#22c55e"/><stop offset="100%" stop-color="#4ade80"/></linearGradient></defs>
+            </svg>
+            <div class="prog-ring-center"><div class="prog-ring-pct" id="progRingPct">—</div><div class="prog-ring-lbl">da meta</div></div>
+          </div>
+          <div class="prog-info">
+            <div class="prog-weight" id="progWeight">— kg</div>
+            <div class="prog-delta" id="progDelta"></div>
+            <div class="prog-moti" id="progMoti"></div>
+            <div id="progUrineTag"></div>
+          </div>
+        </div>
+        <div class="prog-journey" id="progJourneyWrap">
+          <div class="prog-journey-lbl">SUA JORNADA</div>
+          <div class="prog-road"><div class="prog-road-fill" id="progRoadFill" style="width:0%"></div></div>
+          <div class="prog-dots">
+            <div class="prog-dot-wrap"><div class="prog-dot start"></div><div class="prog-dot-lbl">Início</div><div class="prog-dot-val" id="pdStart">—</div></div>
+            <div class="prog-dot-wrap" id="midMarkerWrap" style="display:none"><div class="prog-dot" id="midMarkerDot"></div><div class="prog-dot-lbl" id="midMarkerLbl">—</div><div class="prog-dot-val" id="midMarkerVal">—</div></div>
+            <div class="prog-dot-wrap"><div class="prog-dot current"></div><div class="prog-dot-lbl">Agora</div><div class="prog-dot-val" id="pdNow">—</div></div>
+            <div class="prog-dot-wrap"><div class="prog-dot goal"></div><div class="prog-dot-lbl">Meta</div><div class="prog-dot-val" id="pdGoal">—</div></div>
+          </div>
+        </div>
+        <div class="prog-kpis" id="progKpis">
+          <div class="prog-kpi highlight"><div class="prog-kpl">Perdido</div><div class="prog-kpv" id="pkPerd">—</div><div class="prog-kph">total</div></div>
+          <div class="prog-kpi"><div class="prog-kpl">Faltam</div><div class="prog-kpv" id="pkFaltam">—</div><div class="prog-kph">para meta</div></div>
+          <div class="prog-kpi"><div class="prog-kpl">Ritmo</div><div class="prog-kpv" id="pkRitmo">—</div><div class="prog-kph">kg/semana</div></div>
+        </div>
+        <!-- Conquista de peso — contextualizada aqui -->
+        <div id="msEl" style="display:none;cursor:pointer;margin-bottom:10px;padding:10px 14px;background:linear-gradient(135deg,#1e3a5f,#1e4d8c);border-radius:12px;border:1px solid rgba(187,247,208,.3);display:none;align-items:center;gap:12px" onclick="abrirConquista()">
+          <div style="font-size:24px" id="msIc">🏆</div>
+          <div><div style="font-size:13px;font-weight:700;color:#fff" id="msMsg">—</div><div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px" id="msSub">—</div></div>
+        </div>
+        <div class="prog-no-goal" id="progNoGoal" style="display:none" onclick="go('perfil')">🎯 Defina seu peso meta no Perfil →</div>
+        <div id="progProj" style="display:none;font-size:12px;color:var(--g300);margin-bottom:10px;text-align:center"></div>
+        <canvas id="chartMain" height="0" style="display:none"></canvas>
+        <!-- Registrar peso integrado -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(74,222,128,.1)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.6px">⚖️ Registrar peso</div>
+            <!-- v3.1.76: badge de data — clique muda pra dia retroativo (até 14d) -->
+            <button id="dataReg-peso" onclick="_abrirSeletorData('peso')" class="data-reg-badge" aria-label="Mudar data do registro">📅 Hoje ▼</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <!-- v3.9.33: cor do input/botao trocada de roxo (rgba 147,51,234)
+                 pra verde (paleta Sanova). Coerencia visual. -->
+            <input type="number" id="pesoRapidoInput" placeholder="ex: 82.5" step="0.1" min="30" max="400"
+              style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(134,239,172,.3);background:rgba(74,222,128,.08);color:#fff;font-size:16px;font-weight:700;text-align:center;font-family:var(--ss);outline:none"
+              onfocus="this.style.borderColor='#86efac'" onblur="this.style.borderColor='rgba(134,239,172,.3)'">
+            <span style="font-size:12px;color:rgba(255,255,255,.4);flex-shrink:0">kg</span>
+            <button onclick="salvarPesoRapido();btnFeedback(this,'Salvo!')" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(74,222,128,.32);color:#bbf7d0;font-family:var(--ss);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✅ Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>  <div id="saldoCard" style="display:none;margin-bottom:10px"></div>  <div id="cardJanelaStats" style="display:none;margin-bottom:10px"></div>
+  <div style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px">Referência</div>
+  <div style="border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid var(--cream3)">
+    <button onclick="toggleAcc('metabBody','metabArr')" style="width:100%;padding:14px 16px;background:var(--cream1);border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">⚡</span>
+        <div style="text-align:left">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Metabolismo e metas</div>
+          <div style="font-size:11px;color:var(--ink3)">TMB · Calorias · Proteína · Água</div>
+        </div>
+      </div>
+      <span id="metabArr" style="font-size:16px;color:var(--ink3);transition:transform .3s">▾</span>
+    </button>
+    <div id="metabBody" style="display:none;padding:14px 16px;background:var(--cream1);border-top:1px solid var(--cream3)">
+      <div class="kg">
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">😴 Metabolismo em repouso <span class="tip" onclick="mostrarDica('TMB')">ⓘ</span></div><div class="kv" id="kTMB">—</div><div class="kh">kcal/dia</div>
+          <button class="exp-btn" onclick="toggleExp('eTMB',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="eTMB"><strong>Taxa Metabólica Basal (TMB).</strong> A energia que seu corpo gasta só para existir — respirar, bombear sangue, manter temperatura, alimentar células. Mesmo dormindo o dia inteiro, você queima essa quantidade.<br><br><strong>📚 Exemplo:</strong> Mulher de 35 anos, 70 kg, 1,65m → TMB ≈ <strong>1.395 kcal/dia</strong>. Isso é o piso — comer menos por muito tempo é arriscado.<br><br><em>Fórmula: Mifflin-St Jeor (a mais validada cientificamente)</em></div>
+        </div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🏃 Energia no dia <span class="tip" onclick="mostrarDica('GET')">ⓘ</span></div><div class="kv" id="kGET">—</div><div class="kh">kcal/dia</div>
+          <button class="exp-btn" onclick="toggleExp('eGET',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="eGET"><strong>Gasto Energético Total (GET).</strong> Quantas calorias você queima por dia somando tudo: TMB + atividade física + digestão.<br><br><strong>📚 Exemplo:</strong> Maria, TMB 1.395, atividade moderada (3-5 dias/semana de exercício):<br>GET = 1.395 × 1,55 = <strong>~2.162 kcal/dia</strong><br><br>Ou seja, ela queima ~2.162 kcal num dia normal. Para emagrecer, precisa comer menos que isso.</div>
+        </div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🎯 Meta de calorias <span class="tip" onclick="mostrarDica('meta')">ⓘ</span></div><div class="kv" id="kMeta">—</div><div class="kh" id="kDefH">—</div>
+          <button class="exp-btn" onclick="toggleExp('eMeta',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="eMeta"><strong>Meta calórica diária.</strong> GET menos 500 kcal — déficit moderado e sustentável.<br><br><strong>📚 A regra dos 7.000:</strong> 1 kg de gordura armazena ~7.000 kcal. Se Maria gasta 2.162 kcal e come 1.660, déficit de 502 kcal/dia × 7 = <strong>~3.500 kcal/semana = 0,5 kg de gordura</strong>.<br><br>Em 10 semanas: ~5 kg de gordura. Sustentável, sem perder músculo.</div>
+        </div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">📉 Perda esperada <span class="tip" onclick="mostrarDica('perda')">ⓘ</span></div><div class="kv" id="kPEst">—</div><div class="kh">kg/semana</div>
+          <button class="exp-btn" onclick="toggleExp('ePerda',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="ePerda"><strong>Perda esperada teórica</strong> calculada a partir do seu déficit.<br><br><strong>📚 Por que o real pode variar:</strong><br>• Ciclo menstrual (mulheres oscilam até 2 kg pela retenção)<br>• Sal e álcool (retém água)<br>• Glicogênio muscular (após musculação)<br>• Estresse/cortisol (segura líquido)<br>• Sono insuficiente (reduz queima)<br><br>Por isso a <strong>média 7 dias</strong> é mais confiável que o peso de hoje.</div>
+        </div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🎯 Meta de água <span class="tip" onclick="mostrarDica('agua')">ⓘ</span></div><div class="kv" id="kAgua">—</div><div class="kh">ml/dia</div>
+          <button class="exp-btn" onclick="toggleExp('eAgua',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="eAgua"><strong>Hidratação em GLP-1.</strong> A medicação reduz a sede junto com a fome — você desidrata sem perceber.<br><br><strong>📚 Por que importa:</strong> desidratação é a causa #1 de constipação em pacientes GLP-1, além de tontura, queda de pressão e mau hálito.<br><br><strong>Cálculo:</strong> 35 ml × peso + ajuste por atividade (Sedentário +0, Leve +200, Moderada +400, Alta +700). Pessoa de 70 kg moderada ≈ 2.850 ml/dia. Distribua: 1 copo a cada 1-2 horas, sem esperar sede.</div>
+        </div>
+        <div class="kb"><div class="kl" style="display:flex;align-items:center;gap:3px">🥩 Meta mínima proteína <span class="tip" onclick="mostrarDica('proteina')">ⓘ</span></div><div class="kv" id="kPMin">—</div><div class="kh" id="kPMinUnidade">—</div>
+          <button class="exp-btn" onclick="toggleExp('ePMin',this)">O que é? <span class="exp-arr">▾</span></button>
+          <div class="exp-box" id="ePMin"><strong>Proteína = nutriente, NÃO o peso do alimento.</strong> "100g de proteína" não é "100g de bife".<br><br><strong>📚 Equivalências reais:</strong><br>• Bife magro 100g = ~26g de proteína<br>• Frango grelhado 100g = ~31g<br>• Ovo inteiro = ~6g por unidade<br>• Iogurte grego 100g = ~10g<br>• Whey scoop 30g = ~24g<br><br>Para bater 100g de proteína no dia, você precisa de ~320g de frango OU combinação (2 ovos + 200g frango + 1 iogurte + 1 whey ≈ 108g).</div>
+        </div>
+        <div class="kb"><div class="kl">Proteína ideal</div><div class="kv" id="kPIdeal">—</div><div class="kh">1,8–2,2g/kg</div></div>
+      </div>
+    </div>
+  </div>  <div id="dietAccCard" style="display:none;border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid var(--cream3)">
+    <button onclick="toggleAcc('dietAccBody','dietAccArr')" style="width:100%;padding:14px 16px;background:var(--cream1);border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">🥗</span>
+        <div style="text-align:left">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Sugestão alimentar</div>
+          <div style="font-size:11px;color:var(--ink3)">Refeições para hoje</div>
+        </div>
+      </div>
+      <span id="dietAccArr" style="font-size:16px;color:var(--ink3);transition:transform .3s">▾</span>
+    </button>
+    <div id="dietAccBody" style="display:none;padding:14px 16px;background:var(--cream1);border-top:1px solid var(--cream3)">
+      <div id="dietCard" style="border:none;padding:0;background:none">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="dietSub">—</div>
+        <div id="dietMeals"></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--g200);line-height:1.5">⚠️ Sugestão educativa. Priorize sempre <strong>proteína primeiro</strong> em cada refeição.</div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px">Biblioteca — emagrecer sem murchar</div>
+  <div style="border-radius:16px;overflow:hidden;margin-bottom:12px;border:2px solid rgba(74,222,128,.35);box-shadow:0 4px 20px rgba(74,222,128,.1)">
+    <button onclick="toggleLeiaTodoDia()" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(5,46,22,.98),rgba(22,101,52,.95));border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--ss)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:22px">📖</span>
+        <div style="text-align:left">
+          <div style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.2px">Leia todo dia</div>
+          <div style="font-size:11px;color:var(--g300);font-style:italic;margin-top:1px">Entenda como emagrecer e não murchar</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:6px 10px">
+        <span id="leiaTodoDiaArr" style="font-size:14px;color:var(--g300);transition:transform .3s;transform:rotate(0deg)">▾</span>
+        <span id="leiaTodoDiaLabel" style="font-size:9px;font-weight:800;color:var(--g400);letter-spacing:.5px;text-transform:uppercase">Abrir</span>
+      </div>
+    </button>
+    <div id="leiaTodoDiaBody" style="display:none;padding:18px;background:linear-gradient(135deg,rgba(5,46,22,.99),rgba(22,101,52,.96));border-top:1px solid rgba(74,222,128,.15);font-size:13px;line-height:1.9;color:rgba(255,255,255,.9)">
+      Proteína, água e exercício resistido são os três pilares que protegem seu músculo durante o emagrecimento.<br><br>
+      Sem eles, o corpo perde <strong>30 a 40% de músculo</strong> junto com a gordura. Isso tem nome: <strong>sarcopenia</strong> — perda progressiva de massa muscular que deixa você mais fraco, mais lento, mais velho por dentro. A balança cai, mas o corpo murcha.<br><br>
+
+      <div style="background:rgba(74,222,128,.12);border:1.5px solid rgba(74,222,128,.35);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;color:#4ade80;margin-bottom:8px;letter-spacing:.2px">🥩 Proteína todo dia</div>
+        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">Constrói e protege músculo. Sem ela, o corpo <strong>devora o próprio músculo</strong> para obter energia. Com GLP-1 você come menos — por isso cada grama de proteína importa mais do que nunca.</div>
+      </div>
+
+      <div style="background:rgba(110,231,183,.1);border:1.5px solid rgba(110,231,183,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:8px;letter-spacing:.2px">💧 Água todo dia</div>
+        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">Os GLP-1 suprimem não só a fome, mas também a <strong>sede</strong>. Você pode estar desidratado sem sentir. Sem água, os rins não eliminam toxinas, o metabolismo trava, as náuseas pioram. <strong>Beba mesmo sem sentir sede.</strong></div>
+      </div>
+
+      <div style="background:rgba(232,200,120,.1);border:1.5px solid rgba(232,200,120,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;color:#e8c878;margin-bottom:8px;letter-spacing:.2px">💪 Exercício resistido</div>
+        <div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.88)">O único estímulo que preserva músculo durante o emagrecimento. Sem ele, mesmo comendo proteína, o músculo enfraquece. <strong>Musculação, funcional, pilates com resistência.</strong> Mínimo 2x/semana.</div>
+      </div>
+
+      🧠 <strong>Reeducação alimentar</strong> — o GLP-1 silencia a compulsão. Use essa janela para criar novos hábitos. O remédio um dia para — os hábitos ficam para sempre.<br><br>
+      <strong style="color:var(--g300)">A medicação faz o trabalho pesado. Você faz a diferença.</strong>
+    </div>
+  </div>
+  <div style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px">Sintomas e dúvidas</div>
+
   <div style="position:sticky;top:0;z-index:10;background:var(--cream1, #faf5eb);padding:10px 0 6px;margin:-4px 0 12px">
     <div style="position:relative">
       <input id="saudeBusca" type="text" placeholder="🔍 Buscar sintoma ou dúvida..." oninput="filtrarSaude(this.value)"
@@ -6593,7 +6672,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.78';
+var SANOVA_VERSION = '3.10.79';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -12302,6 +12381,7 @@ function metaAddAgua(ml){
   var i=S.daily.findIndex(function(x){return x.date===d;});
   if(i>=0)S.daily[i]=n;else S.daily.push(n);
   salvar();renderMetaDia();renderQuatroGauges();renderResumoDiario();verificarMetaBatida();
+  if(typeof renderAneisDia==='function') try{ renderAneisDia(); }catch(e){}
   toast('💧 +'+(ml>=1000?(ml/1000)+'L':ml+'ml')+' registrado!');
 }
 function toggleLeiaTodoDia(){
@@ -20586,6 +20666,119 @@ function toggleProgAcc(){
   var b=el('progAccBody');
   if(b && b.style.display!=='none') _reRenderAcc();
 }
+/* ══ v3.10.79 (Onda 6) — Painel sem accordion: aneis, potencia, licao ══ */
+var _LICOES_DIA = [
+  { ic:'🥩', t:'Proteína todo dia protege seu músculo' },
+  { ic:'💧', t:'GLP-1 esconde a sede — beba sem esperar' },
+  { ic:'💪', t:'Exercício resistido: o único guarda-costas do músculo' },
+  { ic:'🧠', t:'Use a janela do GLP-1 pra criar hábitos' }
+];
+function abrirPotenciaMed(){
+  liberarMemoria(); go('caneta');
+  setTimeout(function(){
+    var w=el('potAccWrap'), a=el('potAccArr');
+    if(w && w.style.display==='none'){ w.style.display='block'; if(a)a.style.transform='rotate(180deg)';
+      try{ if(typeof renderGaugeSaciedade==='function') renderGaugeSaciedade(); }catch(e){}
+      setTimeout(function(){ try{ if(typeof buildPKChart==='function') buildPKChart(); }catch(e){} },80); }
+    var t=el('potAccToggle'); if(t) try{ t.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+  }, 250);
+}
+function abrirLicaoDia(){
+  liberarMemoria(); go('saude');
+  setTimeout(function(){
+    var b=el('leiaTodoDiaBody');
+    if(b && b.style.display==='none' && typeof toggleLeiaTodoDia==='function') toggleLeiaTodoDia();
+    if(b) try{ b.parentElement.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+  }, 250);
+}
+function abrirProgressoPeso(){
+  liberarMemoria(); go('saude');
+  setTimeout(function(){
+    var b=el('progAccBody');
+    if(b && b.style.display==='none' && typeof toggleProgAcc==='function') toggleProgAcc();
+    if(b) try{ b.parentElement.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+  }, 250);
+}
+function _anel(idRing, idVal, pct, cor, valTxt){
+  var r=el(idRing), v=el(idVal);
+  if(r) r.style.background='conic-gradient('+cor+' 0 '+Math.max(2,Math.min(100,pct))+'%, #e4e0d3 0)';
+  if(v) v.textContent=valTxt;
+}
+function renderAneisDia(){
+  if(!el('aneisDia')) return;
+  var d=hoje();
+  var dh=(S.daily||[]).find(function(x){return x.date===d;})||{};
+  var M=(typeof calcMetrics==='function')?calcMetrics():null;
+  var ph=Math.round(dh.proteinG||0), pm=M&&M.pm?Math.round(M.pm):0;
+  _anel('anelProtRing','anelProtVal', pm?ph/pm*100:0, '#1a9e4f', ph+'g');
+  var aw=Math.round(dh.waterMl||0), am=M&&M.agua?Math.round(M.agua):0;
+  _anel('anelAguaRing','anelAguaVal', am?aw/am*100:0, '#2f9bd8', aw>=1000?(aw/1000).toFixed(1).replace('.',',')+'L':aw+'ml');
+  var kc=(typeof getKcalConsumed==='function')?Math.round(getKcalConsumed(dh)||0):Math.round(dh.kcalConsumed||0);
+  var km=M&&M.meta?Math.round(M.meta):0;
+  _anel('anelKcalRing','anelKcalVal', km?kc/km*100:0, '#d8952f', String(kc));
+  var treinos=0;
+  for(var i=0;i<7;i++){
+    var dt=new Date(); dt.setDate(dt.getDate()-i);
+    var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    var e=(S.daily||[]).find(function(x){return x.date===ds;});
+    if(e && e.exercicio) treinos++;
+  }
+  _anel('anelTreinoRing','anelTreinoVal', treinos/3*100, '#8a6ad8', treinos+'/3');
+}
+function renderLicaoDia(){
+  var t=el('licaoTitulo'); if(!t) return;
+  var diaAno=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0).getTime())/86400000);
+  var li=_LICOES_DIA[diaAno % _LICOES_DIA.length];
+  t.textContent='Lição de hoje: '+li.t;
+  var ic=el('licaoIcone'); if(ic) ic.textContent=li.ic;
+}
+function renderProgPorta(){
+  var sub=el('progPortaSub'); if(!sub) return;
+  var gw=S.profile&&S.profile.weightGoalKg;
+  var weights=(S.weights&&S.weights.length)?S.weights.slice().sort(function(a,b){return a.date<b.date?-1:1;}):[];
+  var sw=(S.profile&&typeof S.profile.weightStartKg==='number')?S.profile.weightStartKg:(weights.length?weights[0].weight:null);
+  var cw=weights.length?weights[weights.length-1].weight:null;
+  if(gw && sw && cw && sw>gw){
+    var pct=Math.max(0,Math.min(100,Math.round((sw-cw)/(sw-gw)*100)));
+    var falta=Math.max(0,cw-gw);
+    sub.textContent=pct+'% da meta · '+(falta>0?('faltam '+falta.toFixed(1).replace('.',',')+' kg'):'meta atingida! 🎉');
+  } else {
+    sub.textContent='Jornada · histórico · ritmo';
+  }
+}
+// Card de potencia: le o que o renderHero acabou de calcular (heroPot* moram
+// ocultos) e posiciona o ponto da mini-curva pela fracao do ciclo.
+function renderPotCard(){
+  var card=el('potCard'); if(!card) return;
+  var f=S.caneta&&S.caneta.farmaco;
+  if(!f || !S.caneta.ultima){ card.style.display='none'; return; }
+  card.style.display='flex';
+  var pctTxt=(el('heroPotPct')||{}).textContent||'—';
+  var faseTxt=(el('heroPotFase')||{}).textContent||'—';
+  var pEl=el('potCardPct'); if(pEl) pEl.textContent=pctTxt;
+  var fEl=el('potCardFase');
+  var potFonte=el('heroPotFase');
+  if(fEl){ fEl.textContent=faseTxt; fEl.style.color=(potFonte&&potFonte.style.color)?potFonte.style.color:'#4ade80'; }
+  var pd=(typeof proxDose==='function')?proxDose():null;
+  var pctNum=parseInt(String(pctTxt).replace('%',''),10);
+  var sacia=isNaN(pctNum)?'':(pctNum>=50?'Saciedade presente':pctNum>=30?'Saciedade caindo':'Saciedade baixa');
+  var quando=pd?(pd.diff<0?'dose atrasada há '+Math.abs(pd.diff)+' dias':pd.diff===0?'dia de aplicar 💉':pd.diff===1?'próxima dose amanhã':'próxima dose em '+pd.diff+' dias'):'';
+  var sub=el('potCardSub'); if(sub) sub.textContent=[sacia,quando].filter(Boolean).join(' · ');
+  var dot=el('potCardDot');
+  if(dot){
+    var horas=(Date.now()-new Date(S.caneta.ultima+'T12:00:00').getTime())/3600000;
+    var per=((typeof diasDoCiclo==='function')?diasDoCiclo(S.caneta.freq):7)*24;
+    var frac=Math.max(0,Math.min(1,horas/per));
+    dot.setAttribute('cx', String(Math.round(4+frac*84)));
+    dot.setAttribute('fill', frac>=1?'#f3a88a':'#4ade80');
+  }
+}
+function renderPainelNovo(){
+  try{ renderAneisDia(); }catch(e){}
+  try{ renderLicaoDia(); }catch(e){}
+  try{ renderProgPorta(); }catch(e){}
+  try{ renderPotCard(); }catch(e){}
+}
 function renderPainelTop(){
   if(!el('painelTop')) return;
 
@@ -20682,6 +20875,7 @@ function renderHero(){
 
   if(!f){
     heroV.style.display='block';
+    try{ renderPainelNovo(); }catch(e){}
     return;
   }
 
@@ -20976,6 +21170,8 @@ function renderHero(){
   if(typeof renderHeroPeso === 'function'){
     try { renderHeroPeso(); } catch(e){ console.warn('[Sanova/heroPeso]', e); }
   }
+  // v3.10.79 (Onda 6): componentes novos do Painel — depois do heroPot* pronto
+  try{ renderPainelNovo(); }catch(e){ console.warn('[Sanova/painelNovo]', e); }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

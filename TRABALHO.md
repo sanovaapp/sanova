@@ -48,6 +48,13 @@ sem esperar aprovação entre frentes ("vc faz as mudanças no seu tempo").
 - [x] Frente 1 — Check-in abre com **registro de proteína** (card Proteína
       primeiro, via único gravador de refeição); card contextual de
       medicação REMOVIDO do check-in (redundância). v3.10.78, PR #297.
+- [x] Frente 2 — Fórmula ideal do Painel (aprovada por preview em 21/08):
+      ZERO accordion na home (regra dos vencedores — Whoop/Oura/Noom/Shotsy);
+      anéis do dia (proteína·água·kcal·treino, toque registra), card Potência
+      da medicação com mini-curva (o diferencial em vitrine), Lição do dia,
+      portas de 1 linha (Progresso de peso). Aba Saúde vira a casa: Análises
+      · Referência · Biblioteca. Fix: trio dos pilares 393px>350px
+      (minmax(0,1fr)). v3.10.79, PR #298. Pesquisa de mercado com fontes na PR.
 - [ ] Frentes seguintes: aguardando o Bruno ditar.
 
 
