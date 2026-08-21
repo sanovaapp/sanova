@@ -4092,58 +4092,6 @@ try{
     <!-- Saciedade + curva (accordion) -->
     <!-- v3.10.70 (Onda 4 UX): o grid acima ja mostra POTENCIA ATUAL em numero.
          O gauge + curva sao detalhe — colapsam num toque. Nada sumiu. -->
-    <button onclick="var b=el('heroSacWrap');var a=el('heroSacWrapArr');var o=b.style.display==='none';b.style.display=o?'block':'none';if(a)a.style.transform=o?'rotate(180deg)':'';if(o&&typeof buildPKChart==='function')setTimeout(buildPKChart,80)" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:rgba(187,247,208,.6);font-family:var(--ss);font-size:11px;font-weight:700;padding:8px 0 0;letter-spacing:.3px;border-top:1px solid rgba(255,255,255,.06);margin-top:4px">
-      <span>💊 Saciedade e curva da semana</span>
-      <span id="heroSacWrapArr" style="transition:transform .3s;font-size:13px">▾</span>
-    </button>
-    <div id="heroSacWrap" style="display:none;padding-top:12px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
-        <!-- Gauge saciedade (canvas existente) -->
-        <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
-          <canvas id="gaugeSac" width="110" height="68" style="display:block"></canvas>
-          <div id="gaugeSacFase" style="font-size:11px;font-weight:700;color:rgba(187,247,208,.86);margin-top:-2px;text-align:center">—</div>
-          <div id="gaugeSacSub" style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px;text-align:center;max-width:100px;line-height:1.4">—</div>
-        </div>
-        <!-- Info saciedade + próxima dose -->
-        <div style="flex:1">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(187,247,208,.5);margin-bottom:6px">💊 Saciedade da medicação</div>
-          <!-- v3.10.32 (Fable Turno 10 P2 #8): box "Próxima dose" reduzido a
-               1 linha discreta — duplicava os tiles do topo do Painel. -->
-          <div id="heroSacInfoWrap" style="display:none;font-size:11px;color:rgba(187,247,208,.7);margin-bottom:6px;line-height:1.4">
-            <span style="opacity:.55">Próxima dose:</span>
-            <span id="heroSacProxData" style="font-weight:700;color:rgba(187,247,208,.92)">—</span>
-            <span style="opacity:.4">·</span>
-            <span id="heroSacProxDias" style="opacity:.65">—</span>
-          </div>
-          <div id="heroSemMedInfo" style="font-size:11px;color:rgba(187,247,208,.55);line-height:1.5;margin-bottom:6px">Configure sua medicação.</div>
-          <button onclick="go('caneta')" style="width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(187,247,208,.25);background:rgba(187,247,208,.08);color:rgba(187,247,208,.86);font-family:var(--ss);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-            <span>💉 Painel da medicação</span><span>›</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Curva PK accordion -->
-      <button onclick="toggleHeroCurva()" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:between;color:rgba(187,247,208,.55);font-family:var(--ss);font-size:11px;font-weight:700;padding:0;letter-spacing:.3px;gap:6px">
-        <span style="flex:1;text-align:left">📈 Sua saciedade na semana</span>
-        <span id="heroCurvaArr" style="transition:transform .3s;font-size:13px">▾</span>
-      </button>
-      <div id="heroCurvaBody" style="display:none;padding-top:10px">
-        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;position:relative">
-          <div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:99px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);color:#4ade80">Zona de saciedade</div>
-          <div style="position:relative;height:160px;width:100%"><canvas id="chartPK"></canvas></div>
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80"></div>Saciedade</div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>Zona ideal</div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.7);font-weight:700"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80;border:2px solid #fff"></div>📍 Você aqui</div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#e8c878"></div>Próxima dose</div>
-        </div>
-        <div id="pkAlert" class="pk-alert"></div>
-        <div style="margin-top:8px;padding:8px 10px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.18);border-radius:9px;font-size:10px;color:rgba(253,230,138,.7);line-height:1.6">
-          ⚠️ <strong style="color:rgba(232,200,120,.8)">Não antecipe a dose.</strong> Curva estimada — variações individuais existem.
-        </div>
-      </div>
-    </div>
   </div>
   </div><!-- /medDetalheWrap (v3.10.75 Onda 4b) -->
   <!-- ══ FIM CARD HERÓI ══ -->
@@ -5262,12 +5210,10 @@ try{
       </div>
       <div class="ch-row" id="chRow"></div>
 
-      <!-- v3.10.69 (Onda 2 UX): a acao primaria da aba mora no card de
-           status — nao 6 telas de rolagem abaixo. O botao leva direto ao
-           bloco de registro/calculo. -->
-      <div id="medStatusAcao" style="display:none;margin-top:14px">
-        <button onclick="var c=document.querySelector('.calc-hero');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})" style="width:100%;padding:15px;border-radius:12px;border:none;background:#4ade80;color:#0a1f0e;font-family:var(--ss);font-size:14.5px;font-weight:800;cursor:pointer">💉 Registrar aplicação</button>
-        <div id="medEstoqueLinha" style="display:none;margin-top:10px;font-size:12.5px;color:rgba(255,255,255,.75);text-align:center;font-weight:600"></div>
+      <!-- v3.10.76 (Onda 2b UX): pill de status como no preview aprovado.
+           O CTA saiu do card escuro — mora logo abaixo, verde, largura total. -->
+      <div id="chPillWrap" style="display:none;margin-top:12px">
+        <span id="chPill" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:99px;border:1.5px solid rgba(74,222,128,.5);color:#4ade80;font-size:13px;font-weight:800">✓ Em dia</span>
       </div>
     </div>
 
@@ -5435,6 +5381,30 @@ try{
     <div style="color:rgba(255,255,255,.6);font-size:13px;font-family:var(--ss)">Toque para fechar</div>
   </div>
 
+  <!-- ══ v3.10.76 (Onda 2b UX): aba Medicação no layout do preview 1 ══
+       CTA + Estoque/Local + accordions. Calculadora, protocolo, dose
+       esquecida e histórico continuam inteiros — atrás de um toque. -->
+  <button id="medCtaRegistrar" onclick="abrirRegistroAplicacao()" style="display:none;width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#4ade80,#22c55e);color:#052e16;font-family:var(--ss);font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(34,197,94,.28);margin-bottom:12px">💉 Registrar aplicação</button>
+
+  <div id="medInfoCard" style="display:none;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:4px 16px;margin-bottom:12px;box-shadow:var(--sh)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid var(--line-soft)">
+      <span style="font-size:13.5px;font-weight:800;color:var(--ink);flex-shrink:0">Estoque</span>
+      <span style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span id="medRowEstoque" style="font-size:13px;color:var(--ink3);text-align:right">—</span>
+        <button onclick="reporEstoque()" style="flex-shrink:0;background:none;border:none;padding:0;font-family:var(--ss);font-size:13px;font-weight:800;color:var(--g500);cursor:pointer">+ Repor</button>
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0">
+      <span style="font-size:13.5px;font-weight:800;color:var(--ink);flex-shrink:0">Local de hoje</span>
+      <span id="medRowLocal" style="font-size:13px;color:var(--ink3);text-align:right">—</span>
+    </div>
+  </div>
+
+  <button id="calcAccToggle" onclick="toggleCalcAcc()" style="display:none;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span id="calcAccTitulo" style="font-size:13.5px;font-weight:800;color:var(--ink)">🧮 Cálculo de dose (mg → UI)</span>
+    <span id="calcAccArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="calcAccWrap" style="display:none">
   <!-- v3.3.0: bloco de aplicação condicional por S.caneta.tipo.
        Caneta industrial → card simples de registro (sem cálculo de UI).
        Frasco manipulado → calculadora mg→UI completa. -->
@@ -5633,6 +5603,70 @@ try{
     </div>
   </div>
 
+  </div><!-- /calcAccWrap (v3.10.76 Onda 2b) -->
+
+  <button id="potAccToggle" onclick="togglePotAcc()" style="display:none;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">📈 Potência e saciedade</span>
+    <span id="potAccArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="potAccWrap" style="display:none">
+    <div style="background:var(--hero-dark);border:1px solid rgba(187,247,208,.2);border-radius:16px;padding:14px 16px;margin-bottom:12px">
+    <div id="heroSacWrap" style="display:block;padding-top:2px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+        <!-- Gauge saciedade (canvas existente) -->
+        <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
+          <canvas id="gaugeSac" width="110" height="68" style="display:block"></canvas>
+          <div id="gaugeSacFase" style="font-size:11px;font-weight:700;color:rgba(187,247,208,.86);margin-top:-2px;text-align:center">—</div>
+          <div id="gaugeSacSub" style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px;text-align:center;max-width:100px;line-height:1.4">—</div>
+        </div>
+        <!-- Info saciedade + próxima dose -->
+        <div style="flex:1">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(187,247,208,.5);margin-bottom:6px">💊 Saciedade da medicação</div>
+          <!-- v3.10.32 (Fable Turno 10 P2 #8): box "Próxima dose" reduzido a
+               1 linha discreta — duplicava os tiles do topo do Painel. -->
+          <div id="heroSacInfoWrap" style="display:none;font-size:11px;color:rgba(187,247,208,.7);margin-bottom:6px;line-height:1.4">
+            <span style="opacity:.55">Próxima dose:</span>
+            <span id="heroSacProxData" style="font-weight:700;color:rgba(187,247,208,.92)">—</span>
+            <span style="opacity:.4">·</span>
+            <span id="heroSacProxDias" style="opacity:.65">—</span>
+          </div>
+          <div id="heroSemMedInfo" style="font-size:11px;color:rgba(187,247,208,.55);line-height:1.5;margin-bottom:6px">Configure sua medicação.</div>
+          <button onclick="go('caneta')" style="display:none;width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(187,247,208,.25);background:rgba(187,247,208,.08);color:rgba(187,247,208,.86);font-family:var(--ss);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+            <span>💉 Painel da medicação</span><span>›</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Curva PK accordion -->
+      <button onclick="toggleHeroCurva()" style="width:100%;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:between;color:rgba(187,247,208,.55);font-family:var(--ss);font-size:11px;font-weight:700;padding:0;letter-spacing:.3px;gap:6px">
+        <span style="flex:1;text-align:left">📈 Sua saciedade na semana</span>
+        <span id="heroCurvaArr" style="transition:transform .3s;font-size:13px">▾</span>
+      </button>
+      <div id="heroCurvaBody" style="display:none;padding-top:10px">
+        <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;position:relative">
+          <div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:99px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);color:#4ade80">Zona de saciedade</div>
+          <div style="position:relative;height:160px;width:100%"><canvas id="chartPK"></canvas></div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80"></div>Saciedade</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>Zona ideal</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.7);font-weight:700"><div style="width:8px;height:8px;border-radius:50%;background:#4ade80;border:2px solid #fff"></div>📍 Você aqui</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5)"><div style="width:8px;height:8px;border-radius:50%;background:#e8c878"></div>Próxima dose</div>
+        </div>
+        <div id="pkAlert" class="pk-alert"></div>
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(232,200,120,.07);border:1px solid rgba(232,200,120,.18);border-radius:9px;font-size:10px;color:rgba(253,230,138,.7);line-height:1.6">
+          ⚠️ <strong style="color:rgba(232,200,120,.8)">Não antecipe a dose.</strong> Curva estimada — variações individuais existem.
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <button id="entAccToggle" onclick="toggleEntAcc()" style="display:none;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">📖 Entenda seu medicamento</span>
+    <span id="entAccArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="entAccWrap" style="display:none">
   <div class="card" id="escCard" style="display:none">
     <div class="ct">Como o tratamento costuma evoluir</div>
     <div class="cs" id="escSub">Informação educativa sobre como pacientes geralmente progridem.</div>
@@ -5648,10 +5682,16 @@ try{
     <div class="ct">⚠️ Dose esquecida</div>
     <div class="cs" style="margin-bottom:0" id="esqTxt"></div>
   </div>
+  </div><!-- /entAccWrap (v3.10.76 Onda 2b) -->
 
   <!-- v3.10.4: histórico simplificado — só tabela compacta. Bruno: 'melhor
        não ter gráfico'. Removidos canvas + legenda + invocação de
        _desenharGraficoHistorico (a função fica viva mas não é chamada). -->
+  <button id="histAccToggle" onclick="toggleHistAcc()" style="display:none;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;margin-bottom:12px;cursor:pointer;align-items:center;justify-content:space-between;font-family:var(--ss);box-shadow:var(--sh)">
+    <span style="font-size:13.5px;font-weight:800;color:var(--ink)">📋 Histórico de aplicações</span>
+    <span id="histAccArr" style="transition:transform .3s;font-size:13px;color:var(--muted)">▾</span>
+  </button>
+  <div id="histAccWrap" style="display:none">
   <div class="card" id="histAplicCard" style="display:none">
     <div class="ct">📋 Histórico de aplicações</div>
     <div class="cs">Doses já registradas, com seu peso na época de cada uma.</div>
@@ -5665,6 +5705,7 @@ try{
       As doses que você marcar como "Apliquei hoje" aparecem aqui com seu peso na época.
     </div>
   </div>
+  </div><!-- /histAccWrap (v3.10.76 Onda 2b) -->
 </div>
 
 <!-- v3.10.0: modal de editar aplicação (data + dose) -->
@@ -6526,7 +6567,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.75';
+var SANOVA_VERSION = '3.10.76';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -11001,6 +11042,106 @@ function renderAplicacaoCheckin(){
   slot.style.display = 'block';
 }
 
+/* ══ v3.10.76 (Onda 2b UX) — aba Medicação no layout do preview 1 ══ */
+function _toggleAcc(wrapId, arrId, aoAbrir){
+  var w=el(wrapId), a=el(arrId); if(!w) return;
+  var abrir=(w.style.display==='none');
+  w.style.display=abrir?'block':'none';
+  if(a)a.style.transform=abrir?'rotate(180deg)':'';
+  if(abrir && typeof aoAbrir==='function') aoAbrir();
+}
+function toggleCalcAcc(){ _toggleAcc('calcAccWrap','calcAccArr', function(){ try{ if(typeof renderCalc==='function') renderCalc(); }catch(e){} try{ if(typeof calcDil==='function') calcDil(); }catch(e){} }); }
+function togglePotAcc(){ _toggleAcc('potAccWrap','potAccArr', function(){ try{ if(typeof renderGaugeSaciedade==='function') renderGaugeSaciedade(); }catch(e){} setTimeout(function(){ try{ if(typeof buildPKChart==='function') buildPKChart(); }catch(e){} }, 80); }); }
+function toggleEntAcc(){ _toggleAcc('entAccWrap','entAccArr'); }
+function toggleHistAcc(){ _toggleAcc('histAccWrap','histAccArr'); }
+function abrirCalcAcc(){
+  var w=el('calcAccWrap'), a=el('calcAccArr');
+  if(w && w.style.display==='none'){ w.style.display='block'; if(a)a.style.transform='rotate(180deg)'; }
+}
+function abrirRegistroAplicacao(){
+  abrirCalcAcc();
+  try{ if(typeof renderCalc==='function') renderCalc(); }catch(e){}
+  try{ if(typeof calcDil==='function') calcDil(); }catch(e){}
+  var ch=document.querySelector('.calc-hero');
+  if(ch){ try{ ch.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }
+}
+// Card de status + CTA + linhas Estoque/Local + accordions. Reusa as fontes
+// que ja existiam: proxDose(), _calcDosesRestantes(), _mgPorUnidade(),
+// getLocalInjecao() — nenhum calculo paralelo novo.
+function renderMedPreview(){
+  var temFarm = !!(S.caneta && S.caneta.farmaco);
+  var temDose = temFarm && !!S.caneta.dose;
+  var chD=el('chDrug'), chDs=el('chDose');
+  if(chD){
+    if(temFarm){
+      chD.innerHTML = S.caneta.farmaco + (S.caneta.dose ? ' <span style="color:#4ade80">'+fmtDoseMg(S.caneta.dose)+'</span>' : '');
+    } else {
+      chD.textContent = 'Nenhum fármaco configurado';
+    }
+  }
+  var pd = (temFarm && S.caneta.ultima && typeof proxDose==='function') ? proxDose() : null;
+  if(chDs){
+    if(temFarm){
+      var freqLbl = S.caneta.freq==='semanal'?'Semanal':S.caneta.freq==='quinzenal'?'Quinzenal':S.caneta.freq==='diaria'?'Diária':'';
+      var linha = freqLbl || 'Configure a frequência';
+      if(pd){
+        var quando = pd.diff<=0 ? 'hoje' : pd.diff===1 ? 'amanhã' : 'em '+pd.diff+' dias';
+        linha += ' · Próxima: <strong style="color:#fff">'+dataBRcurta(pd.date)+' ('+quando+')</strong>';
+      }
+      chDs.innerHTML = linha;
+    } else { chDs.textContent = 'Configure abaixo'; }
+  }
+  var pw=el('chPillWrap'), pl=el('chPill');
+  if(pw && pl){
+    if(pd){
+      pw.style.display='block';
+      if(pd.diff<0){ pl.textContent='🔴 Dose atrasada'; pl.style.borderColor='rgba(239,68,68,.5)'; pl.style.color='#fca5a5'; }
+      else if(pd.diff===0){ pl.textContent='💉 Hoje é dia de aplicar'; pl.style.borderColor='rgba(232,200,120,.55)'; pl.style.color='#fcd34d'; }
+      else { pl.textContent='✓ Em dia'; pl.style.borderColor='rgba(74,222,128,.5)'; pl.style.color='#4ade80'; }
+    } else pw.style.display='none';
+  }
+  // comportamento que ja existia: form de config se esconde quando configurado
+  var formEl=el('tratFormWrap');
+  if(formEl && temDose) formEl.style.display='none';
+  var crow=el('chRow'); if(crow) crow.style.display='none';
+  var cta=el('medCtaRegistrar'); if(cta) cta.style.display=temDose?'block':'none';
+  var info=el('medInfoCard'); if(info) info.style.display=temDose?'block':'none';
+  var cat=el('calcAccToggle'); if(cat) cat.style.display=temDose?'flex':'none';
+  var pot=el('potAccToggle'); if(pot) pot.style.display=temFarm?'flex':'none';
+  var ent=el('entAccToggle'); if(ent) ent.style.display=temFarm?'flex':'none';
+  var hi=el('histAccToggle'); if(hi) hi.style.display=temFarm?'flex':'none';
+  var tit=el('calcAccTitulo');
+  if(tit && temFarm){
+    var ehFrasco = (typeof isFrascoManipulado==='function') && isFrascoManipulado(S.caneta.tipo);
+    tit.textContent = ehFrasco ? '🧮 Cálculo de dose (mg → UI)' : '💉 Detalhes da aplicação';
+  }
+  var re=el('medRowEstoque');
+  if(re){
+    var txt='—';
+    if(temFarm && S.caneta.estoqueAtual!=null){
+      var partes=[];
+      var mgU=(typeof _mgPorUnidade==='function')?_mgPorUnidade():0;
+      if(mgU>0){
+        var unid=S.caneta.estoqueAtual/mgU;
+        var ehF=(typeof isFrasco==='function')&&isFrasco(S.caneta.tipo);
+        partes.push(unid.toFixed(1).replace('.',',')+' '+(ehF?(unid>=2?'frascos':'frasco'):(unid>=2?'canetas':'caneta')));
+      }
+      var dr=(typeof calcEstoquePrevisao==='function')?calcEstoquePrevisao():null;
+      if(dr && dr.doses>=0) partes.push('~'+dr.doses+(dr.doses===1?' dose':' doses'));
+      if(partes.length) txt=partes.join(' · ');
+    }
+    re.textContent=txt;
+  }
+  var rlEl=el('medRowLocal');
+  if(rlEl){
+    if(typeof getLocalInjecao==='function' && typeof _LOCAIS_INJECAO!=='undefined'){
+      var loc=getLocalInjecao();
+      var ix=_LOCAIS_INJECAO.indexOf(loc);
+      var prox=_LOCAIS_INJECAO[(ix+1)%_LOCAIS_INJECAO.length];
+      rlEl.textContent=loc.local+(prox&&prox!==loc?' → próximo: '+prox.local:'');
+    } else rlEl.textContent='—';
+  }
+}
 function registrarAplicacaoHoje(){
   if(!S.caneta || !S.caneta.farmaco){
     alert('Configure seu fármaco primeiro em "Minha caneta".');
@@ -11017,6 +11158,7 @@ function registrarAplicacaoHoje(){
   if(typeof isFrascoManipulado==='function' && isFrascoManipulado(S.caneta.tipo)){
     try{ go('caneta'); }catch(e){}
     setTimeout(function(){
+      try{ if(typeof abrirCalcAcc==='function') abrirCalcAcc(); }catch(e){}
       try{ if(typeof renderCalc==='function') renderCalc(); }catch(e){}
       try{ if(typeof calcDil==='function') calcDil(); }catch(e){}
       var fc=el('frascoConfirmWrap');
@@ -15613,32 +15755,9 @@ function render(){
   if(typeof renderHistRefeicoesInline === 'function'){ try{ renderHistRefeicoesInline(); }catch(e){} }
   // v3.1.15: Garantir que tela "Minha medicação" sempre reflete S.caneta
   // Independente de calcMetrics() retornar M ou null
-  (function(){
-    var _chD=el('chDrug'); var _chDs=el('chDose');
-    if(_chD){
-      if(S.caneta && S.caneta.farmaco){
-        _chD.textContent = S.caneta.farmaco;
-        if(_chDs) _chDs.textContent = S.caneta.dose ? 'Dose atual: '+fmtDoseMg(S.caneta.dose) : 'Configure a dose abaixo';
-        // Também esconder o formulário de configuração se já tem dados
-        var formEl = el('tratFormWrap');
-        if(formEl && S.caneta.dose) formEl.style.display = 'none';
-        // v3.10.69 (Onda 2 UX): CTA primario + estoque compacto no status
-        var acao = el('medStatusAcao');
-        if(acao) acao.style.display = S.caneta.dose ? 'block' : 'none';
-        var estq = el('medEstoqueLinha');
-        if(estq && typeof _calcDosesRestantes === 'function'){
-          var dr = _calcDosesRestantes();
-          if(dr && dr.doses >= 0){
-            estq.style.display = 'block';
-            estq.textContent = '📦 ~' + dr.doses + (dr.doses === 1 ? ' dose' : ' doses') + ' em estoque';
-          } else { estq.style.display = 'none'; }
-        }
-      } else {
-        _chD.textContent = 'Nenhum fármaco configurado';
-        if(_chDs) _chDs.textContent = 'Configure abaixo';
-      }
-    }
-  })();
+  // v3.10.76 (Onda 2b UX): aba Medicacao no layout do preview — status,
+  // CTA, Estoque/Local e accordions. Blindado: falha nao derruba o render.
+  try{ if(typeof renderMedPreview==='function') renderMedPreview(); }catch(e){ console.warn('[Sanova/medPreview]', e); }
   // v3.1.13: Detector de troca de dia — se a meia-noite local passou desde a última render,
   // toast educativo e tudo é recalculado naturalmente (porque getDH usa hoje())
   var trocou = (typeof detectarTrocaDeDia === 'function') ? detectarTrocaDeDia() : false;
@@ -15769,10 +15888,6 @@ function render(){
     var _pc=el('proxCard');if(_pc)_pc.style.display='block';
     setTimeout(buildPKChart,50);var _df=el('dFarm');if(_df)_df.textContent=S.caneta.farmaco;var _dd=el('dDose');if(_dd)_dd.textContent=S.caneta.dose||'—';var sem2=semanaTratamentoDisplay();var _ds=el('dSem');if(_ds)_ds.textContent=sem2!==null?'Semana '+sem2:'—';
     if(pd){var pv=pd.diff<=0?'Hoje! 💉':pd.diff===1?'Amanhã':'Em '+pd.diff+' dia'+(pd.diff>1?'s':'')+' ('+dataBR(pd.date)+')';var _pv=el('proxVal');if(_pv)_pv.textContent=pv;var _pt=el('proxTag');if(_pt){_pt.className=pd.diff<=0?'tag tr':pd.diff<=2?'tag tw':'tag tg';_pt.textContent=pd.diff<=0?'Hoje':pd.diff<=2?'Em breve':'Aguardando';}}
-    var _chD=el('chDrug');if(_chD)_chD.textContent=S.caneta.farmaco;
-    var _chDs=el('chDose');if(_chDs)_chDs.textContent=S.caneta.dose?'Dose atual: '+fmtDoseMg(S.caneta.dose):'Configure a dose abaixo';
-    var crow=el('chRow');if(crow){crow.innerHTML='';
-    [{l:'Frequência',v:S.caneta.freq==='semanal'?'Semanal':S.caneta.freq==='quinzenal'?'Quinzenal':'Diária'},{l:'Última aplicação',v:S.caneta.ultima?dataBR(S.caneta.ultima):'—'},{l:'Próxima',v:pd?pd.diff<=0?'Hoje':dataBR(pd.date):'—'}].forEach(function(k){var d=document.createElement('div');d.className='ch-kpi';d.innerHTML='<div class="ch-kl">'+k.l+'</div><div class="ch-kv">'+k.v+'</div>';crow.appendChild(d);});}
     var doses2=DOSES[S.caneta.farmaco];
     if(doses2){
     el('escCard').style.display='block';
