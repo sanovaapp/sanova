@@ -182,7 +182,7 @@ jobs:
       - name: Setup Android SDK + accept licenses
         uses: android-actions/setup-android@v3
         with:
-          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0 cmdline-tools;latest'
+          packages: 'tools platform-tools platforms;android-36 platforms;android-34 build-tools;36.1.0 build-tools;34.0.0 cmdline-tools;latest'
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 

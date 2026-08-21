@@ -200,3 +200,30 @@ test('BUG 4: minSdkVersion nao pode ser menor que 21', () => {
     );
   }
 });
+
+// Prazo do Google: a partir de 31/08/2026, app novo ou atualizacao precisa
+// mirar API 36 (Android 16) pra ser aceito na Play. Descoberto no e-mail
+// "[Acao necessaria] ... nivel desejado da API" de 15/08 — que so foi lido
+// porque o conector do Gmail estava ligado. Alem disso o bubblewrap 1.25
+// procura build-tools 36.1.0 (AndroidSdkTools.BUILD_TOOLS_VERSION); sem o
+// pacote instalado, o build morre procurando zipalign/apksigner.
+test('o SDK instalado cobre API 36 e build-tools 36.1.0 (prazo 31/08/2026)', () => {
+  for (const nome of ['publish-play.yml', 'build-twa-aab.yml']) {
+    const txt = readFileSync(
+      new URL(`../../.github/workflows/${nome}`, import.meta.url),
+      'utf8',
+    );
+    const m = txt.match(/packages:\s*'([^']+)'/);
+    assert.ok(m, `${nome}: a lista de packages do SDK sumiu`);
+    assert.match(
+      m[1],
+      /platforms;android-36\b/,
+      `${nome}: sem platforms;android-36 o app nao alcanca o target exigido pela Play`,
+    );
+    assert.match(
+      m[1],
+      /build-tools;36\.1\.0\b/,
+      `${nome}: o bubblewrap 1.25 procura build-tools 36.1.0 — sem ele o build nao acha zipalign`,
+    );
+  }
+});
