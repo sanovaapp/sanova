@@ -44,7 +44,7 @@ tasks:
     # Sem `expected`: a referencia e o version do worker/src/index.js do repo.
     # Cravar o numero aqui deixou este monitor vermelho com alarme falso (pedia
     # 1.31.0 com o ar ja em 1.31.1). Mesmo motivo do app-no-ar logo abaixo.
-    last_run: 2026-08-24T13:10:50.348Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: v1.31.3
 
   - id: app-no-ar
@@ -78,7 +78,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-24T13:10:50.348Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -89,7 +89,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-08-24T13:10:50.348Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -115,7 +115,7 @@ tasks:
     params:
       url: https://play.google.com/store/apps/details?id=br.app.sanova
       expect_contains: "br.app.sanova"
-    last_run: 2026-08-24T10:01:35.008Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: HTTP 404 (esperado 200)
 
   - id: secret-play-service-account
@@ -125,7 +125,7 @@ tasks:
     repeat: true
     params:
       name: PLAY_SERVICE_ACCOUNT_JSON
-    last_run: 2026-08-24T10:01:35.008Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: secret PLAY_SERVICE_ACCOUNT_JSON presente (2370 caracteres)
 
   - id: secret-mp-prod
@@ -135,7 +135,7 @@ tasks:
     repeat: true
     params:
       name: MP_ACCESS_TOKEN_PROD
-    last_run: 2026-08-24T10:01:35.008Z
+    last_run: 2026-08-24T18:57:33.813Z
     last_result: secret MP_ACCESS_TOKEN_PROD presente (75 caracteres)
 
   - id: secret-supabase-mgmt
