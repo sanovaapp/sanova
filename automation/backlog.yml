@@ -56,7 +56,7 @@ tasks:
     # aqui a mao deixou este monitor vermelho por 3 dias em 08-10/08 — o app subiu
     # pra 3.10.61 e o YAML continuou pedindo 3.10.60. Alarme falso ensina a ignorar
     # alarme, que e o unico jeito de um monitor piorar a situacao.
-    last_run: 2026-08-29T01:44:03.900Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: "v3.10.79"
 
   - id: verificacao-google-1
@@ -67,7 +67,7 @@ tasks:
     params:
       url: https://sanova.app.br/googlec78077745bdb0836.html
       expect_contains: "google-site-verification"
-    last_run: 2026-08-29T01:44:03.900Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: HTTP 200
 
   - id: verificacao-google-2
@@ -99,7 +99,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-08-29T01:44:03.900Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: HTTP 200
 
   # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
@@ -179,7 +179,7 @@ tasks:
     repeat: true
     params:
       name: TWA_UPLOAD_KEY_PWD
-    last_run: 2026-08-28T15:17:31.031Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: secret TWA_UPLOAD_KEY_PWD presente (12 caracteres)
 
   # ─── Diagnostico de schema ─────────────────────────────────────────
@@ -194,7 +194,7 @@ tasks:
     repeat: true
     params:
       table: alert_events
-    last_run: 2026-08-28T15:17:31.031Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: '"alert_events" existe'
 
   - id: schema-alert-prefs
@@ -204,7 +204,7 @@ tasks:
     repeat: true
     params:
       table: professional_alert_prefs
-    last_run: 2026-08-28T15:17:31.031Z
+    last_run: 2026-08-29T16:41:02.603Z
     last_result: '"professional_alert_prefs" existe'
 
   # ─── Tarefas de uma vez so ─────────────────────────────────────────
