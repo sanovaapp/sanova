@@ -44,7 +44,7 @@ tasks:
     # Sem `expected`: a referencia e o version do worker/src/index.js do repo.
     # Cravar o numero aqui deixou este monitor vermelho com alarme falso (pedia
     # 1.31.0 com o ar ja em 1.31.1). Mesmo motivo do app-no-ar logo abaixo.
-    last_run: 2026-09-01T14:07:41.673Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: v1.31.3
 
   - id: app-no-ar
@@ -78,7 +78,7 @@ tasks:
     params:
       url: https://sanova.app.br/google4bf53c86e592090e.html
       expect_contains: "google-site-verification"
-    last_run: 2026-09-01T14:07:41.673Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: HTTP 200
 
   - id: politica-privacidade
@@ -89,7 +89,7 @@ tasks:
     params:
       url: https://sanova.app.br/privacidade.html
       expect_contains: "Privacidade"
-    last_run: 2026-09-01T14:07:41.673Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: HTTP 200
 
   - id: pagina-exclusao
@@ -179,7 +179,7 @@ tasks:
     repeat: true
     params:
       name: TWA_UPLOAD_KEY_PWD
-    last_run: 2026-09-01T08:35:17.254Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: secret TWA_UPLOAD_KEY_PWD presente (12 caracteres)
 
   # ─── Diagnostico de schema ─────────────────────────────────────────
@@ -194,7 +194,7 @@ tasks:
     repeat: true
     params:
       table: alert_events
-    last_run: 2026-09-01T08:35:17.254Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: '"alert_events" existe'
 
   - id: schema-alert-prefs
@@ -204,7 +204,7 @@ tasks:
     repeat: true
     params:
       table: professional_alert_prefs
-    last_run: 2026-09-01T08:35:17.254Z
+    last_run: 2026-09-01T23:16:34.994Z
     last_result: '"professional_alert_prefs" existe'
 
   # ─── Tarefas de uma vez so ─────────────────────────────────────────
