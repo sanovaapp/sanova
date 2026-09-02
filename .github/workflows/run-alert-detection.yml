@@ -1,20 +1,66 @@
 name: Run Alert Detection
 
-# Dispara /api/admin-run-alert-detection no Worker.
-# Escopo: workflow_dispatch (manual). Cron scheduled fica pra proxima PR
-# depois de rodar manual varias vezes e sentir ritmo + custo.
+# Roda a deteccao dos 10 alertas clinicos e grava os eventos que o painel do
+# profissional exibe.
 #
-# Input opcional: patient_user_id (roda so pra 1 paciente — util pra
-# debug ou pra teste inicial).
+# ─── Por que o cron esta LIGADO desde 14/08/2026 ────────────────────
 #
-# Secrets necessarios: ADMIN_OVERRIDE_TOKEN (ja existe pra outros workflows).
+# Ele ficou comentado desde o T66 esperando duas coisas: o Bruno cravar os
+# limiares e o portao regulatorio do T50. As duas aconteceram em 07/08 — os
+# limiares foram cravados, a flag FASE2_ALERTAS_ATIVA foi ligada, e os 5
+# alertas vermelhos entraram no modo conservador. O cron ficou pra tras por
+# esquecimento, nao por decisao.
+#
+# O intervalo entre 07/08 e 14/08 deixou o sistema num estado pior que
+# desligado: a tela do profissional MOSTRAVA a secao de alertas, mas nada os
+# gerava. Painel vazio nao le como "detecao nao rodou" — le como "o paciente
+# esta bem". E isso e exatamente a conclusao que o termo invertido do Sanova
+# existe pra impedir:
+#
+#   "O Sanova pode sinalizar, mas NAO substitui o monitoramento clinico.
+#    Ausencia de alerta NAO significa ausencia de risco."
+#
+# Interface que promete vigilancia sem vigilancia por tras e pior que nao ter
+# a interface. Com paciente real e medico real na frente, e risco clinico.
+#
+# ─── Ritmo, e o limite honesto de 1x por dia ────────────────────────
+#
+# 09:00 BRT de proposito: o profissional abre o painel de manha com a leitura
+# do dia anterior fechada.
+#
+# 6 dos 10 alertas olham janela de 3 a 14 dias — pra esses, diario e de sobra;
+# rodar mais vezes nao acharia nada novo. Mas 4 tem `janela_dias: 0`, ou seja,
+# avaliam o registro de HOJE:
+#
+#   sinais_raros_graves  (VERMELHO)  dedup 12h
+#   dose_atrasada        (VERMELHO)  dedup 24h
+#   estoque_acabando     (amarelo)   dedup 24h
+#   sem_registros        (amarelo)   dedup 24h
+#
+# CONSEQUENCIA A ENCARAR: um paciente que registra hipoglicemia ou dor
+# abdominal severa as 10h so aparece no painel do profissional as 09h do dia
+# seguinte — ate 23 horas depois.
+#
+# Isso NAO faz do diario a escolha errada, porque a protecao do paciente nao
+# depende deste cron: o app mostra a orientacao de conduta no proprio momento
+# em que ele seleciona o sintoma (chip-act-alert no index.html), incluindo
+# "procure pronto-atendimento" e o 192. A camada do profissional e vigilancia
+# e documentacao, e a politica do produto diz isso com todas as letras — nao
+# e canal de emergencia, e ninguem monitora painel 24/7.
+#
+# O que fica registrado como pergunta aberta, e nao como decisao tomada: se um
+# dia o piloto mostrar que 23h e demais pro vermelho, a saida NAO e aumentar a
+# frequencia do cron (isso multiplica custo e nao resolve o pior caso). A
+# saida e o Worker disparar a deteccao no momento em que o app grava um
+# sintoma da lista grave — evento, nao varredura.
+#
+# Input opcional patient_user_id: roda so pra 1 paciente, pra debug.
+#
+# Secrets: ADMIN_OVERRIDE_TOKEN (ja existe).
 
 on:
-  # T66 (Fable/compliance): cron DESATIVADO ate Bruno cravar limiares
-  # finais + portao regulatorio T50. Fase 2 fica atras de flag — so
-  # dispatch manual pra teste interno. Pra religar: descomentar abaixo.
-  # schedule:
-  #   - cron: '0 12 * * *'   # 12:00 UTC = 09:00 BRT
+  schedule:
+    - cron: '0 12 * * *'   # 12:00 UTC = 09:00 BRT
   workflow_dispatch:
     inputs:
       patient_user_id:
