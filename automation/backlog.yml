@@ -56,7 +56,7 @@ tasks:
     # aqui a mao deixou este monitor vermelho por 3 dias em 08-10/08 — o app subiu
     # pra 3.10.61 e o YAML continuou pedindo 3.10.60. Alarme falso ensina a ignorar
     # alarme, que e o unico jeito de um monitor piorar a situacao.
-    last_run: 2026-09-04T04:26:38.339Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: "v3.10.79"
 
   - id: verificacao-google-1
@@ -67,7 +67,7 @@ tasks:
     params:
       url: https://sanova.app.br/googlec78077745bdb0836.html
       expect_contains: "google-site-verification"
-    last_run: 2026-09-04T04:26:38.339Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: HTTP 200
 
   - id: verificacao-google-2
@@ -99,7 +99,7 @@ tasks:
     repeat: true
     params:
       url: https://sanova.app.br/exclusao.html
-    last_run: 2026-09-04T04:26:38.339Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: HTTP 200
 
   # ─── Vigilancia que ANTES era clique do Bruno (T84, Teste do Monitor) ──
@@ -115,7 +115,7 @@ tasks:
     params:
       url: https://play.google.com/store/apps/details?id=br.app.sanova
       expect_contains: "br.app.sanova"
-    last_run: 2026-09-03T23:15:23.982Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: HTTP 404 (esperado 200)
 
   - id: secret-play-service-account
@@ -125,7 +125,7 @@ tasks:
     repeat: true
     params:
       name: PLAY_SERVICE_ACCOUNT_JSON
-    last_run: 2026-09-03T23:15:23.982Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: secret PLAY_SERVICE_ACCOUNT_JSON presente (2370 caracteres)
 
   - id: secret-mp-prod
@@ -135,7 +135,7 @@ tasks:
     repeat: true
     params:
       name: MP_ACCESS_TOKEN_PROD
-    last_run: 2026-09-03T23:15:23.982Z
+    last_run: 2026-09-04T16:18:46.807Z
     last_result: secret MP_ACCESS_TOKEN_PROD presente (75 caracteres)
 
   - id: secret-supabase-mgmt
