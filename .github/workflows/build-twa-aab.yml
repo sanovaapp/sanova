@@ -52,6 +52,14 @@ jobs:
           echo "---"
           # Aceita licenses de novo por garantia
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          # O bubblewrap valida <sdk>/tools OU <sdk>/bin (AndroidSdkTools.
+          # validatePath). O pacote `tools` foi descontinuado e <sdk>/bin nao
+          # existe — os binarios moram em cmdline-tools/latest/bin. Sem isso o
+          # build morre com "The provided androidSdk isn't correct".
+          if [ ! -e "$ANDROID_HOME/bin" ] && [ ! -e "$ANDROID_HOME/tools" ]; then
+            ln -s "$ANDROID_HOME/cmdline-tools/latest/bin" "$ANDROID_HOME/bin"
+            echo "[sdk] <sdk>/bin -> cmdline-tools/latest/bin (validacao do bubblewrap)"
+          fi
           # Bubblewrap doctor diagnostica antes do build
           npm install -g @bubblewrap/cli@latest
           bubblewrap doctor || echo "(doctor reportou problema; seguimos)"

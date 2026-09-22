@@ -281,6 +281,21 @@ jobs:
           # segundos sem gerar AAB nenhum. O erro so aparecia na etapa seguinte,
           # como "arquivo nao encontrado" — sintoma longe da causa.
           set -eo pipefail
+
+          # O bubblewrap valida o SDK assim (AndroidSdkTools.validatePath):
+          #   toolsPath = <sdk>/tools ; binPath = <sdk>/bin
+          #   erro se !exists(sdk) || (!exists(tools) && !exists(bin))
+          # O pacote `tools` foi descontinuado pelo Android (o sdkmanager novo
+          # responde "Failed to find package 'tools'"), e <sdk>/bin nunca
+          # existiu: os binarios moram em cmdline-tools/latest/bin. Sem um dos
+          # dois, o `build` morre com "The provided androidSdk isn't correct"
+          # DEPOIS do `update` ter dito "Project updated successfully".
+          # O link aponta pro lugar real dos binarios — nao e pasta vazia.
+          if [ ! -e "$ANDROID_HOME/bin" ] && [ ! -e "$ANDROID_HOME/tools" ]; then
+            ln -s "$ANDROID_HOME/cmdline-tools/latest/bin" "$ANDROID_HOME/bin"
+            echo "[sdk] <sdk>/bin -> cmdline-tools/latest/bin (validacao do bubblewrap)"
+          fi
+
           cd twa-build
 
           npm install -g @bubblewrap/cli@latest

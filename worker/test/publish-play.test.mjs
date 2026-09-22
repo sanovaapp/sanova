@@ -234,3 +234,31 @@ test('o SDK instalado cobre API 36 e build-tools 36.1.0 (prazo 31/08/2026)', () 
     );
   }
 });
+
+// O bubblewrap valida o SDK em AndroidSdkTools.validatePath:
+//   toolsPath = <sdk>/tools ; binPath = <sdk>/bin
+//   erro se !exists(sdk) || (!exists(tools) && !exists(bin))
+// Com o pacote 'tools' descontinuado, nenhuma das duas pastas existe no
+// runner e o `build` morre com "The provided androidSdk isn't correct" —
+// DEPOIS do `update` dizer "Project updated successfully", que e o que torna
+// esse erro dificil de ler. O link cobre a validacao apontando pro lugar
+// real dos binarios.
+test('o SDK ganha <sdk>/bin antes do bubblewrap (validatePath exige tools ou bin)', () => {
+  for (const nome of ['publish-play.yml', 'build-twa-aab.yml']) {
+    const txt = readFileSync(
+      new URL(`../../.github/workflows/${nome}`, import.meta.url),
+      'utf8',
+    );
+    assert.match(
+      txt,
+      /ln -s "\$ANDROID_HOME\/cmdline-tools\/latest\/bin" "\$ANDROID_HOME\/bin"/,
+      `${nome}: o link <sdk>/bin sumiu — o bubblewrap volta a recusar o SDK`,
+    );
+    const iLink = txt.indexOf('ANDROID_HOME/bin"');
+    const iBw = txt.indexOf('npm install -g @bubblewrap/cli');
+    assert.ok(
+      iLink > 0 && iLink < iBw,
+      `${nome}: o link precisa vir ANTES do bubblewrap`,
+    );
+  }
+});
