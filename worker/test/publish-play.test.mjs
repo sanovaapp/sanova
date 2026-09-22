@@ -225,5 +225,12 @@ test('o SDK instalado cobre API 36 e build-tools 36.1.0 (prazo 31/08/2026)', () 
       /build-tools;36\.1\.0\b/,
       `${nome}: o bubblewrap 1.25 procura build-tools 36.1.0 — sem ele o build nao acha zipalign`,
     );
+    // 'tools' (SDK Tools legado) saiu do repositorio do Android. Em 22/09 o
+    // runner passou a baixar cmdline-tools 16.0, cujo sdkmanager responde
+    // "Failed to find package 'tools'" e mata o job em 31s, antes do build.
+    assert.ok(
+      !/(^|\s)tools(\s|$)/.test(m[1]),
+      `${nome}: o pacote 'tools' voltou — ele nao existe mais e derruba o setup do SDK`,
+    );
   }
 });
