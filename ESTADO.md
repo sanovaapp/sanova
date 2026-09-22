@@ -3,7 +3,39 @@
 Onde o projeto está **hoje**. Arquivo volátil por natureza — sobrescrito, não
 acumulado. Para as regras que não mudam, veja `DECISOES.md`.
 
-*Atualizado em 10/08/2026.*
+*Atualizado em 22/09/2026.*
+
+---
+
+## Onde estamos — 22/09/2026
+
+Bruno voltou depois de ~1 mês fora. O levantamento desta sessão:
+
+**De pé:** app no ar com o redesign completo (a formula aprovada por preview
+em 21/08 — Painel sem accordion, aneis do dia, card de potencia, Saude como
+casa do conteudo). Worker respondendo. Todos os monitores verdes. Os ~50
+commits do periodo sao todos do robo de vigilancia: nada regrediu.
+
+**Parado:** nenhum testador foi adicionado, entao o relogio dos 14 dias da
+Play segue em ZERO. E a faixa de teste da Play ficou com a **v3.10.65**
+(18/08) — 14 versoes atras do site, inclusive as duas correcoes de seguranca
+de 20/08 (frasco que revertia reajuste de dose; botao que registrava
+aplicacao sem o checklist). Sem impacto real porque nao ha testador
+instalando, mas era isso que um testador receberia.
+
+**Prazos do Google descobertos pelo conector do Gmail (nao por print):**
+
+- *Android 16 (API 36)* — venceu em 31/08. A correcao estava pronta desde
+  21/08 mas nunca foi exercitada, porque nenhum build rodou desde 18/08.
+- *Verificacao de desenvolvedor* — **30/09/2026**. O Google diz que >99% dos
+  apps foram registrados automaticamente (os que usam a chave de assinatura
+  do Play, o nosso caso). Confirmar na pagina inicial do Play Console.
+
+**Licao do periodo:** pipeline que nao roda apodrece. Em 32 dias parados, o
+ambiente do runner mudou por baixo e quebrou o build em tres pontos
+diferentes (pacote `tools` descontinuado, validacao de SDK do bubblewrap,
+API 36). Nenhum deles era codigo nosso. Vale considerar um disparo
+periodico do build de artifact so pra manter a esteira honesta.
 
 ---
 
