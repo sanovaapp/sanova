@@ -272,11 +272,26 @@ while (executadas.size < MAX_POR_CICLO) {
 
   // Atualiza o objeto em memoria tambem — e o que a proxima volta do laco le
   // pra decidir se uma tarefa dependente ja pode rodar.
+  const resultadoAnterior = task.last_result;
   task.status = statusNovo;
 
-  doc.setIn(['tasks', idx, 'status'], statusNovo);
-  doc.setIn(['tasks', idx, 'last_run'], agora);
-  doc.setIn(['tasks', idx, 'last_result'], resultado.detalhe);
+  // So grava no arquivo quando a RESPOSTA muda. Antes gravava `last_run` a
+  // cada ciclo, e como o timestamp sempre muda, o `git diff --quiet` do
+  // workflow nunca pegava: saiam ~5 commits por dia dizendo "olhei e esta
+  // tudo igual". 150 commits por mes sem informacao nenhuma — o Bruno
+  // perguntou o que era aquilo em 22/09, e a pergunta estava certa.
+  //
+  // Consequencia deliberada: `last_run` passa a significar "quando este
+  // monitor mudou de resposta pela ultima vez". O historico de execucoes
+  // continua inteiro na aba Actions, que e o lugar dele.
+  const mudouResposta =
+    statusAnterior !== statusNovo || resultadoAnterior !== resultado.detalhe;
+
+  if (mudouResposta) {
+    doc.setIn(['tasks', idx, 'status'], statusNovo);
+    doc.setIn(['tasks', idx, 'last_run'], agora);
+    doc.setIn(['tasks', idx, 'last_result'], resultado.detalhe);
+  }
 
   // So reporta o que MUDOU de estado — um monitor que segue verde nao vira ruido.
   if (statusAnterior !== statusNovo) {

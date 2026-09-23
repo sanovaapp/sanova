@@ -9,7 +9,11 @@ name: MP Cleanup Cron (backup automático)
 on:
   schedule:
     # A cada 6 horas: 00:00, 06:00, 12:00, 18:00 UTC
-    - cron: '0 */6 * * *'
+    # 23/09/2026: era 6/6h (420 execucoes ate aqui). Nao ha nenhum pagante —
+    # o app nem foi publicado — entao reconcilia nada 4x por dia. Reduzido
+    # pra 1x diario: mantem a rede de seguranca sem o barulho. Voltar pra
+    # 6/6h quando houver pagamento real em producao.
+    - cron: '0 6 * * *'
   workflow_dispatch: # permite disparar manual também
 
 jobs:
