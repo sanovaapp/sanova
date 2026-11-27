@@ -79,6 +79,57 @@ async function requirePro(request, env, origin) {
   return { user, pro: arr[0] };
 }
 
+/**
+ * v1.34.0: estado da licenca profissional a partir da linha de subscriptions.
+ * Funcao pura. A licenca vale quando o plano e 'pro' e:
+ *   - 'active'   com subscription_ends_at no futuro, ou
+ *   - 'trial'    com trial_ends_at no futuro (teste gratis), ou
+ *   - 'canceled' com o periodo ja pago / teste ainda correndo (vale ate o fim).
+ */
+export function licencaDe(sub, agoraMs) {
+  const agora = typeof agoraMs === 'number' ? agoraMs : Date.now();
+  const fora = { ativa: false, situacao: 'sem_licenca', ate: null, tem_assinatura_mp: false };
+  if (!sub || sub.plano !== 'pro') return fora;
+  const t = (v) => { const n = v ? new Date(v).getTime() : 0; return isNaN(n) ? 0 : n; };
+  const fimAss = t(sub.subscription_ends_at);
+  const fimTeste = t(sub.trial_ends_at);
+  let fim = 0, situacao = 'expirada';
+  if (sub.status === 'active') { fim = fimAss; situacao = 'ativa'; }
+  else if (sub.status === 'trial') { fim = fimTeste; situacao = 'teste'; }
+  else if (sub.status === 'canceled') { fim = Math.max(fimAss, fimTeste); situacao = 'cancelada'; }
+  const ativa = fim > agora;
+  return {
+    ativa,
+    situacao: ativa ? situacao : (sub.status === 'canceled' ? 'cancelada' : 'expirada'),
+    ate: fim ? new Date(fim).toISOString() : null,
+    tem_assinatura_mp: !!(sub.mp_preapproval_id && !/^(admin-simulated-|demo-)/.test(sub.mp_preapproval_id)),
+  };
+}
+
+async function carregaLicenca(userId, env) {
+  const r = await fetch(
+    SUPABASE_URL + '/rest/v1/subscriptions?user_id=eq.' + encodeURIComponent(userId) + '&select=*',
+    { headers: svcHeaders(env) }
+  );
+  const arr = await r.json().catch(() => []);
+  return licencaDe(Array.isArray(arr) ? arr[0] : null);
+}
+
+/**
+ * Middleware: profissional cadastrado E com licenca em dia.
+ * Sem licenca responde 402 (pagamento necessario) — o painel mostra a oferta
+ * do teste gratis. Dado de paciente nunca sai sem licenca valida.
+ */
+export async function requireProLicenciado(request, env, origin) {
+  const ctx = await requirePro(request, env, origin);
+  if (ctx.error) return ctx;
+  const licenca = await carregaLicenca(ctx.user.id, env);
+  if (!licenca.ativa) {
+    return { error: jsonResponse({ ok: false, error: 'licenca_inativa', licenca }, 402, origin, env) };
+  }
+  return { ...ctx, licenca };
+}
+
 // ════════════════════════════════════════════════════════════════════
 // POST /api/pro-register
 // ════════════════════════════════════════════════════════════════════
@@ -153,7 +204,10 @@ export async function handleProMe(request, env, origin) {
   }
   const ctx = await requirePro(request, env, origin);
   if (ctx.error) return ctx.error;
-  return jsonResponse({ ok: true, pro: ctx.pro }, 200, origin, env);
+  // v1.34.0: devolve tambem a licenca, pro painel decidir entre abrir e
+  // mostrar a oferta do teste gratis. Esta rota NAO traz dado de paciente.
+  const licenca = await carregaLicenca(ctx.user.id, env);
+  return jsonResponse({ ok: true, pro: ctx.pro, licenca }, 200, origin, env);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -314,7 +368,7 @@ export async function handleProPatients(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
-  const ctx = await requirePro(request, env, origin);
+  const ctx = await requireProLicenciado(request, env, origin);
   if (ctx.error) return ctx.error;
 
   // Lista vinculos ativos do pro
@@ -387,7 +441,7 @@ export async function handleProPatient(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
-  const ctx = await requirePro(request, env, origin);
+  const ctx = await requireProLicenciado(request, env, origin);
   if (ctx.error) return ctx.error;
 
   const url = new URL(request.url);
@@ -536,7 +590,7 @@ export async function handleSpectatorState(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
-  const ctx = await requirePro(request, env, origin);
+  const ctx = await requireProLicenciado(request, env, origin);
   if (ctx.error) return ctx.error;
 
   const url = new URL(request.url);

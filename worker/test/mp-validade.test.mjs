@@ -39,7 +39,10 @@ test('preapproval ausente nao quebra e ainda da validade futura', () => {
 test('o webhook grava a validade nos dois caminhos de ativacao', () => {
   const src = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   const hook = src.slice(src.indexOf('async function handleMpWebhook'), src.indexOf('async function _resolveUserId'));
-  assert.equal((hook.match(/subscription_ends_at = calcValidade\(/g) || []).length, 2);
+  // ativacao pela preapproval: decidirAssinatura (testada em licenca-pro.test.mjs)
+  assert.ok(hook.includes('decidirAssinatura(pa, tipoPlanoMP)'));
+  // ativacao e renovacao pelo pagamento aprovado
+  assert.equal((hook.match(/subscription_ends_at = calcValidade\(/g) || []).length, 1);
 });
 
 test('checkout e IA exigem sessao no servidor', () => {

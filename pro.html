@@ -276,6 +276,138 @@ function viewRegister() {
   `;
 }
 
+// ─── Licença profissional (v3.10.83) ────────────────────────────────
+// Preço e duração do teste espelham worker/src/mp.js (PLANOS.pro).
+const LICENCA_PRECO = 'R$ 247';
+const LICENCA_TESTE_DIAS = 14;
+
+function dataBR(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function viewLicenca() {
+  const lic = state.licenca || {};
+  const jaTeve = lic.situacao === 'expirada' || lic.situacao === 'cancelada';
+  const titulo = jaTeve ? 'Sua licença não está ativa' : `Comece seu teste grátis de ${LICENCA_TESTE_DIAS} dias`;
+  const sub = jaTeve
+    ? 'Reative para voltar a ver seus pacientes. Os vínculos e o seu código de convite continuam guardados.'
+    : 'Acompanhe seus pacientes entre as consultas: quem registrou, quem parou e quem pede atenção.';
+  const aguardando = state.licencaAguardando
+    ? `<div class="alert alert-info" style="margin-top:12px"><div class="loader"></div> Confirmando com o Mercado Pago… isso leva alguns segundos.</div>`
+    : '';
+  return `
+    <div class="card">
+      <h2 class="card-title">${titulo}</h2>
+      <p class="card-sub">${sub}</p>
+      <div style="margin:14px 0;padding:14px;border:1px solid rgba(134,239,172,.25);border-radius:12px">
+        <div style="font-size:26px;font-weight:700;color:#fff">${LICENCA_PRECO}<span style="font-size:13px;font-weight:400;color:rgba(255,255,255,.6)"> por mês</span></div>
+        <ul style="margin:10px 0 0 18px;padding:0;font-size:13px;line-height:1.7;color:rgba(255,255,255,.8)">
+          <li>${LICENCA_TESTE_DIAS} dias grátis. A primeira cobrança só acontece depois do teste.</li>
+          <li>Painel com seus pacientes e a ficha de cada um, em modo leitura.</li>
+          <li>Até 30 pacientes vinculados usam o app completo sem pagar.</li>
+          <li>Cancele quando quiser, aqui mesmo no painel.</li>
+        </ul>
+      </div>
+      <button class="btn btn-primary" id="btnLicenca" onclick="iniciarLicenca()">${jaTeve ? 'Reativar licença' : 'Começar teste grátis'}</button>
+      <div id="licencaMsg">${aguardando}</div>
+      <p class="card-sub" style="margin-top:12px;margin-bottom:0;font-size:11.5px">
+        O cadastro do cartão é feito no Mercado Pago. O Sanova não vê nem guarda os dados do cartão.
+        O Sanova organiza e sinaliza registros; não substitui a avaliação clínica.
+      </p>
+      <button class="btn btn-ghost" style="margin-top:14px;font-size:12px;padding:8px" onclick="logout()">Sair</button>
+    </div>
+  `;
+}
+
+async function iniciarLicenca() {
+  const btn = $('btnLicenca'), msg = $('licencaMsg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Abrindo Mercado Pago…'; }
+  try {
+    const r = await apiCall('/api/mp-create-preapproval', {
+      method: 'POST',
+      body: JSON.stringify({ plano: 'pro', backUrl: window.location.origin + '/pro.html?mp_return=1' }),
+    });
+    if (!r.init_point) throw new Error('sem_link');
+    window.location.href = r.init_point;
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Tentar de novo'; }
+    const ref = (e && e.data && e.data.ref) ? ` (código ${escapeHtml(e.data.ref)})` : '';
+    if (msg) msg.innerHTML = `<div class="alert alert-err" style="margin-top:12px">Não consegui abrir o Mercado Pago agora${ref}. Tente de novo em instantes.</div>`;
+  }
+}
+
+// Voltou do Mercado Pago: o aviso de lá chega ao servidor em segundos.
+// Pergunta de novo até a licença aparecer (no máximo ~1 minuto).
+async function aguardarLicenca(tentativa) {
+  const n = tentativa || 0;
+  try {
+    const r = await apiCall('/api/pro-me');
+    state.pro = r.pro; state.licenca = r.licenca;
+    if (r.licenca && r.licenca.ativa) {
+      state.licencaAguardando = false;
+      try { history.replaceState(null, '', '/pro.html'); } catch (e) {}
+      await carregarPacientes();
+      setView('pro-panel');
+      return;
+    }
+  } catch (e) {}
+  if (n >= 14) {
+    state.licencaAguardando = false;
+    setView('licenca');
+    const msg = $('licencaMsg');
+    if (msg) msg.innerHTML = `<div class="alert alert-info" style="margin-top:12px">Ainda não recebemos a confirmação do Mercado Pago. Se você concluiu o cadastro do cartão, recarregue esta página em um minuto.</div>`;
+    return;
+  }
+  setTimeout(() => aguardarLicenca(n + 1), 4000);
+}
+
+function linhaLicenca() {
+  const lic = state.licenca || {};
+  if (!lic.ativa) return '';
+  const ate = dataBR(lic.ate);
+  const txt = lic.situacao === 'teste' ? `Teste grátis até ${ate}. Depois, ${LICENCA_PRECO} por mês.`
+            : lic.situacao === 'cancelada' ? `Licença cancelada. Acesso até ${ate}.`
+            : `Licença ativa. Próxima renovação por volta de ${ate}.`;
+  const podeCancelar = lic.tem_assinatura_mp && lic.situacao !== 'cancelada';
+  return `
+    <div class="footer-note" style="margin-top:24px" id="licencaLinha">
+      ${escapeHtml(txt)}
+      ${podeCancelar ? `<br><a href="#" onclick="pedirCancelamento();return false;">Cancelar assinatura</a>` : ''}
+    </div>`;
+}
+
+function pedirCancelamento() {
+  const el = $('licencaLinha');
+  if (!el) return;
+  const ate = dataBR((state.licenca || {}).ate);
+  el.innerHTML = `
+    <div class="alert alert-info" style="text-align:left">
+      Cancelar a assinatura? Nenhuma nova cobrança será feita e seu acesso continua até ${escapeHtml(ate)}.
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px" onclick="render()">Manter</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px" id="btnCancelarSim" onclick="confirmarCancelamento()">Sim, cancelar</button>
+      </div>
+      <div id="cancelMsg"></div>
+    </div>`;
+}
+
+async function confirmarCancelamento() {
+  const btn = $('btnCancelarSim'), msg = $('cancelMsg');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelando…'; }
+  try {
+    await apiCall('/api/mp-cancel', { method: 'POST', body: '{}' });
+    const r = await apiCall('/api/pro-me');
+    state.licenca = r.licenca;
+    render();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Sim, cancelar'; }
+    const ref = (e && e.data && e.data.ref) ? ` (código ${escapeHtml(e.data.ref)})` : '';
+    if (msg) msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Não consegui cancelar agora${ref}. Tente de novo em instantes.</div>`;
+  }
+}
+
 function viewProPanel() {
   const pro = state.pro;
   const inviteCode = escapeHtml(pro.invite_code || '');
@@ -357,6 +489,7 @@ function viewProPanel() {
     </div>
     <div id="alertsList"><div class="empty" style="font-size:12px">Carregando…</div></div>
     ` : ''}
+    ${linhaLicenca()}
   `;
 }
 
@@ -574,6 +707,7 @@ function render() {
     case 'loading': c.innerHTML = `<div class="empty"><div class="loader"></div><div style="margin-top:8px">Carregando…</div></div>`; break;
     case 'login': c.innerHTML = viewLogin(); break;
     case 'register': c.innerHTML = viewRegister(); break;
+    case 'licenca': c.innerHTML = viewLicenca(); break;
     case 'pro-panel':
       c.innerHTML = viewProPanel();
       // v3.10.32 hardening Fable: listeners pra patient-row (em vez de onclick inline)
@@ -633,8 +767,8 @@ async function cadastrarPro() {
       body: JSON.stringify({ nome, tipo, registro, titulo_exibido, termo_pro_version: 'v1-2026-06' }),
     });
     state.pro = r.pro;
-    await carregarPacientes();
-    setView('pro-panel');
+    // v3.10.83: cadastro feito, o próximo passo é a licença (teste grátis).
+    await boot();
   } catch (e) {
     msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Erro: ${escapeHtml(e.message)}</div>`;
   }
@@ -751,6 +885,15 @@ async function boot() {
   try {
     const r = await apiCall('/api/pro-me');
     state.pro = r.pro;
+    state.licenca = r.licenca || null;
+    // v3.10.83: sem licença em dia, mostra a oferta do teste grátis.
+    if (!state.licenca || !state.licenca.ativa) {
+      const voltouDoMP = new URLSearchParams(location.search).get('mp_return') === '1';
+      state.licencaAguardando = voltouDoMP;
+      setView('licenca');
+      if (voltouDoMP) aguardarLicenca(0);
+      return;
+    }
     await carregarPacientes();
     setView('pro-panel');
   } catch (e) {

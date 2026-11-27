@@ -44,6 +44,7 @@ const FAIXAS = [
       '/api/link-professional',
       '/api/unlink-professional',
       '/api/mp-create-preapproval',
+      '/api/mp-cancel',
       '/api/delete-my-account',
       '/api/export-my-data',
       '/api/pro-assets',

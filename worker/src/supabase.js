@@ -217,3 +217,25 @@ export async function listRecentSubscriptions(limit, env) {
   }
   return { ok: true, count: out.length, subscriptions: out };
 }
+
+/**
+ * v1.34.0: de qual plano ('mensal' | 'anual' | 'pro') veio uma preapproval,
+ * pelo id do plano no Mercado Pago. null se nao for plano nosso.
+ */
+export async function tipoDoPlanoMP(mpPlanId, env) {
+  if (!mpPlanId) return null;
+  const url = SUPABASE_URL + '/rest/v1/mp_plans?mp_plan_id=eq.' + encodeURIComponent(mpPlanId) + '&select=tipo';
+  const resp = await fetch(url, { headers: _headers(env) });
+  if (!resp.ok) return null;
+  const arr = await resp.json().catch(() => []);
+  return (Array.isArray(arr) && arr[0] && arr[0].tipo) || null;
+}
+
+/** v1.34.0: assinatura de um usuario (ou null). */
+export async function getSubscriptionByUser(userId, env) {
+  const url = SUPABASE_URL + '/rest/v1/subscriptions?user_id=eq.' + encodeURIComponent(userId) + '&select=*';
+  const resp = await fetch(url, { headers: _headers(env) });
+  if (!resp.ok) return null;
+  const arr = await resp.json().catch(() => []);
+  return (Array.isArray(arr) && arr[0]) || null;
+}

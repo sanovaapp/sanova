@@ -220,13 +220,8 @@ export async function verifyWebhookSignature(request, body, env) {
 export async function createPreapprovalPlanMP({ tipo, backUrl }, env) {
   const token = mpToken(env);
 
-  const planoNormalizado = (tipo === 'anual') ? 'anual' : 'mensal';
-  const auto_recurring = planoNormalizado === 'anual'
-    ? { frequency: 12, frequency_type: 'months', transaction_amount: 199.00, currency_id: 'BRL' }
-    : { frequency: 1,  frequency_type: 'months', transaction_amount: 19.90,  currency_id: 'BRL' };
-  const reason = planoNormalizado === 'anual'
-    ? 'Sanova — assinatura anual'
-    : 'Sanova — assinatura mensal';
+  // v1.34.0: os tres planos moram em PLANOS (mensal, anual e pro).
+  const { reason, auto_recurring } = PLANOS[tipoPlano(tipo)];
 
   // v1.10.0: sem restrição de payment_types — MP usa TODOS os métodos
   // habilitados na conta do vendedor (credit_card, debit_card, ticket
@@ -354,4 +349,99 @@ export async function diagnosticoMP(env) {
     segredo_PROD: await _sondaToken(env.MP_ACCESS_TOKEN_PROD),
     segredo_SANDBOX: await _sondaToken(env.MP_ACCESS_TOKEN_SANDBOX),
   };
+}
+
+/**
+ * v1.34.0: tabela unica de planos.
+ *
+ * 'pro' e a licenca do profissional: R$ 247/mes, com 14 dias gratis. O
+ * Mercado Pago guarda o cartao no cadastro e faz a primeira cobranca sozinho
+ * quando o teste termina (free_trial do preapproval_plan).
+ *
+ * Preco e decisao do Bruno (proposta de set/2026, confirmada em 26/11/2026).
+ */
+export const TESTE_PRO_DIAS = 14;
+export const PLANOS = {
+  mensal: {
+    reason: 'Sanova — assinatura mensal',
+    auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: 19.90, currency_id: 'BRL' },
+  },
+  anual: {
+    reason: 'Sanova — assinatura anual',
+    auto_recurring: { frequency: 12, frequency_type: 'months', transaction_amount: 199.00, currency_id: 'BRL' },
+  },
+  pro: {
+    reason: 'Sanova Pro — licença profissional',
+    auto_recurring: {
+      frequency: 1, frequency_type: 'months', transaction_amount: 247.00, currency_id: 'BRL',
+      free_trial: { frequency: TESTE_PRO_DIAS, frequency_type: 'days' },
+    },
+  },
+};
+export function tipoPlano(t) {
+  return (t === 'anual' || t === 'pro') ? t : 'mensal';
+}
+
+/**
+ * v1.34.0: o que fazer com a assinatura quando o Mercado Pago avisa que uma
+ * preapproval mudou. Funcao pura (sem rede) pra ser testavel.
+ *
+ * @param pa    preapproval devolvida pelo MP
+ * @param tipo  'mensal' | 'anual' | 'pro' | null (plano de origem)
+ * @returns { status, ...campos } pra gravar em subscriptions, ou null se nada muda
+ */
+export function decidirAssinatura(pa, tipo, base) {
+  const agora = base ? new Date(base) : new Date();
+  const iso = agora.toISOString();
+  const cobrancas = (pa && pa.summarized && pa.summarized.charged_quantity) || 0;
+  const ehPro = tipo === 'pro';
+  const marca = ehPro ? { plano: 'pro' } : {};
+
+  if (pa.status === 'authorized' && cobrancas > 0) {
+    return {
+      status: 'active', mp_preapproval_id: pa.id, ...marca,
+      subscription_started_at: (pa.summarized && pa.summarized.last_charged_date) || pa.date_created || iso,
+      subscription_ends_at: calcValidade(pa, agora),
+    };
+  }
+  // Licenca pro em teste gratis: cartao cadastrado, nenhuma cobranca ainda.
+  // Plano de paciente nao tem teste com cartao: sem cobranca, nada muda.
+  if (pa.status === 'authorized' && ehPro) {
+    const prox = pa.next_payment_date ? new Date(pa.next_payment_date) : null;
+    const fimTeste = (prox && !isNaN(prox) && prox.getTime() > agora.getTime())
+      ? prox.getTime()
+      : agora.getTime() + TESTE_PRO_DIAS * 86400000;
+    return {
+      status: 'trial', mp_preapproval_id: pa.id, plano: 'pro',
+      trial_started_at: iso,
+      trial_ends_at: new Date(fimTeste + FOLGA_DIAS * 86400000).toISOString(),
+    };
+  }
+  // Cancelada pelo assinante: o que ja foi pago (ou o teste em curso) vale
+  // ate o fim. Por isso as datas NAO sao tocadas.
+  if (pa.status === 'cancelled') {
+    return { status: 'canceled', mp_preapproval_id: pa.id };
+  }
+  // Pausada = o Mercado Pago nao conseguiu cobrar. Acesso termina agora.
+  if (pa.status === 'paused') {
+    return { status: 'canceled', mp_preapproval_id: pa.id, subscription_ends_at: iso, trial_ends_at: iso };
+  }
+  return null;
+}
+
+/**
+ * v1.34.0: cancela a assinatura no Mercado Pago (o assinante pediu).
+ */
+export async function cancelarPreapproval(preapprovalId, env) {
+  const resp = await fetch(MP_API + '/preapproval/' + encodeURIComponent(preapprovalId), {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + mpToken(env), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelled' }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const msg = (data && data.message) ? data.message : ('HTTP ' + resp.status);
+    throw new Error('MP cancelarPreapproval: ' + msg);
+  }
+  return data;
 }
