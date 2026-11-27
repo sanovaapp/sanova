@@ -424,9 +424,17 @@ function viewProPanel() {
       </div>
     `;
   } else {
+    // v3.10.84: sem paciente próprio, o servidor manda pacientes fictícios.
+    if (state.patients.some(p => p.demo)) {
+      pacientesHtml += `
+        <div class="alert alert-info" style="text-align:left;margin-bottom:10px">
+          <strong>Pacientes de demonstração.</strong> São fictícios, para você conhecer o painel.
+          Eles somem quando o seu primeiro paciente se vincular com o código <strong>${inviteCode}</strong>.
+        </div>`;
+    }
     const DOT = { risco: '🔴', atencao: '🟡', protegida: '🟢', aguardando: '⚪' };
     const LBL = { risco: 'Risco', atencao: 'Atenção', protegida: 'Protegida', aguardando: 'Aguardando' };
-    pacientesHtml = state.patients.map(p => {
+    pacientesHtml += state.patients.map(p => {
       const pnome = escapeHtml(p.nome || p.email || 'Paciente');
       const estado = (p.estado_pm || 'aguardando').toLowerCase();
       const dotEmoji = DOT[estado] || DOT.aguardando;
@@ -744,6 +752,16 @@ async function enviarMagicLink() {
   msg.innerHTML = `<div class="alert alert-ok" style="margin-top:10px"><strong>Link enviado!</strong> Confira seu email e clique no link pra entrar.</div>`;
 }
 
+// De onde este profissional veio (gravado pela página de vendas no aparelho).
+function lerOrigem() {
+  try {
+    const o = JSON.parse(localStorage.getItem('sanova_origem') || '{}') || {};
+    const cta = localStorage.getItem('sanova_cta');
+    if (cta) o.cta = cta;
+    return Object.keys(o).length ? o : null;
+  } catch (e) { return null; }
+}
+
 async function cadastrarPro() {
   const nome = $('regNome').value.trim();
   const tipo = $('regTipo').value;
@@ -764,7 +782,7 @@ async function cadastrarPro() {
   try {
     const r = await apiCall('/api/pro-register', {
       method: 'POST',
-      body: JSON.stringify({ nome, tipo, registro, titulo_exibido, termo_pro_version: 'v1-2026-06' }),
+      body: JSON.stringify({ nome, tipo, registro, titulo_exibido, termo_pro_version: 'v1-2026-06', origem: lerOrigem() }),
     });
     state.pro = r.pro;
     // v3.10.83: cadastro feito, o próximo passo é a licença (teste grátis).

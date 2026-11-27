@@ -79,6 +79,56 @@ async function requirePro(request, env, origin) {
   return { user, pro: arr[0] };
 }
 
+// ─── Pacientes de demonstracao (v1.35.0) ────────────────────────────
+// Profissional recem-cadastrado nao tem paciente vinculado: o painel nasceria
+// vazio e ele nao veria o produto. Enquanto nao tiver nenhum vinculo proprio,
+// o painel mostra os pacientes FICTICIOS da conta de demonstracao.
+//
+// Trava dupla, porque aqui um erro vazaria dado real pra todo profissional:
+//   1. o vinculo tem que ser do profissional de demonstracao (codigo SAN-DEMO);
+//   2. o paciente tem que ser uma das contas ficticias da lista abaixo.
+// Um paciente real que por engano se vincule ao SAN-DEMO NAO passa na 2.
+const DEMO_PRO_INVITE = 'SAN-DEMO';
+const DEMO_PACIENTES = ['demo@sanova.app', 'joao.demo@sanova.app', 'carla.demo@sanova.app'];
+export function ehPacienteDemo(email) {
+  return typeof email === 'string' && DEMO_PACIENTES.includes(email.trim().toLowerCase());
+}
+async function _demoProId(env) {
+  const r = await fetch(
+    SUPABASE_URL + '/rest/v1/professionals?invite_code=eq.' + DEMO_PRO_INVITE + '&select=id',
+    { headers: svcHeaders(env) }
+  );
+  const arr = await r.json().catch(() => []);
+  return (Array.isArray(arr) && arr[0] && arr[0].id) || null;
+}
+async function _linksDemo(env) {
+  const id = await _demoProId(env);
+  if (!id) return [];
+  const r = await fetch(
+    SUPABASE_URL + '/rest/v1/patient_links?professional_id=eq.' + encodeURIComponent(id) + '&status=eq.active&select=*',
+    { headers: svcHeaders(env) }
+  );
+  const arr = await r.json().catch(() => []);
+  return Array.isArray(arr) ? arr : [];
+}
+
+/**
+ * v1.35.0: limpa o registro de origem (qual anuncio trouxe o profissional).
+ * So aceita as chaves conhecidas, texto curto e sem caractere estranho.
+ */
+export function limpaOrigem(o) {
+  if (!o || typeof o !== 'object') return null;
+  const out = {};
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'chegada', 'cta']) {
+    const v = o[k];
+    if (typeof v === 'string' && v) {
+      const limpo = v.slice(0, 80).replace(/[^\w\-.:+ ]/g, '');
+      if (limpo) out[k] = limpo;
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /**
  * v1.34.0: estado da licenca profissional a partir da linha de subscriptions.
  * Funcao pura. A licenca vale quando o plano e 'pro' e:
@@ -180,6 +230,8 @@ export async function handleProRegister(request, env, origin) {
   }
 
   const row = { user_id: user.id, nome, tipo, registro, titulo_exibido, invite_code };
+  const origem = limpaOrigem(body.origem);
+  if (origem) row.origem = origem;
   const insert = await fetch(SUPABASE_URL + '/rest/v1/professionals', {
     method: 'POST',
     headers: svcHeaders(env),
@@ -376,14 +428,21 @@ export async function handleProPatients(request, env, origin) {
     '?professional_id=eq.' + encodeURIComponent(ctx.pro.id) +
     '&status=eq.active&select=*';
   const linksResp = await fetch(linksUrl, { headers: svcHeaders(env) });
-  const links = await linksResp.json().catch(() => []);
+  let links = await linksResp.json().catch(() => []);
   if (!Array.isArray(links)) {
     return jsonResponse({ ok: false, error: 'links_query_failed' }, 500, origin, env);
+  }
+  // v1.35.0: sem nenhum vinculo proprio, mostra os pacientes ficticios.
+  let demo = false;
+  if (links.length === 0) {
+    links = await _linksDemo(env);
+    demo = links.length > 0;
   }
 
   const pacientes = [];
   for (const link of links) {
     const { S, email } = await _carregaPaciente(link.patient_user_id, env);
+    if (demo && !ehPacienteDemo(email)) continue;   // trava 2: so conta ficticia
     if (!S) {
       pacientes.push({
         link_id: link.id,
@@ -398,6 +457,7 @@ export async function handleProPatients(request, env, origin) {
     const estado = calcEstadoProtecaoMuscular(r.M, r.kcal, r.prot, r.sexo, { periodo: 'semana' });
     pacientes.push({
       link_id: link.id,
+      demo: demo || undefined,
       nome: r.nome || email || '—',
       estado_pm: estado.estado,
       medicamento: r.medicamento,
@@ -608,7 +668,15 @@ export async function handleSpectatorState(request, env, origin) {
     return jsonResponse({ ok: false, error: 'link_not_found' }, 404, origin, env);
   }
   if (link.professional_id !== ctx.pro.id) {
-    return jsonResponse({ ok: false, error: 'forbidden' }, 403, origin, env);
+    // v1.35.0: unica excecao e o paciente FICTICIO de demonstracao.
+    const demoId = await _demoProId(env);
+    if (!demoId || link.professional_id !== demoId) {
+      return jsonResponse({ ok: false, error: 'forbidden' }, 403, origin, env);
+    }
+    const { email: emailDemo } = await _carregaPaciente(link.patient_user_id, env);
+    if (!ehPacienteDemo(emailDemo)) {
+      return jsonResponse({ ok: false, error: 'forbidden' }, 403, origin, env);
+    }
   }
   if (link.status !== 'active') {
     return jsonResponse({ ok: false, error: 'link_revoked' }, 403, origin, env);
