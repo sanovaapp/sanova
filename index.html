@@ -6672,7 +6672,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.81';
+var SANOVA_VERSION = '3.10.82';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -24128,6 +24128,13 @@ window.addEventListener('beforeunload',function(){
           var sessao = res && res.data ? res.data.session : null;
           if(sessao && sessao.user){
             usuarioAtual = sessao.user;
+            // v3.10.82: o profissional SEMPRE chega aqui ja logado (vem do
+            // pro.html). O espelho so era aberto no login manual (aoLogar),
+            // entao a ficha do paciente nunca abria: caia no onboarding.
+            try{
+              var linkEspelho = new URLSearchParams(location.search).get('spectator_link');
+              if(linkEspelho){ entrarModoSpectator(sessao.user, linkEspelho); return; }
+            }catch(e){ console.warn('[Spectator] check na sessao existente falhou', e); }
             esconderGate();
             try{ window.dispatchEvent(new CustomEvent('sanova:logado', {detail:{userId: usuarioAtual.id}})); }catch(e){}
             // app já bootou sozinho pelo DOMContentLoaded; só garante sync ligado
