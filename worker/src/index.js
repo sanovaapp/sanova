@@ -16,7 +16,7 @@
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
-import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade } from './mp.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade, mpToken, diagnosticoMP } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
 import { checarLimite } from './ratelimit.js';
@@ -91,7 +91,7 @@ export default {
             rl = 'erro';
           }
         }
-        return jsonResponse({ ok: true, version: '1.32.0', rl_probe: rl }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.33.0', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -365,6 +365,13 @@ export default {
 
       // v1.23.0: lista payment_methods_allowed dos planos MP (verifica PIX
       // sem precisar entrar no painel MP). Bruno: pendência D removida.
+      // v1.33.0: retrato do Mercado Pago sem expor segredo (so o TIPO do token).
+      if (url.pathname === '/api/admin-mp-diagnostico' && request.method === 'GET') {
+        const d = await diagnosticoMP(env);
+        return new Response(JSON.stringify(d, null, 2),
+          { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+      }
+
       if (url.pathname === '/api/admin-check-payment-methods' && request.method === 'GET') {
         return await handleAdminCheckPaymentMethods(env);
       }
@@ -712,7 +719,7 @@ async function handleAdminRecentSubscriptions(env, origin) {
 // external_reference=sanova_<userId>. Se houver authorized + charged
 // > 0, confirma com esse ID. Senão, reverte pra trial.
 async function handleAdminCleanupV2(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -750,6 +757,7 @@ async function handleAdminCleanupV2(env) {
             status: 'active',
             mp_preapproval_id: real.id,
             subscription_started_at: (real.summarized && real.summarized.last_charged_date) || real.date_created,
+            subscription_ends_at: calcValidade(real),
           }, env);
           item.acao = 'mantido active com ID real ' + real.id;
         } else {
@@ -780,7 +788,7 @@ async function handleAdminCleanupV2(env) {
 // Supabase (mp_plans). Usado pra verificar se PIX/boleto/cartão já
 // estão aceitos sem precisar entrar no painel MP.
 async function handleAdminCheckPaymentMethods(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
     { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   const out = [];
@@ -875,7 +883,7 @@ async function handleAdminCleanupFalsePositives(env) {
 // → busca preapprovals authorized do mesmo plan + janela [-1h, +2h]
 // → atualiza Supabase com user resolvido e ID real
 async function handleAdminReconcileFinal(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -973,7 +981,7 @@ async function handleAdminReconcileFinal(env) {
 // sanova_<userId>), resolve user, e atualiza subscriptions com status
 // active + ID correto.
 async function handleAdminReconcileViaPayments(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -1048,7 +1056,7 @@ async function handleAdminReconcileViaPayments(env) {
 // Lista todos os payments da conta MP nos ultimos 7 dias.
 // Diagnostico cego pra entender o que MP de fato registrou.
 async function handleAdminListRecentPayments(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -1097,7 +1105,7 @@ async function handleAdminListRecentPayments(env) {
 // 'approved', marca subscription active. Resolve o caso real:
 // MP não copia external_reference do plano pro payment individual.
 async function handleAdminReconcileViaPreapprovalId(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -1167,7 +1175,7 @@ async function handleAdminReconcileViaPreapprovalId(env) {
 // external_reference) pra debug profundo. Pra entender estado real
 // no MP quando webhook nao trouxe paciente pra active.
 async function handleAdminDebugMpState(env) {
-  const token = env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN;
+  let token = null; try { token = mpToken(env); } catch (e) { token = null; } // v1.33.0: mesmo token do checkout
   if (!token) {
     return new Response(JSON.stringify({ ok: false, error: 'MP_ACCESS_TOKEN ausente' }, null, 2),
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } });

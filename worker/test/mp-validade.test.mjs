@@ -62,3 +62,27 @@ test('o app manda a sessao nas chamadas de checkout e IA', () => {
     assert.ok(n >= 1, rota + ' nao encontrada');
   }
 });
+
+test('ferramentas admin usam o MESMO token do checkout (nada de sandbox fixo)', () => {
+  // Em producao, o cleanup diario com token sandbox nao acharia cobranca
+  // nenhuma e rebaixaria todo pagante real pra trial.
+  const src = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.equal(src.includes('env.MP_ACCESS_TOKEN_SANDBOX || env.MP_ACCESS_TOKEN'), false);
+});
+
+test('diagnostico do MP nunca devolve o valor de um token', async () => {
+  const { diagnosticoMP, tipoDoToken } = await import('../src/mp.js');
+  assert.equal(tipoDoToken('TEST-123'), 'teste (TEST-)');
+  assert.equal(tipoDoToken('APP_USR-123'), 'producao (APP_USR-)');
+  assert.equal(tipoDoToken(''), 'ausente');
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+  try {
+    const env = { MP_ACCESS_TOKEN_SANDBOX: 'TEST-segredo-abc', MP_ACCESS_TOKEN_PROD: 'APP_USR-segredo-xyz', MP_WEBHOOK_SECRET: 'whsec' };
+    const d = await diagnosticoMP(env);
+    const txt = JSON.stringify(d);
+    assert.equal(txt.includes('segredo-abc') || txt.includes('segredo-xyz') || txt.includes('whsec'), false);
+    assert.equal(d.modo_efetivo, 'sandbox');
+    assert.equal(d.cobra_de_verdade, false);
+  } finally { globalThis.fetch = real; }
+});

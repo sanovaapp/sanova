@@ -38,6 +38,7 @@ on:
           - admin-cleanup-false-positives
           - admin-cleanup-v2
           - admin-check-payment-methods
+          - admin-mp-diagnostico
           - admin-fixture-bootstrap
           - admin-fixture-bootstrap-incompleta
           - admin-seed-fixture-completa
