@@ -295,3 +295,63 @@ export function calcValidade(pa, base) {
   else fim.setUTCMonth(fim.getUTCMonth() + n);
   return new Date(fim.getTime() + folga).toISOString();
 }
+
+/**
+ * v1.33.0: retrato do Mercado Pago, pra responder sem chute:
+ * "estamos cobrando de verdade? o token vale? de quem e a conta?"
+ *
+ * NUNCA devolve valor de segredo. So o TIPO do token (TEST / APP_USR), se
+ * ele existe, e o que o proprio Mercado Pago responde quando o usamos.
+ */
+export function tipoDoToken(t) {
+  if (!t) return 'ausente';
+  if (t.startsWith('TEST-')) return 'teste (TEST-)';
+  if (t.startsWith('APP_USR-')) return 'producao (APP_USR-)';
+  return 'formato desconhecido';
+}
+
+async function _sondaToken(t) {
+  if (!t) return { existe: false };
+  const out = { existe: true, tipo: tipoDoToken(t) };
+  try {
+    const r = await fetch(MP_API + '/users/me', { headers: { 'Authorization': 'Bearer ' + t } });
+    out.http = r.status;
+    if (r.ok) {
+      const u = await r.json().catch(() => ({}));
+      out.valido = true;
+      out.conta_id = u.id || null;
+      out.pais = u.site_id || null;
+      out.conta_de_teste = Array.isArray(u.tags) ? u.tags.includes('test_user') : null;
+    } else {
+      out.valido = false;
+    }
+    const s = await fetch(MP_API + '/preapproval/search?limit=50', { headers: { 'Authorization': 'Bearer ' + t } });
+    if (s.ok) {
+      const j = await s.json().catch(() => ({}));
+      const porStatus = {};
+      for (const p of (j.results || [])) porStatus[p.status] = (porStatus[p.status] || 0) + 1;
+      out.assinaturas_na_conta = { total: (j.paging && j.paging.total) || (j.results || []).length, por_status: porStatus };
+    } else {
+      out.assinaturas_http = s.status;
+    }
+  } catch (e) {
+    out.erro = String(e.message || e);
+  }
+  return out;
+}
+
+export async function diagnosticoMP(env) {
+  const modo = env.MP_MODE === 'prod' ? 'prod' : 'sandbox';
+  let emUso = null;
+  try { emUso = tipoDoToken(mpToken(env)); } catch (e) { emUso = 'ERRO: ' + String(e.message || e); }
+  return {
+    ok: true,
+    MP_MODE_bruto: env.MP_MODE == null ? null : String(env.MP_MODE),
+    modo_efetivo: modo,
+    token_em_uso: emUso,
+    cobra_de_verdade: modo === 'prod' && emUso === 'producao (APP_USR-)',
+    webhook_secret_existe: !!env.MP_WEBHOOK_SECRET,
+    segredo_PROD: await _sondaToken(env.MP_ACCESS_TOKEN_PROD),
+    segredo_SANDBOX: await _sondaToken(env.MP_ACCESS_TOKEN_SANDBOX),
+  };
+}
