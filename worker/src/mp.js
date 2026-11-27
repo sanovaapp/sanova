@@ -349,7 +349,7 @@ export async function diagnosticoMP(env) {
     MP_MODE_bruto: env.MP_MODE == null ? null : String(env.MP_MODE),
     modo_efetivo: modo,
     token_em_uso: emUso,
-    cobra_de_verdade: modo === 'prod' && emUso === 'producao (APP_USR-)',
+    cobra_de_verdade: emUso === 'producao (APP_USR-)',
     webhook_secret_existe: !!env.MP_WEBHOOK_SECRET,
     segredo_PROD: await _sondaToken(env.MP_ACCESS_TOKEN_PROD),
     segredo_SANDBOX: await _sondaToken(env.MP_ACCESS_TOKEN_SANDBOX),

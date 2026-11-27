@@ -83,6 +83,9 @@ test('diagnostico do MP nunca devolve o valor de um token', async () => {
     const txt = JSON.stringify(d);
     assert.equal(txt.includes('segredo-abc') || txt.includes('segredo-xyz') || txt.includes('whsec'), false);
     assert.equal(d.modo_efetivo, 'sandbox');
+    // token em uso e TEST-: nao cobra de verdade
     assert.equal(d.cobra_de_verdade, false);
+    const d2 = await diagnosticoMP({ MP_ACCESS_TOKEN_SANDBOX: 'APP_USR-x' });
+    assert.equal(d2.cobra_de_verdade, true, 'token de producao cobra de verdade, mesmo no segredo chamado SANDBOX');
   } finally { globalThis.fetch = real; }
 });
