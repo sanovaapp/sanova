@@ -51,3 +51,18 @@ test('carimbo ausente e tratado como desconhecido, nunca como fresco', () => {
   assert.match(semIso, /desconhecida/, 'sem carimbo tem que dizer "desconhecida"');
   assert.match(semIso, /velho:\s*true/, 'sem carimbo tem que ser tratado como velho (conservador)');
 });
+
+// v3.10.82 — achado na simulacao de 26/11/2026: o profissional vem do pro.html
+// ja logado, e o caminho de "sessao existente" nao abria o espelho. A ficha do
+// paciente caia no onboarding. O espelho tem que abrir nos DOIS caminhos.
+import { test as testEspelhoSessao } from 'node:test';
+import assertEspelhoSessao from 'node:assert/strict';
+import { readFileSync as lerEspelhoSessao } from 'node:fs';
+testEspelhoSessao('espelho abre tambem quando o profissional ja chega logado', () => {
+  const html = lerEspelhoSessao(new URL('../../index.html', import.meta.url), 'utf8');
+  const i = html.indexOf('sb.auth.getSession().then(function(res){');
+  assertEspelhoSessao.ok(i > 0);
+  const trecho = html.slice(i, i + 1400);
+  assertEspelhoSessao.ok(trecho.includes("get('spectator_link')") && trecho.includes('entrarModoSpectator('),
+    'caminho de sessao existente nao abre o espelho');
+});
