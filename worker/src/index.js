@@ -19,6 +19,7 @@ import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
 import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade, mpToken, diagnosticoMP, tipoPlano, decidirAssinatura, cancelarPreapproval } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions, tipoDoPlanoMP, getSubscriptionByUser } from './supabase.js';
 import { requireAdmin } from './auth.js';
+import { handleAdminEmailsTeste } from './email.js';
 import { checarLimite } from './ratelimit.js';
 import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData, verifyJwt } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
@@ -91,7 +92,7 @@ export default {
             rl = 'erro';
           }
         }
-        return jsonResponse({ ok: true, version: '1.35.0', rl_probe: rl }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.36.0', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -371,6 +372,11 @@ export default {
       // v1.23.0: lista payment_methods_allowed dos planos MP (verifica PIX
       // sem precisar entrar no painel MP). Bruno: pendência D removida.
       // v1.33.0: retrato do Mercado Pago sem expor segredo (so o TIPO do token).
+      // v1.36.0: e-mails automaticos do teste gratis (rotina de hora em hora).
+      if (url.pathname === '/api/admin-emails-teste' && request.method === 'GET') {
+        return await handleAdminEmailsTeste(request, env);
+      }
+
       if (url.pathname === '/api/admin-mp-diagnostico' && request.method === 'GET') {
         const d = await diagnosticoMP(env);
         return new Response(JSON.stringify(d, null, 2),
