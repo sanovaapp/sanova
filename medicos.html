@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanova Pro · acompanhamento de pacientes em GLP-1 entre as consultas</title>
+<meta name="description" content="Painel para médicos e nutricionistas acompanharem pacientes em tratamento com GLP-1 entre as consultas. 14 dias grátis, depois R$ 247 por mês.">
+<link rel="canonical" href="https://sanova.app.br/medicos.html">
+<meta property="og:title" content="Sanova Pro · o que acontece com o seu paciente entre as consultas">
+<meta property="og:description" content="Veja quem está registrando, quem parou e quem pede atenção. 14 dias grátis.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sanova.app.br/medicos.html">
+<meta property="og:image" content="https://sanova.app.br/icon-512.png">
+<meta name="theme-color" content="#07190d">
+<link rel="icon" href="/icon-192.png">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Página de vendas para profissionais. Mesma identidade do app:
+   verde-floresta, creme, Fraunces nos títulos, Plus Jakarta Sans no texto. */
+:root{
+  --g900:#031608; --g800:#07190d; --g700:#0d2e18; --g600:#0f5a29;
+  --g500:#1a9e4f; --g450:#22c55e; --g300:#86efac; --g200:#bbf7d0;
+  --cream:#f7f2e8; --cream2:#f1ebdd; --cream3:#e2d9c6;
+  --ink:#16241b; --ink2:#3b4a40; --muted:#6b7a70;
+  --sf:'Fraunces',Georgia,serif;
+  --ss:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;font-family:var(--ss);color:var(--ink);background:var(--cream);line-height:1.6;font-size:16px}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+h1,h2,h3{font-family:var(--sf);font-weight:500;line-height:1.15;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1{font-size:clamp(2rem,5.4vw,3.3rem)}
+h2{font-size:clamp(1.55rem,3.6vw,2.2rem)}
+h3{font-size:1.2rem;font-weight:600}
+p{margin:0}
+.eyebrow{font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+
+/* topo e herói */
+.hero{background:radial-gradient(120% 90% at 85% 0%,#12381f 0%,var(--g800) 48%,var(--g900) 100%);color:#fff;padding:0 0 64px}
+.top{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--sf);font-size:1.45rem;text-decoration:none;color:#fff}
+.brand span.pro{font-family:var(--ss);font-size:.66rem;font-weight:700;letter-spacing:.16em;color:var(--g300);border:1px solid rgba(134,239,172,.45);border-radius:999px;padding:3px 9px}
+.top a.entrar{font-size:.9rem;font-weight:600;color:var(--g200);text-decoration:none;padding:10px 4px}
+.top a.entrar:hover{text-decoration:underline}
+.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;padding-top:34px}
+.hero .eyebrow{color:var(--g300)}
+.hero h1{margin:14px 0 18px}
+.hero p.lead{font-size:1.1rem;color:rgba(255,255,255,.82);max-width:34em}
+.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;margin-top:28px}
+.btn{display:inline-block;background:linear-gradient(180deg,#25cf63,var(--g500));color:#04200e;font-weight:700;font-size:1.02rem;text-decoration:none;padding:15px 26px;border-radius:14px;box-shadow:0 10px 26px rgba(26,158,79,.32);transition:transform .15s ease,box-shadow .15s ease}
+.btn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(26,158,79,.4)}
+.btn:focus-visible,.top a:focus-visible,.faq summary:focus-visible{outline:3px solid var(--g300);outline-offset:3px}
+.cta-note{font-size:.9rem;color:rgba(255,255,255,.7)}
+.phone{border-radius:26px;overflow:hidden;border:1px solid rgba(134,239,172,.22);box-shadow:0 30px 60px rgba(0,0,0,.45);max-width:330px;margin-left:auto;background:var(--g800)}
+.demo-tag{font-size:.74rem;color:rgba(255,255,255,.55);text-align:right;margin-top:10px;max-width:330px;margin-left:auto}
+
+section{padding:68px 0}
+.sec-head{max-width:40em;margin-bottom:34px}
+.sec-head .eyebrow{color:var(--g600)}
+.sec-head h2{margin-top:10px}
+.sec-head p{margin-top:12px;color:var(--ink2)}
+
+/* o intervalo entre consultas */
+.gap{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.gap div{background:#fff;border:1px solid var(--cream3);border-radius:18px;padding:22px}
+.gap h3{margin-bottom:8px}
+.gap p{color:var(--ink2);font-size:.96rem}
+
+/* como funciona */
+.como{background:var(--cream2)}
+.passos{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:passo;list-style:none;margin:0;padding:0}
+.passos li{counter-increment:passo;background:var(--cream);border:1px solid var(--cream3);border-radius:18px;padding:24px 22px}
+.passos li::before{content:counter(passo);display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--g700);color:var(--g200);font-family:var(--sf);font-size:1.05rem;margin-bottom:14px}
+.passos h3{margin-bottom:6px}
+.passos p{color:var(--ink2);font-size:.96rem}
+
+/* telas */
+.telas{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start}
+.tela figure{margin:0}
+.tela img{border-radius:22px;border:1px solid var(--cream3);box-shadow:0 18px 40px rgba(7,25,13,.16);max-width:320px;margin:0 auto}
+.tela figcaption{max-width:320px;margin:16px auto 0}
+.tela figcaption strong{display:block;font-family:var(--sf);font-size:1.15rem;font-weight:600;margin-bottom:4px}
+.tela figcaption span{color:var(--ink2);font-size:.95rem}
+.nota-demo{margin-top:26px;font-size:.84rem;color:var(--muted);text-align:center}
+
+/* preço */
+.preco{background:radial-gradient(110% 120% at 10% 0%,#12381f 0%,var(--g800) 55%,var(--g900) 100%);color:#fff}
+.preco .sec-head .eyebrow{color:var(--g300)}
+.preco .sec-head p{color:rgba(255,255,255,.78)}
+.plano{display:grid;grid-template-columns:.8fr 1.2fr;gap:30px;align-items:center;border:1px solid rgba(134,239,172,.25);border-radius:22px;padding:30px;background:rgba(255,255,255,.03)}
+.valor{font-family:var(--sf);font-size:3.2rem;line-height:1}
+.valor small{font-family:var(--ss);font-size:1rem;color:rgba(255,255,255,.65);font-weight:400}
+.plano .teste{margin-top:10px;color:var(--g300);font-weight:600}
+.plano ul{margin:0;padding:0 0 0 20px;color:rgba(255,255,255,.86)}
+.plano li{margin:6px 0}
+.plano .btn{margin-top:22px}
+
+/* limites */
+.limites{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.limites div{border-left:3px solid var(--g500);padding:4px 0 4px 18px}
+.limites h3{margin-bottom:6px}
+.limites p{color:var(--ink2);font-size:.96rem}
+.aviso{margin-top:28px;background:#fff;border:1px solid var(--cream3);border-radius:16px;padding:18px 20px;color:var(--ink2);font-size:.95rem}
+.aviso strong{color:var(--ink)}
+
+/* perguntas */
+.faq{background:var(--cream2)}
+.faq details{background:var(--cream);border:1px solid var(--cream3);border-radius:14px;padding:0 20px;margin-bottom:10px}
+.faq summary{cursor:pointer;font-weight:600;padding:17px 0;list-style:none;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';font-family:var(--sf);font-size:1.4rem;color:var(--g600);flex-shrink:0}
+.faq details[open] summary::after{content:'–'}
+.faq details p{padding:0 0 18px;color:var(--ink2);max-width:46em}
+
+.fim{text-align:center;padding:74px 0}
+.fim h2{max-width:20em;margin:0 auto 14px}
+.fim p{color:var(--ink2);margin-bottom:26px}
+.fim .cta-note{color:var(--muted);display:block;margin-top:14px}
+
+footer{background:var(--g900);color:rgba(255,255,255,.6);font-size:.86rem;padding:30px 0}
+footer .wrap{display:flex;flex-wrap:wrap;gap:10px 26px;justify-content:space-between}
+footer a{color:var(--g200)}
+
+@media (max-width:820px){
+  .hero-grid,.telas,.plano,.limites{grid-template-columns:1fr}
+  .gap,.passos{grid-template-columns:1fr}
+  .phone,.demo-tag{margin-left:auto;margin-right:auto;text-align:center}
+  .hero{padding-bottom:48px}
+  section{padding:52px 0}
+  .plano{padding:24px 20px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="/medicos.html"><span aria-hidden="true">🌿</span> Sanova <span class="pro">PRO</span></a>
+      <a class="entrar" href="/pro.html">Já tenho conta</a>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Para médicos e nutricionistas</p>
+        <h1>O que acontece com o seu paciente em GLP-1 entre uma consulta e outra?</h1>
+        <p class="lead">O Sanova Pro mostra, em uma tela, quem está registrando, quem parou e quem está comendo abaixo do que protege a massa magra.</p>
+        <div class="cta-row">
+          <a class="btn" href="/pro.html" data-cta="hero">Testar grátis por 14 dias</a>
+          <span class="cta-note">Depois, R$ 247 por mês. Cancele quando quiser.</span>
+        </div>
+      </div>
+      <div>
+        <div class="phone"><img src="/img/medicos-painel.jpg" width="640" height="1211" alt="Painel do Sanova Pro com três pacientes de demonstração: uma marcada como risco e dois como protegidos."></div>
+        <p class="demo-tag">Tela real do painel, com dados fictícios.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">O intervalo</p>
+      <h2>A consulta dura minutos. O tratamento acontece nas semanas seguintes.</h2>
+    </div>
+    <div class="gap">
+      <div><h3>Você vê o peso, não o caminho</h3><p>No retorno, a balança mostra quanto o paciente perdeu. Não mostra se ele comeu proteína suficiente para perder gordura, e não músculo.</p></div>
+      <div><h3>O relato chega incompleto</h3><p>Náusea na semana da escalada, dias sem comer direito, dose atrasada. O paciente esquece metade até a próxima consulta.</p></div>
+      <div><h3>Quem some, some em silêncio</h3><p>Sem um registro contínuo, você só descobre que o paciente abandonou o plano quando ele falta ao retorno.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="como">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Como funciona</p>
+      <h2>Três passos, sem instalar nada no consultório.</h2>
+    </div>
+    <ol class="passos">
+      <li><h3>Você cria sua conta</h3><p>Entra com o seu e-mail, informa nome e registro profissional e recebe um código de convite só seu.</p></li>
+      <li><h3>O paciente se vincula</h3><p>Ele instala o Sanova no celular, digita o seu código e autoriza o compartilhamento. Pode desfazer quando quiser.</p></li>
+      <li><h3>Você acompanha</h3><p>O painel lista seus pacientes com um semáforo de proteção muscular e mostra há quantos dias cada um não registra.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">O que você vê</p>
+      <h2>A lista de quem precisa de atenção, e a ficha de cada um.</h2>
+    </div>
+    <div class="telas">
+      <div class="tela"><figure>
+        <img src="/img/medicos-painel.jpg" width="640" height="1211" loading="lazy" alt="Lista de pacientes no painel, com semáforo e último registro.">
+        <figcaption><strong>Painel</strong><span>O semáforo compara a proteína e as calorias que o paciente registrou com as metas dele. Vermelho é convite para olhar de perto.</span></figcaption>
+      </figure></div>
+      <div class="tela"><figure>
+        <img src="/img/medicos-ficha.jpg" width="640" height="1211" loading="lazy" alt="Ficha de uma paciente de demonstração em modo somente leitura, com peso, proteína do dia e refeições.">
+        <figcaption><strong>Ficha do paciente</strong><span>Você abre o app como o paciente o vê, em modo somente leitura: peso, refeições, proteína, sintomas e a fase da medicação.</span></figcaption>
+      </figure></div>
+    </div>
+    <p class="nota-demo">As telas são reais. Os pacientes e a profissional que aparecem nelas são fictícios.</p>
+  </div>
+</section>
+
+<section class="preco" id="preco">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Preço</p>
+      <h2>Um plano. Seus pacientes não pagam.</h2>
+      <p>A licença é sua. Os pacientes que você vincula usam o aplicativo completo sem custo para eles.</p>
+    </div>
+    <div class="plano">
+      <div>
+        <div class="valor">R$ 247 <small>por mês</small></div>
+        <p class="teste">14 dias grátis para testar</p>
+      </div>
+      <div>
+        <ul>
+          <li>Painel com seus pacientes e a ficha de cada um.</li>
+          <li>App completo liberado para até 30 pacientes vinculados.</li>
+          <li>O cartão é cadastrado no Mercado Pago. A primeira cobrança só acontece depois do teste.</li>
+          <li>Cancelamento no próprio painel, em dois toques.</li>
+        </ul>
+        <a class="btn" href="/pro.html" data-cta="preco">Começar o teste grátis</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Limites</p>
+      <h2>O que o Sanova faz, e o que ele não faz.</h2>
+    </div>
+    <div class="limites">
+      <div><h3>Organiza e sinaliza</h3><p>Reúne o que o paciente registra e destaca quem está abaixo de limiares de proteína e de calorias. A leitura clínica é sua.</p></div>
+      <div><h3>Não diagnostica nem prescreve</h3><p>O Sanova não sugere dose, não indica conduta e não substitui a consulta. Mudança de dose é decisão exclusiva do médico.</p></div>
+      <div><h3>Depende do registro do paciente</h3><p>O painel mostra o que foi registrado e sincronizado. Paciente que não registra aparece como "sem registro", não como "sem problema".</p></div>
+      <div><h3>O dado é do paciente</h3><p>O vínculo exige consentimento dele e pode ser desfeito por ele a qualquer momento. Você vê em modo leitura e não altera nada.</p></div>
+    </div>
+    <p class="aviso"><strong>Importante:</strong> o Sanova pode sinalizar, mas não substitui o monitoramento clínico. Ausência de alerta não significa ausência de risco.</p>
+  </div>
+</section>
+
+<section class="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Perguntas frequentes</p>
+      <h2>Antes de testar</h2>
+    </div>
+    <details><summary>Preciso instalar algum programa?</summary><p>Não. O painel abre no navegador do computador ou do celular. O paciente usa o Sanova como aplicativo no celular dele.</p></details>
+    <details><summary>O meu paciente paga alguma coisa?</summary><p>Não. Enquanto a sua licença estiver ativa, até 30 pacientes vinculados a você usam o aplicativo completo sem pagar.</p></details>
+    <details><summary>Como funciona o teste grátis?</summary><p>Você cadastra o cartão no Mercado Pago e usa o painel por 14 dias sem cobrança. Se não cancelar, a mensalidade de R$ 247 começa ao fim do teste.</p></details>
+    <details><summary>Como eu cancelo?</summary><p>No rodapé do painel há a opção "Cancelar assinatura". As cobranças param e o acesso continua até o fim do período que já estava valendo.</p></details>
+    <details><summary>Quem pode usar?</summary><p>Médicos e nutricionistas que acompanham pacientes em tratamento com análogos de GLP-1. O cadastro pede o seu registro profissional.</p></details>
+    <details><summary>Onde ficam os dados?</summary><p>Em servidores com acesso restrito por paciente. Você só enxerga quem se vinculou a você e autorizou. Os detalhes estão na <a href="/privacidade.html">política de privacidade</a>.</p></details>
+  </div>
+</section>
+
+<section class="fim">
+  <div class="wrap">
+    <h2>Veja o painel funcionando com os seus pacientes.</h2>
+    <p>O cadastro leva poucos minutos.</p>
+    <a class="btn" href="/pro.html" data-cta="fim">Testar grátis por 14 dias</a>
+    <span class="cta-note">Depois, R$ 247 por mês. Cancele quando quiser.</span>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Sanova · acompanhamento de tratamento com GLP-1</span>
+    <span><a href="/privacidade.html">Privacidade</a> · <a href="mailto:contatosanovaapp@gmail.com">Contato</a> · <a href="/">App do paciente</a></span>
+  </div>
+</footer>
+
+<script>
+/* Guarda de onde o visitante veio (primeiro toque), para o cadastro saber
+   qual anúncio trouxe o profissional. Nenhum dado pessoal: só os parâmetros
+   utm_* da URL e o botão clicado. Fica no próprio aparelho. */
+(function(){
+  try{
+    var q = new URLSearchParams(location.search), o = {};
+    ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(function(k){
+      var v = q.get(k); if(v) o[k] = String(v).slice(0,80);
+    });
+    if(Object.keys(o).length && !localStorage.getItem('sanova_origem')){
+      o.chegada = new Date().toISOString();
+      localStorage.setItem('sanova_origem', JSON.stringify(o));
+    }
+    document.querySelectorAll('a[data-cta]').forEach(function(a){
+      a.addEventListener('click', function(){
+        try{ localStorage.setItem('sanova_cta', a.getAttribute('data-cta')); }catch(e){}
+      });
+    });
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
