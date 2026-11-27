@@ -91,7 +91,7 @@ export default {
             rl = 'erro';
           }
         }
-        return jsonResponse({ ok: true, version: '1.34.0', rl_probe: rl }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.35.0', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
