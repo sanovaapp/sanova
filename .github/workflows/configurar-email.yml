@@ -1,0 +1,21 @@
+name: Configurar e-mail do Supabase (Resend)
+
+# Liga o link de acesso do Supabase ao Resend. Rodar de novo sempre que a
+# chave do Resend for trocada.
+on:
+  workflow_dispatch:
+
+jobs:
+  configurar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Aplica a configuração
+        env:
+          SUPABASE_MGMT_TOKEN: ${{ secrets.SUPABASE_MGMT_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node .github/scripts/configurar-email-supabase.mjs

@@ -48,6 +48,7 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY
             ADMIN_OVERRIDE_TOKEN
             DEMO_REVIEW_PASSWORD
+            RESEND_API_KEY
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MP_ACCESS_TOKEN_SANDBOX: ${{ secrets.MP_ACCESS_TOKEN_SANDBOX }}
@@ -67,3 +68,5 @@ jobs:
           # estiver setado em GitHub Secrets, _criarOuEncontrarUser volta a
           # rotacionar UUID aleatorio (comportamento antigo).
           DEMO_REVIEW_PASSWORD: ${{ secrets.DEMO_REVIEW_PASSWORD }}
+          # v1.37.0: envio dos e-mails do teste gratis (worker/src/email.js).
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

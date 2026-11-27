@@ -182,6 +182,25 @@ export async function handleAdminEmailsTeste(request, env) {
   return json(out, 200);
 }
 
+/**
+ * GET /api/admin-email-prova
+ * Manda UM e-mail de boas-vindas de exemplo para a caixa do proprio Sanova.
+ * O destino e fixo de proposito: esta rota nao serve pra escrever a terceiros.
+ */
+export async function handleAdminEmailProva(request, env) {
+  if (!env.RESEND_API_KEY) return json({ ok: false, error: 'sem_chave' }, 200);
+  const msg = montarEmail('boas_vindas', {
+    nome: 'Profissional de exemplo', invite_code: 'SAN-EXEM',
+    cobranca: new Date(Date.now() + 14 * DIA),
+  });
+  try {
+    await enviarResend({ to: RESPONDER_PARA, subject: '[prova] ' + msg.subject, html: msg.html }, env);
+    return json({ ok: true, enviado: true }, 200);
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e).slice(0, 300) }, 200);
+  }
+}
+
 function json(o, status) {
   return new Response(JSON.stringify(o, null, 2), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
