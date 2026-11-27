@@ -90,6 +90,8 @@ jobs:
 
           const erros = [];
           function attachErrors(page, label) {
+            page.on('console', m => { if (m.type() === 'error') console.log('[console.error]', label, m.text().slice(0, 300)); });
+            page.on('response', r => { if (r.url().includes('/api/') && r.status() >= 400) console.log('[api]', label, r.status(), r.url().split('/api/')[1]); });
             page.on('pageerror', e => {
               const entry = { label, msg: e.message, stack: (e.stack || '').slice(0, 600), when: new Date().toISOString() };
               erros.push(entry);

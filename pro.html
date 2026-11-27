@@ -756,10 +756,20 @@ async function boot() {
   } catch (e) {
     if (e.status === 403 && e.data && e.data.error === 'not_a_professional') {
       setView('register');
-    } else {
-      // Sessão pode ter expirado
+    } else if (e.status === 401 || e.message === 'not_authenticated') {
+      // Sessão expirou de verdade: volta pro login.
       await sb.auth.signOut();
       setView('login');
+    } else {
+      // Falha nossa (servidor ou rede). Antes isso deslogava o profissional
+      // em silêncio e ele caía no login sem saber por quê.
+      const cod = (e && (e.data && e.data.ref || e.data && e.data.error || e.message)) || 'desconhecido';
+      console.error('[pro] falha ao carregar painel:', e && e.status, cod);
+      state.view = 'erro';
+      $('content').innerHTML = `<div class="card"><h2 class="card-title">Não consegui carregar seu painel</h2>
+        <p class="card-sub">O problema é do nosso lado, não do seu acesso. Tente de novo em instantes.</p>
+        <div class="alert alert-err" id="proErroCod">Código: ${escapeHtml(String(e && e.status || ''))} ${escapeHtml(String(cod))}</div>
+        <button class="btn btn-primary" onclick="boot()" style="margin-top:12px">Tentar de novo</button></div>`;
     }
   }
 }
