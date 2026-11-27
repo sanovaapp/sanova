@@ -160,3 +160,16 @@ test('app do paciente consulta o acesso por vinculo', () => {
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   assert.ok(html.includes("sb.rpc('acesso_via_profissional')"));
 });
+
+// ── pagina de vendas ─────────────────────────────────────────────────
+test('pagina de vendas: preco e teste iguais aos do servidor, sem promessa clinica', () => {
+  const html = readFileSync(new URL('../../medicos.html', import.meta.url), 'utf8');
+  assert.ok(html.includes('R$ 247'), 'preco fora de sincronia');
+  assert.ok(html.includes(TESTE_PRO_DIAS + ' dias grátis'), 'dias de teste fora de sincronia');
+  assert.ok(html.includes('href="/pro.html"'), 'botao tem que levar ao cadastro');
+  assert.ok(html.includes('Ausência de alerta não significa ausência de risco'), 'aviso de fronteira clinica ausente');
+  // CLAUDE.md secao 5: sem nome comercial de medicamento nem promessa de resultado.
+  for (const proibido of [/ozempic/i, /mounjaro/i, /wegovy/i, /saxenda/i, /zepbound/i, /garant/i, /comprovad/i, /cura\b/i]) {
+    assert.equal(proibido.test(html), false, 'termo proibido na pagina: ' + proibido);
+  }
+});
