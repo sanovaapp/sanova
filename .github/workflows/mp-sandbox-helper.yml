@@ -39,6 +39,8 @@ on:
           - admin-cleanup-v2
           - admin-check-payment-methods
           - admin-mp-diagnostico
+          - admin-email-prova
+          - admin-emails-teste
           - admin-fixture-bootstrap
           - admin-fixture-bootstrap-incompleta
           - admin-seed-fixture-completa
