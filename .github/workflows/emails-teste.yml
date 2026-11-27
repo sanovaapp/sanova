@@ -1,0 +1,20 @@
+name: E-mails do teste grátis
+
+# De hora em hora, pede ao servidor para enviar os e-mails devidos a quem
+# está no teste grátis da licença profissional (boas-vindas, meio do teste e
+# véspera da cobrança). O servidor anota cada envio e nunca repete.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 * * * *'
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Envia os e-mails devidos
+        env:
+          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+        run: |
+          curl -sS --fail-with-body -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "https://sanova-api.contatosanovaapp.workers.dev/api/admin-emails-teste"
