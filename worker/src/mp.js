@@ -267,3 +267,31 @@ export function buildCheckoutUrlForPlan({ planId, userId, backUrl }) {
   if (backUrl) params.set('back_url', backUrl);
   return 'https://www.mercadopago.com.br/subscriptions/checkout?' + params.toString();
 }
+
+/**
+ * v1.32.0: ate quando o acesso pago vale.
+ *
+ * Por que existe: o webhook marcava status='active' mas nunca gravava
+ * subscription_ends_at, e o app so considera ativo quem tem essa data no
+ * futuro. Resultado: quem pagava continuava vendo "expirado".
+ *
+ * Regra: a proxima cobranca que o Mercado Pago informa (next_payment_date)
+ * mais 3 dias de folga, pra retentativa de cartao nao derrubar o acesso de
+ * quem esta em dia. Se o MP nao informar (ou informar data passada), conta
+ * um ciclo do plano a partir de `base`.
+ */
+export const FOLGA_DIAS = 3;
+export function calcValidade(pa, base) {
+  const agora = base ? new Date(base) : new Date();
+  const folga = FOLGA_DIAS * 86400000;
+  const prox = pa && pa.next_payment_date ? new Date(pa.next_payment_date) : null;
+  if (prox && !isNaN(prox) && prox.getTime() > agora.getTime()) {
+    return new Date(prox.getTime() + folga).toISOString();
+  }
+  const ar = (pa && pa.auto_recurring) || {};
+  const n = Number(ar.frequency) > 0 ? Number(ar.frequency) : 1;
+  const fim = new Date(agora);
+  if (ar.frequency_type === 'days') fim.setUTCDate(fim.getUTCDate() + n);
+  else fim.setUTCMonth(fim.getUTCMonth() + n);
+  return new Date(fim.getTime() + folga).toISOString();
+}
