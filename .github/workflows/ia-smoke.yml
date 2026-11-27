@@ -1,0 +1,40 @@
+name: IA — teste de fumaça
+
+# Loga com a conta de teste e chama as rotas de IA como o app chama.
+# Responde "a IA esta funcionando?" com status e motivo, sem print.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * *'
+
+env:
+  SANOVA_ORIGIN: https://sanova.app.br
+  WORKER_BASE: https://sanova-api.contatosanovaapp.workers.dev
+
+jobs:
+  ia-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y > /dev/null
+          npm install -D @playwright/test@1.49.0
+          npx playwright install --with-deps chromium
+      - name: Conta de teste (magic link)
+        id: link
+        env:
+          ADMIN_OVERRIDE_TOKEN: ${{ secrets.ADMIN_OVERRIDE_TOKEN }}
+        run: |
+          curl -sS -H "X-Admin-Token: $ADMIN_OVERRIDE_TOKEN" "$WORKER_BASE/api/admin-fixture-bootstrap" -o raw.json
+          echo "magic_link=$(python3 -c "import json; print(json.load(open('raw.json')).get('action_link',''))")" >> $GITHUB_OUTPUT
+      - name: Chama a IA
+        env:
+          MAGIC_LINK: ${{ steps.link.outputs.magic_link }}
+        run: |
+          cp .github/scripts/ia-smoke.mjs ./ia-smoke.mjs
+          node ia-smoke.mjs
