@@ -16,11 +16,11 @@
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
-import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan } from './mp.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade } from './mp.js';
 import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
 import { requireAdmin } from './auth.js';
 import { checarLimite } from './ratelimit.js';
-import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData } from './pro.js';
+import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData, verifyJwt } from './pro.js';
 import { handleProAlertsPrefs, handleProAlertsList, handleProAlertsDismiss, handleAdminRunAlertDetection } from './alerts.js';
 import { handleAdminRunRetention } from './retencao.js';
 
@@ -91,7 +91,7 @@ export default {
             rl = 'erro';
           }
         }
-        return jsonResponse({ ok: true, version: '1.31.3', rl_probe: rl }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.32.0', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -412,6 +412,12 @@ async function handleAnalyzePhoto(request, env, origin) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
 
+  // v1.32.0: exige sessao. A Gemini cobra por chamada; so com a checagem de
+  // origem, qualquer script que forjasse o cabecalho gastava a conta do Bruno.
+  if (!(await verifyJwt(request, env))) {
+    return jsonResponse({ ok: false, error: 'auth_required', message: 'Entre na sua conta para usar a analise.' }, 401, origin, env);
+  }
+
   // v1.24.0: cap em ~6MB JSON (foto base64 grande de celular ~4-5MB).
   // Bloqueia atacante que mandaria 50MB pra estourar Worker/Gemini.
   const lim = await readBodyWithLimit(request, 6 * 1024 * 1024);
@@ -447,6 +453,12 @@ async function handleAnalyzePhoto(request, env, origin) {
 async function handleAnalyzeText(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+
+  // v1.32.0: exige sessao. A Gemini cobra por chamada; so com a checagem de
+  // origem, qualquer script que forjasse o cabecalho gastava a conta do Bruno.
+  if (!(await verifyJwt(request, env))) {
+    return jsonResponse({ ok: false, error: 'auth_required', message: 'Entre na sua conta para usar a analise.' }, 401, origin, env);
   }
 
   // v1.24.0: cap em 16KB (descricao de prato em pt-BR raramente passa de 500 chars).
@@ -553,8 +565,14 @@ async function handleMpCreatePreapproval(request, env, origin) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
 
+  // v1.32.0: exige sessao. Antes aceitava qualquer userId no corpo, entao
+  // um terceiro podia abrir checkout em nome de outra conta.
+  const sessao = await verifyJwt(request, env);
+  if (!sessao) {
+    return jsonResponse({ ok: false, error: 'auth_required', message: 'Entre na sua conta para assinar.' }, 401, origin, env);
+  }
   const body = await request.json().catch(() => ({}));
-  const userId = body.userId;
+  const userId = sessao.id;
   const planoIn = body.plano;
   const backUrl = body.backUrl || 'https://sanova.app.br/?mp_return=1';
   const tipo = (planoIn === 'anual') ? 'anual' : 'mensal';
@@ -1315,6 +1333,8 @@ async function handleMpWebhook(request, env) {
           (pa.summarized && pa.summarized.last_charged_date) ||
           pa.date_created ||
           new Date().toISOString();
+        // v1.32.0: sem esta data o app trata o pagante como expirado.
+        extraFields.subscription_ends_at = calcValidade(pa);
       } else if (pa.status === 'cancelled' || pa.status === 'paused') {
         status = 'canceled';
         extraFields.subscription_ends_at = new Date().toISOString();
@@ -1365,6 +1385,9 @@ async function handleMpWebhook(request, env) {
           subscription_started_at: pay.date_approved || new Date().toISOString(),
         };
         if (realSubId) update.mp_preapproval_id = realSubId;
+        // v1.32.0: cada cobranca aprovada (a primeira e as renovacoes)
+        // empurra a validade pro proximo ciclo.
+        update.subscription_ends_at = calcValidade(preapprovalReal, pay.date_approved);
         if (userId) {
           await updateSubscriptionByUser(userId, update, env);
           console.log('[mp-webhook] AUTO-ATIVADO user=' + userId.slice(0, 8) + '... preapproval=' + realSubId);
