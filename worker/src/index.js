@@ -16,8 +16,8 @@
 
 import { GeminiProvider } from './providers/gemini.js';
 import { jsonResponse, corsHeaders, isOriginAllowed } from './http.js';
-import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade, mpToken, diagnosticoMP } from './mp.js';
-import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions } from './supabase.js';
+import { createPreapproval, getPreapproval, getPayment, verifyWebhookSignature, createTestUser, createPreapprovalPlanMP, buildCheckoutUrlForPlan, calcValidade, mpToken, diagnosticoMP, tipoPlano, decidirAssinatura, cancelarPreapproval } from './mp.js';
+import { updateSubscriptionByUser, updateSubscriptionByPreapproval, findUserByEmail, countRows, isEmailAdmin, generateMagicLink, getMpPlan, upsertMpPlan, listRecentSubscriptions, tipoDoPlanoMP, getSubscriptionByUser } from './supabase.js';
 import { requireAdmin } from './auth.js';
 import { checarLimite } from './ratelimit.js';
 import { handleProRegister, handleProMe, handleProPatients, handleProPatient, handleLinkProfessional, handleUnlinkProfessional, handleMyProfessionals, handleProAssets, handleSpectatorState, handleDeleteMyAccount, handleExportMyData, verifyJwt } from './pro.js';
@@ -91,7 +91,7 @@ export default {
             rl = 'erro';
           }
         }
-        return jsonResponse({ ok: true, version: '1.33.1', rl_probe: rl }, 200, origin, env);
+        return jsonResponse({ ok: true, version: '1.34.0', rl_probe: rl }, 200, origin, env);
       }
 
       // ─── Painel Profissional (Fase 1) ────────────────────────
@@ -166,6 +166,11 @@ export default {
       }
 
       // v1.1.0: recebe notificacao do MP, valida HMAC, atualiza Supabase
+      // v1.34.0: o proprio assinante cancela (paciente ou profissional).
+      if (url.pathname === '/api/mp-cancel' && request.method === 'POST') {
+        return await handleMpCancel(request, env, origin);
+      }
+
       if (url.pathname === '/api/mp-webhook' && request.method === 'POST') {
         return await handleMpWebhook(request, env);
       }
@@ -581,8 +586,10 @@ async function handleMpCreatePreapproval(request, env, origin) {
   const body = await request.json().catch(() => ({}));
   const userId = sessao.id;
   const planoIn = body.plano;
-  const backUrl = body.backUrl || 'https://sanova.app.br/?mp_return=1';
-  const tipo = (planoIn === 'anual') ? 'anual' : 'mensal';
+  const tipo = tipoPlano(planoIn);
+  const backUrl = body.backUrl || (tipo === 'pro'
+    ? 'https://sanova.app.br/pro.html?mp_return=1'
+    : 'https://sanova.app.br/?mp_return=1');
 
   if (!userId) {
     return jsonResponse(
@@ -641,10 +648,11 @@ async function handleAdminEnsureMpPlans(env) {
   const backUrl = 'https://sanova.app.br/?mp_return=1';
   const result = {};
   try {
-    for (const tipo of ['mensal', 'anual']) {
+    for (const tipo of ['mensal', 'anual', 'pro']) {
       let p = await getMpPlan(tipo, env);
       if (!p) {
-        const created = await createPreapprovalPlanMP({ tipo, backUrl }, env);
+        const volta = tipo === 'pro' ? 'https://sanova.app.br/pro.html?mp_return=1' : backUrl;
+        const created = await createPreapprovalPlanMP({ tipo, backUrl: volta }, env);
         p = await upsertMpPlan({
           tipo,
           mp_plan_id: created.id,
@@ -1332,31 +1340,18 @@ async function handleMpWebhook(request, env) {
     if (type === 'preapproval' || type === 'subscription_preapproval') {
       const pa = await getPreapproval(dataId, env);
       const charged = (pa.summarized && pa.summarized.charged_quantity) || 0;
-      let status = null;
-      let extraFields = { mp_preapproval_id: pa.id };
-
-      if (pa.status === 'authorized' && charged > 0) {
-        status = 'active';
-        extraFields.subscription_started_at =
-          (pa.summarized && pa.summarized.last_charged_date) ||
-          pa.date_created ||
-          new Date().toISOString();
-        // v1.32.0: sem esta data o app trata o pagante como expirado.
-        extraFields.subscription_ends_at = calcValidade(pa);
-      } else if (pa.status === 'cancelled' || pa.status === 'paused') {
-        status = 'canceled';
-        extraFields.subscription_ends_at = new Date().toISOString();
-      }
-
-      if (status) {
+      // v1.34.0: a decisao mora em decidirAssinatura (mp.js), testada sem rede.
+      const tipoPlanoMP = await tipoDoPlanoMP(pa.preapproval_plan_id, env);
+      const mudanca = decidirAssinatura(pa, tipoPlanoMP);
+      if (mudanca) {
         const userId = await _resolveUserId(pa, env);
         if (userId) {
-          await updateSubscriptionByUser(userId, { status, ...extraFields }, env);
+          await updateSubscriptionByUser(userId, mudanca, env);
         } else {
-          await updateSubscriptionByPreapproval(pa.id, { status, ...extraFields }, env);
+          await updateSubscriptionByPreapproval(pa.id, mudanca, env);
         }
       }
-      return new Response(JSON.stringify({ ok: true, preapproval_status: pa.status, charged }), {
+      return new Response(JSON.stringify({ ok: true, preapproval_status: pa.status, charged, plano: tipoPlanoMP, gravado: mudanca ? mudanca.status : null }), {
         status: 200, headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -1396,6 +1391,10 @@ async function handleMpWebhook(request, env) {
         // v1.32.0: cada cobranca aprovada (a primeira e as renovacoes)
         // empurra a validade pro proximo ciclo.
         update.subscription_ends_at = calcValidade(preapprovalReal, pay.date_approved);
+        // v1.34.0: cobranca da licenca profissional marca o plano.
+        if (preapprovalReal && (await tipoDoPlanoMP(preapprovalReal.preapproval_plan_id, env)) === 'pro') {
+          update.plano = 'pro';
+        }
         if (userId) {
           await updateSubscriptionByUser(userId, update, env);
           console.log('[mp-webhook] AUTO-ATIVADO user=' + userId.slice(0, 8) + '... preapproval=' + realSubId);
@@ -1403,10 +1402,13 @@ async function handleMpWebhook(request, env) {
           await updateSubscriptionByPreapproval(realSubId, update, env);
         }
       } else if (pay.status === 'refunded' || pay.status === 'charged_back') {
+        // v1.34.0: estorno encerra o acesso na hora (cancelamento comum nao).
+        const fimAgora = new Date().toISOString();
+        const estorno = { status: 'canceled', subscription_ends_at: fimAgora, trial_ends_at: fimAgora };
         if (userId) {
-          await updateSubscriptionByUser(userId, { status: 'canceled' }, env);
+          await updateSubscriptionByUser(userId, estorno, env);
         } else if (realSubId) {
-          await updateSubscriptionByPreapproval(realSubId, { status: 'canceled' }, env);
+          await updateSubscriptionByPreapproval(realSubId, estorno, env);
         }
       }
       return new Response(JSON.stringify({
@@ -1427,6 +1429,32 @@ async function handleMpWebhook(request, env) {
       status: 200, // 200 pra evitar retentativas infinitas; logamos pra investigar
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+}
+
+// ─── /api/mp-cancel (v1.34.0) ────────────────────────────────
+// O assinante cancela a propria assinatura. Cancela no Mercado Pago (para
+// de cobrar) e marca 'canceled' aqui. As datas ficam: o que ja foi pago, ou
+// o teste em curso, vale ate o fim.
+async function handleMpCancel(request, env, origin) {
+  if (!isOriginAllowed(origin, env)) {
+    return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
+  }
+  const sessao = await verifyJwt(request, env);
+  if (!sessao) return jsonResponse({ ok: false, error: 'auth_required' }, 401, origin, env);
+  try {
+    const sub = await getSubscriptionByUser(sessao.id, env);
+    const idMp = sub && sub.mp_preapproval_id;
+    if (!idMp || /^(admin-simulated-|demo-)/.test(idMp)) {
+      return jsonResponse({ ok: false, error: 'sem_assinatura', message: 'Nao ha assinatura ativa no Mercado Pago para cancelar.' }, 404, origin, env);
+    }
+    await cancelarPreapproval(idMp, env);
+    await updateSubscriptionByUser(sessao.id, { status: 'canceled' }, env);
+    return jsonResponse({ ok: true, status: 'canceled' }, 200, origin, env);
+  } catch (err) {
+    const ref = refDeErro();
+    console.error(`[mp-cancel] erro ref=${ref}`, err);
+    return jsonResponse({ ok: false, error: 'mp_error', message: 'Nao foi possivel cancelar agora. Tente de novo em instantes.', ref }, 502, origin, env);
   }
 }
 
@@ -2291,9 +2319,10 @@ async function _upsertAppState(userId, state, env) {
   );
 }
 
-async function _ensureSubscriptionActive(userId, env) {
+async function _ensureSubscriptionActive(userId, env, plano) {
   const sub = {
     user_id: userId,
+    plano: plano === 'pro' ? 'pro' : 'paciente',
     status: 'active',
     trial_started_at: new Date().toISOString(),
     trial_ends_at: new Date(Date.now() + 365 * 86400000).toISOString(),
@@ -2456,6 +2485,9 @@ async function handleAdminSeedDemo(env) {
     await _ensureSubscriptionActive(marianaId, env);
     await _ensureSubscriptionActive(joaoId, env);
     await _ensureSubscriptionActive(carlaId, env);
+    // v1.34.0: a profissional de demonstracao tem licenca, senao o painel
+    // dela cairia na oferta do teste gratis e a simulacao nao veria paciente.
+    await _ensureSubscriptionActive(proAnaId, env, 'pro');
 
     // 4. Profissional Dra. Ana
     const proExistente = await fetch(

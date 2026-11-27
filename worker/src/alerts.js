@@ -16,7 +16,7 @@
  */
 
 import { jsonResponse, isOriginAllowed } from './http.js';
-import { SUPABASE_URL, svcHeadersFor, requirePro } from './pro.js';
+import { SUPABASE_URL, svcHeadersFor, requirePro, requireProLicenciado } from './pro.js';
 
 // ─── Definicao das 10 chaves ────────────────────────────────────────
 // severity: 'red' (imediato, nao-configuravel) | 'yellow' (opt-in)
@@ -376,7 +376,7 @@ export async function handleProAlertsList(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
-  const ctx = await requirePro(request, env, origin);
+  const ctx = await requireProLicenciado(request, env, origin);
   if (ctx.error) return ctx.error;
 
   const desde = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -401,7 +401,7 @@ export async function handleProAlertsDismiss(request, env, origin) {
   if (!isOriginAllowed(origin, env)) {
     return jsonResponse({ ok: false, error: 'origin_not_allowed' }, 403, origin, env);
   }
-  const ctx = await requirePro(request, env, origin);
+  const ctx = await requireProLicenciado(request, env, origin);
   if (ctx.error) return ctx.error;
   let body = {};
   try { body = await request.json(); } catch {}

@@ -6672,7 +6672,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.82';
+var SANOVA_VERSION = '3.10.83';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -24244,6 +24244,8 @@ window.addEventListener('beforeunload',function(){
         var s = 'expired';
         if(d.status === 'active' && assFim > agora) s = 'active';
         else if(d.status === 'trial' && trialFim > agora) s = 'trial';
+        // v3.10.83: quem cancelou mantem o que ja pagou ate o fim do periodo.
+        else if(d.status === 'canceled' && assFim > agora) s = 'active';
         else if(d.status === 'canceled') s = 'canceled';
         estado = {
           status: s,
@@ -24258,6 +24260,17 @@ window.addEventListener('beforeunload',function(){
       console.warn('[Assinatura] erro ao ler subscriptions:', e);
       estado = {status:'free', diasRestantes:0, trialEndsAt:null,
                 assinaturaTermina:null, carregado:true, fonte:'erro'};
+    }
+    // v3.10.83: paciente vinculado a profissional com licenca em dia usa o
+    // app completo sem pagar. O servidor responde so sim/nao.
+    if(estado.status !== 'trial' && estado.status !== 'active'){
+      try{
+        var via = await sb.rpc('acesso_via_profissional');
+        if(via && via.data === true){
+          estado = {status:'active', diasRestantes:0, trialEndsAt:null,
+                    assinaturaTermina:null, carregado:true, fonte:'profissional'};
+        }
+      }catch(e){ console.warn('[Assinatura] checagem de vinculo falhou:', e); }
     }
     estado = aplicarOverrideDev(estado);
     disparar();
