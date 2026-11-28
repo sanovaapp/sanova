@@ -251,7 +251,7 @@ function viewLogin() {
     </div>
     <div class="alert alert-info">
       <strong>Primeira vez aqui?</strong><br>
-      Após o login, oferecemos o cadastro como nutrólogo, nutricionista ou médico.
+      Depois de entrar, você faz o cadastro como profissional de saúde que acompanha o paciente em tratamento.
     </div>
   `;
 }
@@ -260,7 +260,7 @@ function viewRegister() {
   return `
     <div class="card">
       <h2 class="card-title">Cadastro de profissional</h2>
-      <p class="card-sub">Esses dados aparecem pro seu paciente no app dele (co-branding). Você pode editar depois.</p>
+      <p class="card-sub">Esses dados aparecem para o seu paciente no aplicativo dele. Você pode editar depois.</p>
       <div class="fi">
         <label>Seu nome completo *</label>
         <input id="regNome" type="text" autocomplete="name" placeholder="Dr(a). Nome Sobrenome">
@@ -271,16 +271,16 @@ function viewRegister() {
           <option value="">— selecione —</option>
           <option value="medico">Médico(a)</option>
           <option value="nutricionista">Nutricionista</option>
-          <option value="outro">Outro</option>
+          <option value="outro">Outro profissional de saúde</option>
         </select>
       </div>
       <div class="fi">
-        <label>Registro (CRM, CRN, etc)</label>
-        <input id="regRegistro" type="text" placeholder="ex: CRN-3 12345 / SP">
+        <label>Registro profissional (CRM, CRN...)</label>
+        <input id="regRegistro" type="text" placeholder="ex: CRM-ES 12345">
       </div>
       <div class="fi">
-        <label>Como você quer aparecer pro paciente</label>
-        <input id="regTitulo" type="text" placeholder="ex: Nutricionista · CRN-3 12345">
+        <label>Como você quer aparecer para o paciente</label>
+        <input id="regTitulo" type="text" placeholder="ex: Endocrinologista · CRM-ES 12345">
       </div>
       <!-- v1.6.0 (Fable T50): aceite obrigatorio do termo pro.
            Fronteira regulatoria — Sanova sinaliza, nao substitui conduta. -->
