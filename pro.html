@@ -132,7 +132,7 @@ a:hover{text-decoration:underline}
   </div>
   <div class="footer-note">
     Painel para profissionais cadastrados.<br>
-    Você precisa do código de convite do seu paciente pra acessar os dados.<br>
+    O paciente autoriza o acesso digitando o seu código de convite no aplicativo dele.<br>
     <a href="/privacidade.html">Política de privacidade</a> · <a href="index.html">App do paciente</a>
   </div>
 </div>
@@ -209,13 +209,35 @@ function escapeHtml(s) {
 function avatarLetter(nome) {
   // v3.10.32 hardening Fable: sanitiza pra alphanumeric + acentos pra eliminar
   // qualquer chance de injecao via primeiro char do nome/email.
-  const c = (nome || '?').trim().charAt(0).toUpperCase();
+  // v3.10.85: pula o titulo (Dr., Dra., Dr.(a), Prof.) pra letra ser a do nome.
+  const semTitulo = String(nome || '?').trim().replace(/^(dra?\.?(\(a\))?|prof(a|\.|ª)?\.?)\s+/i, '');
+  const c = (semTitulo || '?').charAt(0).toUpperCase();
   return /^[A-Za-zÀ-ÿ0-9]$/.test(c) ? c : '?';
 }
 
 // ─── Views ──────────────────────────────────────────────────────────
 
 function viewLogin() {
+  // v3.10.85: quem chega pela pagina de vendas nunca teve conta. A tela fala
+  // de comecar o teste, nao de "email cadastrado".
+  if (lerOrigem()) {
+    return `
+    <div class="card">
+      <h2 class="card-title">Comece seu teste grátis de ${LICENCA_TESTE_DIAS} dias</h2>
+      <p class="card-sub">Digite seu e-mail e enviamos um link de acesso, sem senha. Depois é só informar nome e registro profissional.</p>
+      <div class="fi">
+        <label>Seu e-mail</label>
+        <input id="loginEmail" type="email" autocomplete="email" placeholder="seu@email.com">
+      </div>
+      <button class="btn btn-primary" onclick="enviarMagicLink()">Receber link de acesso</button>
+      <div id="loginMsg"></div>
+    </div>
+    <div class="alert alert-info">
+      <strong>Já tem conta?</strong><br>
+      Use o mesmo e-mail. O link leva direto ao seu painel.
+    </div>
+  `;
+  }
   return `
     <div class="card">
       <h2 class="card-title">Acessar painel profissional</h2>
@@ -319,6 +341,25 @@ function viewLicenca() {
       <button class="btn btn-ghost" style="margin-top:14px;font-size:12px;padding:8px" onclick="logout()">Sair</button>
     </div>
   `;
+}
+
+// v3.10.85: o convite sai pronto (WhatsApp, e-mail...) em vez de o
+// profissional ditar o codigo. Sem compartilhamento nativo, copia o texto.
+function textoConvite() {
+  const code = (state.pro && state.pro.invite_code) || '';
+  return 'Olá! Para eu acompanhar seus registros entre as consultas, use o aplicativo Sanova: '
+    + 'https://sanova.app.br\n\nDepois de criar sua conta, toque em Mais → Vincular profissional '
+    + 'e digite o código ' + code + '.\n\nVocê pode desfazer o vínculo quando quiser.';
+}
+async function enviarConvite() {
+  const btn = $('btnConvite');
+  const texto = textoConvite();
+  const feito = (t) => { if (btn) { btn.textContent = t; setTimeout(() => { btn.textContent = '📲 Enviar convite ao paciente'; }, 2500); } };
+  try {
+    if (navigator.share) { await navigator.share({ text: texto }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(texto); feito('Convite copiado ✓'); }
+  catch (e) { feito('Copie o código acima'); }
 }
 
 async function iniciarLicenca() {
@@ -484,6 +525,7 @@ function viewProPanel() {
       <div class="invite-label">Seu código de convite</div>
       <div class="invite-code">${inviteCode}</div>
       <div class="invite-hint">Compartilhe com seu paciente. Ele cola em <em>Mais → Vincular profissional</em>.</div>
+      <button class="btn btn-ghost" id="btnConvite" style="margin-top:12px;font-size:13px;padding:10px" onclick="enviarConvite()">📲 Enviar convite ao paciente</button>
     </div>
 
     <div class="section-title">Pacientes (${state.patients.length})</div>
@@ -505,15 +547,15 @@ function viewProPanel() {
 // Chaves vermelhas aparecem read-only ("sempre imediato — dever de cuidado").
 async function abrirPrefsAlertas() {
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto';
   ov.innerHTML = `
-    <div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:520px;width:100%;color:#fff;font-family:system-ui,-apple-system,sans-serif">
+    <div style="background:linear-gradient(158deg,#041b0d 0%,#0a3a20 52%,#052413 100%);border:1px solid rgba(187,247,208,.22);border-radius:18px;padding:18px 14px;max-width:520px;width:100%;margin:auto;color:#fff;font-family:system-ui,-apple-system,sans-serif">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div style="font-family:Georgia,serif;font-size:17px;font-weight:500">⚙️ Preferências de alerta</div>
         <button type="button" onclick="this.closest('[data-prefs-ov]').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>
       </div>
       <div style="font-size:12px;color:rgba(187,247,208,.7);line-height:1.55;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.15);border-radius:10px">
-        Sanova sinaliza best-effort. <strong>Ausência de alerta não significa ausência de risco.</strong> Alertas 🔴 (críticos) sempre disparam — dever de cuidado clínico. Alertas 🟡 você escolhe a frequência.
+        O Sanova sinaliza o que os registros permitem ver. <strong>Ausência de alerta não significa ausência de risco.</strong> Alertas 🔴 (críticos) sempre disparam — dever de cuidado clínico. Alertas 🟡 você escolhe a frequência.
       </div>
       <div id="prefsList"><div class="empty" style="font-size:12px">Carregando…</div></div>
     </div>
@@ -578,7 +620,7 @@ async function carregarAlertasAtivos() {
     const eventos = (r.eventos || []);
     if (badge) badge.textContent = eventos.length ? '(' + eventos.length + ')' : '';
     if (!eventos.length) {
-      host.innerHTML = '<div class="empty" style="font-size:12px">Sem alertas ativos nos últimos 30 dias. Isso NÃO significa ausência de risco — Sanova sinaliza best-effort.</div>';
+      host.innerHTML = '<div class="empty" style="font-size:12px">Sem alertas ativos nos últimos 30 dias. Isso NÃO significa ausência de risco: o Sanova sinaliza o que os registros permitem ver.</div>';
       return;
     }
     const SEV = { red: { icon: '🔴', color: '#f3a88a' }, yellow: { icon: '🟡', color: '#fcd34d' } };
@@ -749,7 +791,7 @@ async function enviarMagicLink() {
     msg.innerHTML = `<div class="alert alert-err" style="margin-top:10px">Erro: ${escapeHtml(error.message)}</div>`;
     return;
   }
-  msg.innerHTML = `<div class="alert alert-ok" style="margin-top:10px"><strong>Link enviado!</strong> Confira seu email e clique no link pra entrar.</div>`;
+  msg.innerHTML = `<div class="alert alert-ok" style="margin-top:10px"><strong>Link enviado!</strong> Abra seu e-mail e toque no link para entrar. Se não chegar em 1 minuto, olhe a caixa de spam.</div>`;
 }
 
 // De onde este profissional veio (gravado pela página de vendas no aparelho).

@@ -550,6 +550,9 @@ body.spectator-mode #tabBar,
 body.spectator-mode #helpFab,
 body.spectator-mode #ceFab,
 body.spectator-mode [data-spectator-block]{ display:none !important }
+/* v3.10.85: no espelho o profissional nao registra nada. Some o que convida a registrar. */
+body.spectator-mode #pCtaCheckin,
+body.spectator-mode .so-paciente{ display:none !important }
 body.spectator-mode .bp,
 body.spectator-mode .btn-primary{
   pointer-events:none !important;
@@ -4063,7 +4066,7 @@ try{
   <div id="aneisDia" style="background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:13px 10px 11px;margin-bottom:10px;box-shadow:var(--sh)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 4px;margin-bottom:10px">
       <span style="font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Seu dia até agora</span>
-      <span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--g500)">toque para registrar</span>
+      <span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--g500)" class="so-paciente">toque para registrar</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
       <button onclick="rolarParaRegistroRefeicao()" aria-label="Registrar proteína" style="background:none;border:none;padding:0;cursor:pointer;font-family:var(--ss);min-width:0;text-align:center">
@@ -6672,7 +6675,7 @@ var SANOVA_API_URL='https://sanova-api.contatosanovaapp.workers.dev';
 
 // v3.1.55: fonte única da verdade pra versão. Mostra na tela "Sobre" e em logs.
 // IMPORTANTE: bumpar essa string + bumpar sw.js (CACHE_NAME) a cada release.
-var SANOVA_VERSION = '3.10.84';
+var SANOVA_VERSION = '3.10.85';
 
 var S={profile:{sex:'M',age:null,heightCm:null,activityLevel:'Moderada',startDate:'',weightStartKg:null,weightKg:null,weightGoalKg:null},caneta:{farmaco:'',dose:'',freq:'semanal',faseSac:'',inicio:'',ultima:'',diaSem:1,obs:'',tipo:'',apresentacao:'',concRotuloMg:null,concRotuloMl:null,volumeFrasco:null,estoqueAtual:null},ultimaCalc:null,exercMetaSem:3,weights:[],daily:[],applications:[],insights:[],_meta:null,progressao:null,ciclo:null};
 
@@ -7843,7 +7846,7 @@ async function abrirMeusAlertas(){
     '    <button type="button" onclick="this.closest(\'[data-alerts-ov]\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:24px;cursor:pointer;padding:0 6px">×</button>' +
     '  </div>' +
     '  <div style="font-size:12px;color:rgba(187,247,208,.7);line-height:1.55;margin-bottom:14px;padding:10px 12px;background:rgba(187,247,208,.06);border:1px solid rgba(187,247,208,.15);border-radius:10px">' +
-    '    Transparência LGPD. Estes são os alertas que o Sanova gerou sobre você pros seus profissionais vinculados. <strong>Ausência de alerta não significa ausência de risco</strong> — o Sanova sinaliza best-effort.' +
+    '    Transparência LGPD. Estes são os alertas que o Sanova gerou sobre você pros seus profissionais vinculados. <strong>Ausência de alerta não significa ausência de risco</strong>: o Sanova sinaliza o que os registros permitem ver.' +
     '  </div>' +
     '  <div id="meusAlertasList"><div style="padding:12px;font-size:12px;color:rgba(255,255,255,.5);text-align:center">Carregando…</div></div>' +
     '</div>';
@@ -7861,7 +7864,7 @@ async function abrirMeusAlertas(){
     var eventos = r.data || [];
     var host = document.getElementById('meusAlertasList');
     if(!eventos.length){
-      host.innerHTML = '<div style="padding:16px;font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;line-height:1.6">Nenhum alerta gerado nos últimos 90 dias.<br><span style="color:rgba(255,255,255,.4);font-size:11px">(isso não significa ausência de risco — Sanova sinaliza best-effort)</span></div>';
+      host.innerHTML = '<div style="padding:16px;font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;line-height:1.6">Nenhum alerta gerado nos últimos 90 dias.<br><span style="color:rgba(255,255,255,.4);font-size:11px">(isso não significa ausência de risco: o Sanova sinaliza o que os registros permitem ver)</span></div>';
       return;
     }
     var SEV = { red:{icon:'🔴',color:'#f3a88a'}, yellow:{icon:'🟡',color:'#fcd34d'} };
@@ -20920,6 +20923,8 @@ function renderHero(){
   // Texto em 2ª pessoa: "Você tem X restantes. Cobre N doses — vai durar até DD/MM/AAAA."
   // Adapta pra mg (frasco/ampola) ou canetas. Alertas por cor.
   var estEl = el('heroEstoque');
+  // v3.10.85: o convite pra configurar some no espelho; estoque ja configurado continua visivel.
+  if(estEl) estEl.classList.remove('so-paciente');
   if(estEl){
     var prev = (typeof calcEstoquePrevisao === 'function') ? calcEstoquePrevisao() : null;
     if(prev && prev.doses > 0){
@@ -20986,6 +20991,7 @@ function renderHero(){
       // v3.2.1: ANTES escondia (display:none) quando não havia estoque configurado —
       // resultado: paciente não tinha porta de entrada e o controle "sumia".
       // Agora mostra um convite visível pra configurar.
+      estEl.classList.add('so-paciente');
       estEl.style.display = 'block';
       estEl.innerHTML =
         '<div style="padding:8px 11px;background:rgba(99,102,241,.12);border:1px dashed rgba(165,180,252,.45);border-radius:9px;color:#c7d2fe;line-height:1.4">'+
@@ -23913,7 +23919,7 @@ window.addEventListener('beforeunload',function(){
     var syncCor = sync.velho ? '#fbbf24' : 'rgba(187,247,208,.75)';
     var syncLinha =
       '<span style="display:block;font-size:11px;font-weight:500;color:' + syncCor + ';margin-top:2px">' +
-        (sync.velho ? '⚠️ ' : '') + sync.txt +
+        'Somente leitura · ' + (sync.velho ? '⚠️ ' : '') + sync.txt +
         (sync.velho ? ' · pode haver registros ainda não sincronizados' : '') +
       '</span>';
     var b = document.createElement('div');
@@ -23921,7 +23927,7 @@ window.addEventListener('beforeunload',function(){
     b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:linear-gradient(180deg,#0a3a20 0%,#041b0d 100%);color:#bbf7d0;font-family:system-ui,-apple-system,sans-serif;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.18);border-bottom:1px solid rgba(187,247,208,.22)';
     b.innerHTML =
       '<div style="min-width:0">' +
-        '<span style="display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="font-size:16px">🩺</span><span>Visualizando <strong style="color:#fff">' + (nome.replace(/[<>]/g,'')) + '</strong> · somente leitura</span></span>' +
+        '<span style="display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="font-size:16px">🩺</span><span style="overflow:hidden;text-overflow:ellipsis">Visualizando <strong style="color:#fff">' + (nome.replace(/[<>]/g,'')) + '</strong></span></span>' +
         syncLinha +
       '</div>' +
       '<a href="/pro.html" style="background:#86efac;color:#041b0d;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">← Voltar</a>';
